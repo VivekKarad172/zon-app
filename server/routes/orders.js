@@ -220,4 +220,83 @@ router.put('/bulk-status', authenticate, authorize(['MANUFACTURER']), async (req
     }
 });
 
+// BULK ORDER IMPORT FROM EXCEL (Manufacturer Only)
+router.post('/import', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        const { orders: orderData } = req.body;
+        if (!orderData || !Array.isArray(orderData) || orderData.length === 0) {
+            return res.status(400).json({ error: 'No order data provided' });
+        }
+
+        let created = 0;
+        let failed = 0;
+        const errors = [];
+
+        // Group items by dealerEmail and orderDate to create orders
+        const groupedOrders = {};
+        for (const row of orderData) {
+            const key = `${row.dealerEmail}_${row.orderDate || 'today'}`;
+            if (!groupedOrders[key]) {
+                groupedOrders[key] = { dealerEmail: row.dealerEmail, orderDate: row.orderDate, status: row.status || 'RECEIVED', items: [] };
+            }
+            groupedOrders[key].items.push(row);
+        }
+
+        for (const [key, orderGroup] of Object.entries(groupedOrders)) {
+            try {
+                // Find Dealer by email
+                const dealer = await User.findOne({ where: { email: orderGroup.dealerEmail, role: 'DEALER' } });
+                if (!dealer) {
+                    errors.push({ row: key, error: `Dealer not found: ${orderGroup.dealerEmail}` });
+                    failed += orderGroup.items.length;
+                    continue;
+                }
+
+                // Create Order
+                const order = await Order.create({
+                    userId: dealer.id,
+                    distributorId: dealer.distributorId,
+                    status: orderGroup.status,
+                    createdAt: orderGroup.orderDate ? new Date(orderGroup.orderDate) : new Date()
+                });
+
+                // Create OrderItems
+                for (const item of orderGroup.items) {
+                    try {
+                        const design = await Design.findOne({ where: { designNumber: item.designNumber } });
+                        const color = await Color.findOne({ where: { name: item.colorName } });
+
+                        await OrderItem.create({
+                            orderId: order.id,
+                            designId: design?.id,
+                            colorId: color?.id,
+                            width: parseFloat(item.width) || 0,
+                            height: parseFloat(item.height) || 0,
+                            thickness: item.thickness || '30mm',
+                            quantity: parseInt(item.quantity) || 1,
+                            remarks: item.remarks || '',
+                            designSnapshot: item.designNumber,
+                            colorSnapshot: item.colorName,
+                            designImageSnapshot: design?.imageUrl,
+                            colorImageSnapshot: color?.imageUrl
+                        });
+                        created++;
+                    } catch (itemErr) {
+                        errors.push({ row: item, error: itemErr.message });
+                        failed++;
+                    }
+                }
+            } catch (orderErr) {
+                errors.push({ row: key, error: orderErr.message });
+                failed += orderGroup.items.length;
+            }
+        }
+
+        res.json({ created, failed, errors });
+    } catch (error) {
+        console.error('Import Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 module.exports = router;

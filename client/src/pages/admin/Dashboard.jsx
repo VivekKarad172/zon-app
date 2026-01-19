@@ -51,6 +51,7 @@ export default function AdminDashboard() {
     const [selectedOrders, setSelectedOrders] = useState([]);
     const [dateRange, setDateRange] = useState({ start: '', end: '' });
     const [showBulkAction, setShowBulkAction] = useState(false);
+    const [showImportOrders, setShowImportOrders] = useState(false);
 
 
     useEffect(() => {
@@ -197,6 +198,57 @@ export default function AdminDashboard() {
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Orders");
         XLSX.writeFile(wb, `Orders_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    };
+
+    // === ORDER IMPORT FROM EXCEL ===
+    const downloadOrderImportSample = () => {
+        const wb = XLSX.utils.book_new();
+        const sampleData = [
+            { dealerEmail: 'dealer@example.com', designNumber: 'D-001', colorName: 'Teak Wood', width: 30, height: 78, thickness: '30mm', quantity: 2, status: 'RECEIVED', orderDate: '2024-01-15' },
+            { dealerEmail: 'dealer@example.com', designNumber: 'D-002', colorName: 'Charcoal Grey', width: 32, height: 80, thickness: '32mm', quantity: 1, status: 'PRODUCTION', orderDate: '2024-01-16' }
+        ];
+        const ws = XLSX.utils.json_to_sheet(sampleData);
+        ws['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 8 }, { wch: 12 }, { wch: 12 }];
+        XLSX.utils.book_append_sheet(wb, ws, "Orders");
+        XLSX.writeFile(wb, 'order_import_sample.xlsx');
+    };
+
+    const handleOrderImportFile = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+            try {
+                const bstr = evt.target.result;
+                const wb = XLSX.read(bstr, { type: 'binary' });
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                const data = XLSX.utils.sheet_to_json(ws);
+
+                // Clean and validate data
+                const cleanData = data.map(row => {
+                    const newRow = {};
+                    Object.keys(row).forEach(key => { newRow[key.trim()] = row[key]; });
+                    return newRow;
+                });
+
+                if (cleanData.length === 0) return toast.error('No data found in file');
+
+                // Send to backend
+                const res = await api.post('/orders/import', { orders: cleanData });
+                toast.success(`${res.data.created} orders imported successfully!`);
+                if (res.data.failed > 0) {
+                    toast.error(`${res.data.failed} rows failed - see console`);
+                    console.error('Import Errors:', res.data.errors);
+                }
+                setShowImportOrders(false);
+                fetchOrders();
+            } catch (err) {
+                toast.error(err.response?.data?.error || 'Import failed');
+                console.error('Import Error:', err);
+            }
+        };
+        reader.readAsBinaryString(file);
     };
 
     // DELETE Handlers
@@ -404,6 +456,10 @@ export default function AdminDashboard() {
                         <button onClick={exportOrdersToExcel} className="bg-green-600 hover:bg-green-700 text-white font-bold p-2.5 rounded-xl shadow-lg shadow-green-100 transition-all active:scale-95 flex items-center gap-2 px-3">
                             <FileSpreadsheet size={18} />
                             <span className="text-xs hidden sm:inline">Export</span>
+                        </button>
+                        <button onClick={() => setShowImportOrders(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded-xl shadow-lg shadow-blue-100 transition-all active:scale-95 flex items-center gap-2 px-3">
+                            <Upload size={18} />
+                            <span className="text-xs hidden sm:inline">Import</span>
                         </button>
                     </div>
                 </div>
@@ -1454,8 +1510,74 @@ export default function AdminDashboard() {
                         </div>
                     </div>
                 )}
+
+                {/* === IMPORT ORDERS MODAL === */}
+                {showImportOrders && (
+                    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200] backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8 relative animate-in zoom-in-95 duration-300">
+                            <button onClick={() => setShowImportOrders(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-full transition-all">
+                                <X size={20} />
+                            </button>
+
+                            <div className="text-center mb-6">
+                                <div className="bg-blue-100 text-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                    <Upload size={32} />
+                                </div>
+                                <h3 className="text-2xl font-black text-gray-900">Import Orders from Excel</h3>
+                                <p className="text-gray-500 text-sm mt-1">Upload historical orders or bulk import new orders</p>
+                            </div>
+
+                            <div className="space-y-4">
+                                {/* Step 1: Download Sample */}
+                                <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="font-bold text-gray-700">Step 1: Download Sample</p>
+                                            <p className="text-xs text-gray-500">Get the correct format template</p>
+                                        </div>
+                                        <button onClick={downloadOrderImportSample} className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-2">
+                                            <Download size={14} /> Sample
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Step 2: Upload File */}
+                                <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div>
+                                            <p className="font-bold text-blue-700">Step 2: Upload Your File</p>
+                                            <p className="text-xs text-blue-600/70">Excel .xlsx or .xls format</p>
+                                        </div>
+                                    </div>
+                                    <label className="block w-full bg-white border-2 border-dashed border-blue-200 hover:border-blue-400 rounded-xl p-6 text-center cursor-pointer transition-all hover:bg-blue-50/50">
+                                        <Upload size={24} className="mx-auto text-blue-400 mb-2" />
+                                        <span className="text-sm font-bold text-blue-600">Click to select file</span>
+                                        <input type="file" accept=".xlsx,.xls" onChange={handleOrderImportFile} className="hidden" />
+                                    </label>
+                                </div>
+
+                                {/* Required Columns Info */}
+                                <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
+                                    <p className="text-xs font-bold text-amber-700 uppercase tracking-widest mb-2">Required Columns:</p>
+                                    <div className="grid grid-cols-3 gap-2 text-[10px] font-bold text-amber-800">
+                                        <span>dealerEmail</span>
+                                        <span>designNumber</span>
+                                        <span>colorName</span>
+                                        <span>width</span>
+                                        <span>height</span>
+                                        <span>thickness</span>
+                                        <span>quantity</span>
+                                        <span>status</span>
+                                        <span>orderDate</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
 }
+
 

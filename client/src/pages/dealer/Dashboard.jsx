@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
-import { ShoppingCart, Clock, Bell, Users, CheckCircle, X } from 'lucide-react';
+import { ShoppingCart, Clock, Bell, Users, CheckCircle, X, Plus, Trash2 } from 'lucide-react';
 
 export default function DealerDashboard() {
     const { logout, user } = useAuth();
@@ -16,8 +16,9 @@ export default function DealerDashboard() {
     const [filteredDesigns, setFilteredDesigns] = useState([]);
     const [allColors, setAllColors] = useState([]); // All 20 colors available for all designs
 
-    // Order Form State
-    const [orderItem, setOrderItem] = useState({ doorTypeId: '', designId: '', colorId: '', width: '', height: '', thickness: '30mm', quantity: 1, remarks: '' });
+    // Order Form State - Multi-Size Quick Add
+    const [orderSelection, setOrderSelection] = useState({ doorTypeId: '', designId: '', colorId: '' });
+    const [sizeRows, setSizeRows] = useState([{ id: 1, width: '', height: '', thickness: '30mm', quantity: 1, remarks: '' }]);
     const [cart, setCart] = useState([]);
 
     // My Orders
@@ -33,12 +34,12 @@ export default function DealerDashboard() {
     }, [activeTab]);
 
     useEffect(() => {
-        if (orderItem.doorTypeId) {
-            setFilteredDesigns(designs.filter(d => d.doorTypeId == orderItem.doorTypeId));
+        if (orderSelection.doorTypeId) {
+            setFilteredDesigns(designs.filter(d => d.doorTypeId == orderSelection.doorTypeId));
         } else {
             setFilteredDesigns([]);
         }
-    }, [orderItem.doorTypeId, designs]);
+    }, [orderSelection.doorTypeId, designs]);
 
     // No longer filter colors by design - ALL colors available for ALL designs
     // Removed: useEffect for filteredColors
@@ -51,17 +52,47 @@ export default function DealerDashboard() {
 
     const getImageUrl = (path) => path ? api.defaults.baseURL.replace('/api', '') + path : null;
 
-    const addToCart = (e) => {
-        e.preventDefault();
-        if (!orderItem.designId || !orderItem.colorId) return toast.error('Select Design and Color');
+    // Multi-Size Quick Add Functions
+    const addRow = () => {
+        setSizeRows([...sizeRows, { id: Date.now(), width: '', height: '', thickness: '30mm', quantity: 1, remarks: '' }]);
+    };
 
-        // Enrich item with display data
-        const design = designs.find(d => d.id == orderItem.designId);
-        const color = allColors.find(c => c.id == orderItem.colorId);
+    const removeRow = (id) => {
+        if (sizeRows.length > 1) {
+            setSizeRows(sizeRows.filter(row => row.id !== id));
+        }
+    };
 
-        setCart([...cart, { ...orderItem, designName: design.designNumber, colorName: color.name, designImage: design.imageUrl, colorImage: color.imageUrl, id: Date.now() }]);
-        setOrderItem({ ...orderItem, quantity: 1, remarks: '' }); // Reset quantity/remarks but keep selection
-        toast.success('Added to cart');
+    const updateRow = (id, field, value) => {
+        setSizeRows(sizeRows.map(row =>
+            row.id === id ? { ...row, [field]: value } : row
+        ));
+    };
+
+    const addAllToCart = () => {
+        if (!orderSelection.designId || !orderSelection.colorId) return toast.error('Select Design and Color first');
+
+        const validRows = sizeRows.filter(row => row.width && row.height);
+        if (validRows.length === 0) return toast.error('Enter at least one valid size (Width & Height)');
+
+        const design = designs.find(d => d.id == orderSelection.designId);
+        const color = allColors.find(c => c.id == orderSelection.colorId);
+
+        const newItems = validRows.map(row => ({
+            ...row,
+            doorTypeId: orderSelection.doorTypeId,
+            designId: orderSelection.designId,
+            colorId: orderSelection.colorId,
+            designName: design.designNumber,
+            colorName: color.name,
+            designImage: design.imageUrl,
+            colorImage: color.imageUrl,
+            id: Date.now() + Math.random()
+        }));
+
+        setCart([...cart, ...newItems]);
+        setSizeRows([{ id: 1, width: '', height: '', thickness: '30mm', quantity: 1, remarks: '' }]); // Reset rows
+        toast.success(`${validRows.length} item(s) added to cart!`);
     };
 
     const placeOrder = async () => {
@@ -149,8 +180,8 @@ export default function DealerDashboard() {
                             <div className="grid grid-cols-2 gap-4">
                                 {doors.map(d => (
                                     <button key={d.id}
-                                        onClick={() => setOrderItem({ ...orderItem, doorTypeId: d.id, designId: '', colorId: '' })}
-                                        className={`relative p-5 rounded-2xl text-left transition-all duration-300 group overflow-hidden ${orderItem.doorTypeId == d.id
+                                        onClick={() => setOrderSelection({ ...orderSelection, doorTypeId: d.id, designId: '', colorId: '' })}
+                                        className={`relative p-5 rounded-2xl text-left transition-all duration-300 group overflow-hidden ${orderSelection.doorTypeId == d.id
                                             ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200 scale-[1.02] ring-2 ring-indigo-600 ring-offset-2'
                                             : 'bg-white hover:bg-gray-50 text-gray-700 shadow-sm hover:shadow-md'
                                             }`}
@@ -161,9 +192,9 @@ export default function DealerDashboard() {
                                         <div className="relative z-10">
                                             <span className="text-2xl mb-2 block">🚪</span>
                                             <div className="font-bold text-lg leading-tight">{d.name}</div>
-                                            <div className={`text-xs mt-1 font-medium ${orderItem.doorTypeId == d.id ? 'text-indigo-200' : 'text-gray-400'}`}>{d.thickness}</div>
+                                            <div className={`text-xs mt-1 font-medium ${orderSelection.doorTypeId == d.id ? 'text-indigo-200' : 'text-gray-400'}`}>{d.thickness}</div>
                                         </div>
-                                        {orderItem.doorTypeId == d.id && (
+                                        {orderSelection.doorTypeId == d.id && (
                                             <div className="absolute bottom-3 right-3 bg-white/20 p-1 rounded-full backdrop-blur-sm">
                                                 <CheckCircle size={14} className="text-white" />
                                             </div>
@@ -174,14 +205,14 @@ export default function DealerDashboard() {
                         </section>
 
                         {/* Step 2: Design */}
-                        {orderItem.doorTypeId && (
+                        {orderSelection.doorTypeId && (
                             <section className="animate-in fade-in slide-in-from-bottom-8 duration-500">
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 block ml-1">2. Select Design</label>
                                 <div className="grid grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-1 pb-4">
                                     {filteredDesigns.map(d => (
                                         <div key={d.id}
-                                            onClick={() => setOrderItem({ ...orderItem, designId: d.id, colorId: '' })}
-                                            className={`relative rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 group ${orderItem.designId == d.id
+                                            onClick={() => setOrderSelection({ ...orderSelection, designId: d.id, colorId: '' })}
+                                            className={`relative rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 group ${orderSelection.designId == d.id
                                                 ? 'ring-4 ring-indigo-500 ring-offset-2 shadow-xl'
                                                 : 'shadow-md hover:shadow-xl hover:-translate-y-1'
                                                 }`}
@@ -197,7 +228,7 @@ export default function DealerDashboard() {
                                                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-60"></div>
 
                                                 {/* Selected Indicator */}
-                                                {orderItem.designId == d.id && (
+                                                {orderSelection.designId == d.id && (
                                                     <div className="absolute inset-0 bg-indigo-900/40 backdrop-blur-[1px] flex items-center justify-center animate-in fade-in">
                                                         <div className="bg-white text-indigo-600 rounded-full p-3 shadow-lg transform scale-125">
                                                             <CheckCircle size={24} strokeWidth={3} />
@@ -215,24 +246,24 @@ export default function DealerDashboard() {
                         )}
 
                         {/* Step 3: Color */}
-                        {orderItem.designId && (
+                        {orderSelection.designId && (
                             <section className="animate-in fade-in slide-in-from-bottom-8 duration-500">
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 block ml-1">3. Color</label>
                                 <div className="bg-white p-5 rounded-3xl shadow-sm">
                                     <div className="grid grid-cols-4 sm:grid-cols-5 gap-y-4 gap-x-2">
                                         {allColors.map(c => (
                                             <div key={c.id}
-                                                onClick={() => setOrderItem({ ...orderItem, colorId: c.id })}
+                                                onClick={() => setOrderSelection({ ...orderSelection, colorId: c.id })}
                                                 className="cursor-pointer flex flex-col items-center group"
                                             >
-                                                <div className={`w-14 h-14 rounded-full shadow-sm overflow-hidden border-[3px] transition-all duration-300 ${orderItem.colorId == c.id ? 'border-indigo-600 scale-110 shadow-lg ring-2 ring-indigo-200 ring-offset-2' : 'border-transparent hover:scale-105'}`}>
+                                                <div className={`w-14 h-14 rounded-full shadow-sm overflow-hidden border-[3px] transition-all duration-300 ${orderSelection.colorId == c.id ? 'border-indigo-600 scale-110 shadow-lg ring-2 ring-indigo-200 ring-offset-2' : 'border-transparent hover:scale-105'}`}>
                                                     {c.imageUrl ? (
                                                         <img src={getImageUrl(c.imageUrl)} className="w-full h-full object-cover" alt={c.name} />
                                                     ) : (
                                                         <div className="w-full h-full" style={{ backgroundColor: c.hexCode || '#eee' }}></div>
                                                     )}
                                                 </div>
-                                                <span className={`text-xs font-black mt-2 text-center leading-tight transition-colors ${orderItem.colorId == c.id ? 'text-indigo-600' : 'text-gray-500 group-hover:text-gray-800'}`}>
+                                                <span className={`text-xs font-black mt-2 text-center leading-tight transition-colors ${orderSelection.colorId == c.id ? 'text-indigo-600' : 'text-gray-500 group-hover:text-gray-800'}`}>
                                                     {c.name}
                                                 </span>
                                             </div>
@@ -242,51 +273,81 @@ export default function DealerDashboard() {
                             </section>
                         )}
 
-                        {/* Step 4: Dimensions & Action */}
-                        {orderItem.colorId && (
+                        {/* Step 4: Multi-Size Quick Add Table */}
+                        {orderSelection.colorId && (
                             <section className="animate-in fade-in slide-in-from-bottom-8 duration-500 pb-10">
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 block ml-1">4. Dimensions & Add</label>
-                                <div className="bg-white p-6 rounded-3xl shadow-lg border border-indigo-50/50">
-                                    <div className="flex gap-4 mb-4">
-                                        <div className="flex-1">
-                                            <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">Width (inch)</label>
-                                            <input type="number" className="w-full bg-gray-50 border-gray-100 rounded-xl p-3 font-bold text-lg text-center focus:ring-2 focus:ring-indigo-500 outline-none transition-all" value={orderItem.width} onChange={e => setOrderItem({ ...orderItem, width: e.target.value })} placeholder='0' />
-                                        </div>
-                                        <div className="flex items-center text-gray-300 font-light text-2xl mt-4">×</div>
-                                        <div className="flex-1">
-                                            <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">Height (inch)</label>
-                                            <input type="number" className="w-full bg-gray-50 border-gray-100 rounded-xl p-3 font-bold text-lg text-center focus:ring-2 focus:ring-indigo-500 outline-none transition-all" value={orderItem.height} onChange={e => setOrderItem({ ...orderItem, height: e.target.value })} placeholder='0' />
-                                        </div>
-                                    </div>
-
-                                    <div className="flex gap-4 mb-6">
-                                        <div className="w-1/2">
-                                            <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">Thickness</label>
-                                            <select className="w-full bg-gray-50 border-gray-100 rounded-xl p-3 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={orderItem.thickness} onChange={e => setOrderItem({ ...orderItem, thickness: e.target.value })}>
-                                                <option value="30mm">30mm</option>
-                                                <option value="32mm">32mm</option>
-                                                <option value="35mm">35mm</option>
-                                                <option value="Custom">Custom</option>
-                                            </select>
-                                        </div>
-                                        <div className="w-1/2">
-                                            <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">Qty</label>
-                                            <div className="flex items-center bg-gray-50 rounded-xl border border-gray-100 px-1">
-                                                <button onClick={() => setOrderItem(prev => ({ ...prev, quantity: Math.max(1, prev.quantity - 1) }))} className="p-2 text-gray-500 hover:text-indigo-600 font-bold">-</button>
-                                                <input type="number" className="w-full bg-transparent border-none text-center font-bold p-1" value={orderItem.quantity} onChange={e => setOrderItem({ ...orderItem, quantity: Math.max(1, parseInt(e.target.value) || 1) })} />
-                                                <button onClick={() => setOrderItem(prev => ({ ...prev, quantity: parseInt(prev.quantity) + 1 }))} className="p-2 text-gray-500 hover:text-indigo-600 font-bold">+</button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="mb-6">
-                                        <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">Remarks / Custom Size Info</label>
-                                        <input type="text" className="w-full bg-gray-50 border-gray-100 rounded-xl p-3 font-medium text-sm focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Optional notes..." value={orderItem.remarks} onChange={e => setOrderItem({ ...orderItem, remarks: e.target.value })} />
-                                    </div>
-
-                                    <button onClick={addToCart} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 transform active:scale-95 transition-all">
-                                        <ShoppingCart size={20} /> Add to Cart
+                                <div className="flex justify-between items-center mb-3">
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">4. Add Sizes</label>
+                                    <button onClick={addRow} className="flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-3 py-1.5 rounded-full transition-all hover:bg-indigo-100">
+                                        <Plus size={14} /> Add Row
                                     </button>
+                                </div>
+                                <div className="bg-white p-4 rounded-3xl shadow-lg border border-indigo-50/50">
+                                    {/* Table Header */}
+                                    <div className="grid grid-cols-12 gap-2 mb-2 px-1">
+                                        <div className="col-span-3 text-[10px] uppercase font-bold text-gray-400">Width</div>
+                                        <div className="col-span-3 text-[10px] uppercase font-bold text-gray-400">Height</div>
+                                        <div className="col-span-3 text-[10px] uppercase font-bold text-gray-400">Thick</div>
+                                        <div className="col-span-2 text-[10px] uppercase font-bold text-gray-400">Qty</div>
+                                        <div className="col-span-1"></div>
+                                    </div>
+
+                                    {/* Size Rows */}
+                                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                                        {sizeRows.map((row, index) => (
+                                            <div key={row.id} className="grid grid-cols-12 gap-2 items-center bg-gray-50 p-2 rounded-xl border border-gray-100">
+                                                <input
+                                                    type="number"
+                                                    className="col-span-3 bg-white border border-gray-200 rounded-lg p-2 text-center font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                    placeholder="W"
+                                                    value={row.width}
+                                                    onChange={e => updateRow(row.id, 'width', e.target.value)}
+                                                />
+                                                <input
+                                                    type="number"
+                                                    className="col-span-3 bg-white border border-gray-200 rounded-lg p-2 text-center font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                    placeholder="H"
+                                                    value={row.height}
+                                                    onChange={e => updateRow(row.id, 'height', e.target.value)}
+                                                />
+                                                <select
+                                                    className="col-span-3 bg-white border border-gray-200 rounded-lg p-2 text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                    value={row.thickness}
+                                                    onChange={e => updateRow(row.id, 'thickness', e.target.value)}
+                                                >
+                                                    <option value="30mm">30mm</option>
+                                                    <option value="32mm">32mm</option>
+                                                    <option value="35mm">35mm</option>
+                                                    <option value="Custom">Custom</option>
+                                                </select>
+                                                <input
+                                                    type="number"
+                                                    className="col-span-2 bg-white border border-gray-200 rounded-lg p-2 text-center font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                    placeholder="Qty"
+                                                    value={row.quantity}
+                                                    min="1"
+                                                    onChange={e => updateRow(row.id, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
+                                                />
+                                                <button
+                                                    onClick={() => removeRow(row.id)}
+                                                    className={`col-span-1 p-2 rounded-lg transition-all ${sizeRows.length > 1 ? 'text-red-400 hover:text-red-600 hover:bg-red-50' : 'text-gray-300 cursor-not-allowed'}`}
+                                                    disabled={sizeRows.length <= 1}
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Summary & Add All Button */}
+                                    <div className="mt-4 pt-4 border-t border-gray-100">
+                                        <div className="text-xs text-gray-500 mb-3 text-center">
+                                            {sizeRows.filter(r => r.width && r.height).length} valid size(s) ready to add
+                                        </div>
+                                        <button onClick={addAllToCart} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 transform active:scale-95 transition-all">
+                                            <ShoppingCart size={20} /> Add All to Cart
+                                        </button>
+                                    </div>
                                 </div>
                             </section>
                         )}
