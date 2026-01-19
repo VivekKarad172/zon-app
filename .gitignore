@@ -1,1 +1,8 @@
 node_modules
+.env
+client/.env
+client/node_modules
+client/dist
+client/.cache
+server/node_modules
+server/uploads/

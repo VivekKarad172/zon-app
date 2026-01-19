@@ -79,7 +79,7 @@ export default function Login() {
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-black text-indigo-900 tracking-tight">Z-ON DOOR</h1>
                     <p className="text-gray-500 font-medium">Manufacturing Workflow System</p>
-                    <p className="text-blue-600 font-bold text-sm mt-2">v1.3 Cloud Fixed (Live!)</p>
+                    <p className="text-blue-600 font-bold text-sm mt-2">v1.4 Final Cloud Fix</p>
                 </div>
 
                 <div className="flex bg-gray-100 p-1 rounded-lg mb-6">
