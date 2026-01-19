@@ -25,14 +25,7 @@ app.use((req, res, next) => {
 // Serve Static Files (React App)
 app.use(express.static(path.join(__dirname, '../client/dist')));
 
-// Handle React Routing (SPA Catch-All)
-app.get(/(.*)/, (req, res) => {
-    // If request is for API, don't return HTML (404 instead)
-    if (req.url.startsWith('/api')) {
-        return res.status(404).json({ message: 'API Route not found' });
-    }
-    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
-});
+// (Moved Catch-All to bottom)
 
 // Import Routes
 const authRoutes = require('./routes/auth');
@@ -57,6 +50,15 @@ app.get('/api/seed', async (req, res) => {
         console.error(err);
         res.status(500).send('Seeding Failed: ' + err.message);
     }
+});
+
+// PROPER PLACEMENT: Handle React Routing (SPA Catch-All) - AFTER API Routes
+app.get(/(.*)/, (req, res) => {
+    // If request is for API, don't return HTML (404 instead) but we are at the end so it IS a 404
+    if (req.url.startsWith('/api')) {
+        return res.status(404).json({ message: 'API Route not found' });
+    }
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
 });
 
 // Sync Database and Start Server
