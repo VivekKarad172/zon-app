@@ -52,6 +52,8 @@ export default function AdminDashboard() {
     const [dateRange, setDateRange] = useState({ start: '', end: '' });
     const [showBulkAction, setShowBulkAction] = useState(false);
     const [showImportOrders, setShowImportOrders] = useState(false);
+    const [showBulkDesigns, setShowBulkDesigns] = useState(false);
+    const [showBulkColors, setShowBulkColors] = useState(false);
 
 
     useEffect(() => {
@@ -363,6 +365,88 @@ export default function AdminDashboard() {
         } catch (e) {
             toast.error(e.response?.data?.error || 'Bulk upload failed');
         }
+    };
+
+    // === BULK UPLOAD FOR DESIGNS ===
+    const downloadDesignSample = () => {
+        const wb = XLSX.utils.book_new();
+        const data = [
+            { designNumber: 'D-001', category: 'Premium', doorType: 'WPC', isTrending: 'false' },
+            { designNumber: 'D-002', category: 'Classic', doorType: 'PVC', isTrending: 'true' }
+        ];
+        const ws = XLSX.utils.json_to_sheet(data);
+        ws['!cols'] = [{ wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 10 }];
+        XLSX.utils.book_append_sheet(wb, ws, "Designs");
+        XLSX.writeFile(wb, 'design_bulk_sample.xlsx');
+    };
+
+    const handleBulkDesignUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+            try {
+                const bstr = evt.target.result;
+                const wb = XLSX.read(bstr, { type: 'binary' });
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                const data = XLSX.utils.sheet_to_json(ws);
+                const cleanData = data.map(row => {
+                    const newRow = {};
+                    Object.keys(row).forEach(key => newRow[key.trim()] = row[key]);
+                    return newRow;
+                });
+
+                const res = await api.post('/designs/bulk', { designs: cleanData });
+                toast.success(res.data.message);
+                setShowBulkDesigns(false);
+                fetchDesigns();
+            } catch (err) {
+                toast.error(err.response?.data?.error || 'Bulk design upload failed');
+            }
+        };
+        reader.readAsBinaryString(file);
+    };
+
+    // === BULK UPLOAD FOR FOIL COLORS ===
+    const downloadFoilColorSample = () => {
+        const wb = XLSX.utils.book_new();
+        const data = [
+            { name: 'Teak Wood' },
+            { name: 'Matt White' },
+            { name: 'Charcoal Grey' },
+            { name: 'Natural Oak' }
+        ];
+        const ws = XLSX.utils.json_to_sheet(data);
+        ws['!cols'] = [{ wch: 20 }];
+        XLSX.utils.book_append_sheet(wb, ws, "FoilColors");
+        XLSX.writeFile(wb, 'foil_color_bulk_sample.xlsx');
+    };
+
+    const handleBulkFoilColorUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+            try {
+                const bstr = evt.target.result;
+                const wb = XLSX.read(bstr, { type: 'binary' });
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                const data = XLSX.utils.sheet_to_json(ws);
+                const cleanData = data.map(row => {
+                    const newRow = {};
+                    Object.keys(row).forEach(key => newRow[key.trim()] = row[key]);
+                    return newRow;
+                });
+
+                const res = await api.post('/colors/bulk', { colors: cleanData });
+                toast.success(res.data.message);
+                setShowBulkColors(false);
+                fetchColors();
+            } catch (err) {
+                toast.error(err.response?.data?.error || 'Bulk foil color upload failed');
+            }
+        };
+        reader.readAsBinaryString(file);
     };
 
     return (
@@ -880,12 +964,14 @@ export default function AdminDashboard() {
                                 <h2 className="text-2xl font-black text-gray-900 tracking-tight">Design Portfolio</h2>
                                 <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Digital catalog and product inventory</p>
                             </div>
-                            <button
-                                onClick={() => setShowAddDesign(true)}
-                                className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-2xl font-black shadow-lg shadow-indigo-100 flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-widest"
-                            >
-                                <Plus size={18} /> New Creation
-                            </button>
+                            <div className="flex gap-2 w-full sm:w-auto">
+                                <button onClick={() => setShowBulkDesigns(true)} className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-2xl font-black shadow-lg shadow-emerald-100 flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-widest">
+                                    <Upload size={16} /> Bulk
+                                </button>
+                                <button onClick={() => setShowAddDesign(true)} className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-black shadow-lg shadow-indigo-100 flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-widest">
+                                    <Plus size={18} /> New
+                                </button>
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8">
@@ -939,14 +1025,17 @@ export default function AdminDashboard() {
                 )}
                 {activeTab === 'masters' && (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-12">
-                        {/* Global Color Master */}
+                        {/* Global Foil Color Master */}
                         <div className="lg:col-span-2 bg-white p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100">
-                            <div className="flex justify-between items-center mb-8">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
                                 <div>
-                                    <h2 className="text-2xl font-black text-gray-900 tracking-tight">Color Spectrum</h2>
-                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Global texture and finish definitions</p>
+                                    <h2 className="text-2xl font-black text-gray-900 tracking-tight">Foil Color Spectrum</h2>
+                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Laminate texture and finish definitions</p>
                                 </div>
-                                <button onClick={() => setShowAddColor(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-2xl font-black shadow-lg shadow-indigo-100 flex items-center gap-2 transition-all active:scale-95 text-[10px] uppercase tracking-widest">+ New Color</button>
+                                <div className="flex gap-2">
+                                    <button onClick={() => setShowBulkColors(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-2xl font-black shadow-lg shadow-emerald-100 flex items-center gap-2 transition-all active:scale-95 text-[10px] uppercase tracking-widest"><Upload size={14} /> Bulk</button>
+                                    <button onClick={() => setShowAddColor(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-2xl font-black shadow-lg shadow-indigo-100 flex items-center gap-2 transition-all active:scale-95 text-[10px] uppercase tracking-widest">+ New Foil</button>
+                                </div>
                             </div>
                             <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-6 gap-4">
                                 {colors.map(c => (
@@ -1570,6 +1659,74 @@ export default function AdminDashboard() {
                                         <span>status</span>
                                         <span>orderDate</span>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Bulk Upload Designs Modal */}
+                {showBulkDesigns && (
+                    <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 animate-in fade-in">
+                        <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-black text-gray-900">Bulk Upload Designs</h3>
+                                <button onClick={() => setShowBulkDesigns(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+                            </div>
+                            <div className="space-y-4">
+                                <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="font-bold text-gray-700">Step 1: Download Sample</p>
+                                            <p className="text-xs text-gray-500">Template with columns: designNumber, category, doorType</p>
+                                        </div>
+                                        <button onClick={downloadDesignSample} className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-2">
+                                            <Download size={14} /> Sample
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="bg-indigo-50 rounded-2xl p-4 border border-indigo-100">
+                                    <p className="font-bold text-indigo-700 mb-2">Step 2: Upload Your File</p>
+                                    <label className="block w-full bg-white border-2 border-dashed border-indigo-200 hover:border-indigo-400 rounded-xl p-6 text-center cursor-pointer transition-all">
+                                        <Upload size={24} className="mx-auto text-indigo-400 mb-2" />
+                                        <span className="text-sm font-bold text-indigo-600">Click to upload Excel</span>
+                                        <p className="text-xs text-gray-400 mt-1">Photos can be uploaded later via Edit</p>
+                                        <input type="file" accept=".xlsx,.xls" onChange={handleBulkDesignUpload} className="hidden" />
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Bulk Upload Foil Colors Modal */}
+                {showBulkColors && (
+                    <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 animate-in fade-in">
+                        <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-black text-gray-900">Bulk Upload Foil Colors</h3>
+                                <button onClick={() => setShowBulkColors(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+                            </div>
+                            <div className="space-y-4">
+                                <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="font-bold text-gray-700">Step 1: Download Sample</p>
+                                            <p className="text-xs text-gray-500">Template with column: name</p>
+                                        </div>
+                                        <button onClick={downloadFoilColorSample} className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-2">
+                                            <Download size={14} /> Sample
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
+                                    <p className="font-bold text-emerald-700 mb-2">Step 2: Upload Your File</p>
+                                    <label className="block w-full bg-white border-2 border-dashed border-emerald-200 hover:border-emerald-400 rounded-xl p-6 text-center cursor-pointer transition-all">
+                                        <Upload size={24} className="mx-auto text-emerald-400 mb-2" />
+                                        <span className="text-sm font-bold text-emerald-600">Click to upload Excel</span>
+                                        <p className="text-xs text-gray-400 mt-1">Texture photos can be uploaded later</p>
+                                        <input type="file" accept=".xlsx,.xls" onChange={handleBulkFoilColorUpload} className="hidden" />
+                                    </label>
                                 </div>
                             </div>
                         </div>

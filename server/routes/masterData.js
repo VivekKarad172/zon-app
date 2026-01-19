@@ -205,4 +205,115 @@ router.delete('/designs/:id', authenticate, authorize(['MANUFACTURER']), async (
     }
 });
 
+// === BULK UPLOAD ROUTES ===
+
+// Bulk Upload Foil Colors (from Excel - no images, just names)
+router.post('/colors/bulk', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        const { colors } = req.body;
+        if (!colors || !Array.isArray(colors) || colors.length === 0) {
+            return res.status(400).json({ error: 'No colors data provided' });
+        }
+
+        let created = 0, skipped = 0;
+        const errors = [];
+
+        for (const item of colors) {
+            const name = item.name?.toString().trim();
+            if (!name) {
+                skipped++;
+                errors.push({ row: item, error: 'Missing name' });
+                continue;
+            }
+
+            // Check if already exists
+            const existing = await Color.findOne({ where: { name } });
+            if (existing) {
+                skipped++;
+                errors.push({ row: item, error: 'Already exists' });
+                continue;
+            }
+
+            await Color.create({
+                name,
+                hexCode: item.hexCode || '#888888',
+                isEnabled: true
+            });
+            created++;
+        }
+
+        res.json({
+            message: `${created} foil colors created, ${skipped} skipped`,
+            created,
+            skipped,
+            errors
+        });
+    } catch (error) {
+        console.error('Bulk color upload error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Bulk Upload Designs (from Excel - no images, just design numbers)
+router.post('/designs/bulk', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        const { designs } = req.body;
+        if (!designs || !Array.isArray(designs) || designs.length === 0) {
+            return res.status(400).json({ error: 'No designs data provided' });
+        }
+
+        // Get default door type (first one)
+        const defaultDoor = await DoorType.findOne();
+        const defaultDoorId = defaultDoor?.id || 1;
+
+        let created = 0, skipped = 0;
+        const errors = [];
+
+        for (const item of designs) {
+            const designNumber = item.designNumber?.toString().trim() || item.name?.toString().trim();
+            if (!designNumber) {
+                skipped++;
+                errors.push({ row: item, error: 'Missing designNumber' });
+                continue;
+            }
+
+            // Check if already exists
+            const existing = await Design.findOne({ where: { designNumber } });
+            if (existing) {
+                skipped++;
+                errors.push({ row: item, error: 'Already exists' });
+                continue;
+            }
+
+            // Find door type by name if provided
+            let doorTypeId = defaultDoorId;
+            if (item.doorType || item.material) {
+                const doorName = (item.doorType || item.material).toString().trim();
+                const door = await DoorType.findOne({ where: { name: { [Op.like]: `%${doorName}%` } } });
+                if (door) doorTypeId = door.id;
+            }
+
+            await Design.create({
+                designNumber,
+                category: item.category || 'Standard',
+                doorTypeId,
+                isTrending: item.isTrending === true || item.isTrending === 'true',
+                isEnabled: true
+            });
+            created++;
+        }
+
+        res.json({
+            message: `${created} designs created, ${skipped} skipped`,
+            created,
+            skipped,
+            errors
+        });
+    } catch (error) {
+        console.error('Bulk design upload error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 module.exports = router;
+
