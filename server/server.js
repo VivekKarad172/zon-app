@@ -40,12 +40,24 @@ const masterDataRoutes = require('./routes/masterData');
 const orderRoutes = require('./routes/orders');
 const usersRoutes = require('./routes/users');
 const postsRoutes = require('./routes/posts'); // NEW: What's New
+const seed = require('./seed');
 
 app.use('/api/auth', authRoutes);
 app.use('/api', masterDataRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/posts', postsRoutes); // NEW: What's New
+
+// TEMPORARY: Seed Database via URL
+app.get('/api/seed', async (req, res) => {
+    try {
+        await seed();
+        res.send('<h1>Database Seeded Successfully!</h1><p>You can now login as admin/admin123</p>');
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Seeding Failed: ' + err.message);
+    }
+});
 
 // Sync Database and Start Server
 // Reverted to standard sync to prevent FK constraint errors

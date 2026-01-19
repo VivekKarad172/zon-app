@@ -95,10 +95,13 @@ async function seed() {
     });
 
     console.log('Seed Data Created Successfully!');
-    process.exit();
 }
 
-seed().catch(err => {
-    console.error(err);
-    process.exit(1);
-});
+if (require.main === module) {
+    seed().catch(err => {
+        console.error(err);
+        process.exit(1);
+    });
+}
+
+module.exports = seed;
