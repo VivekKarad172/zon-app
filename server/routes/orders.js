@@ -1,0 +1,223 @@
+const express = require('express');
+const router = express.Router();
+const { Order, OrderItem, Design, Color, User, DoorType } = require('../models');
+const { authenticate, authorize } = require('../middleware/auth');
+const { Op } = require('sequelize');
+
+// Create Order (Dealer)
+router.post('/', authenticate, authorize(['DEALER']), async (req, res) => {
+    try {
+        const { items, remarks } = req.body; // items: [{ designId, colorId, width, height, quantity, remarks }]
+
+        if (!items || items.length === 0) return res.status(400).json({ error: 'No items' });
+
+        // Verify Dealer Link
+        if (!req.user.distributorId) return res.status(400).json({ error: 'Dealer not linked to Distributor' });
+
+        const order = await Order.create({
+            userId: req.user.id,
+            distributorId: req.user.distributorId,
+            status: 'RECEIVED'
+        });
+
+        // Create Items with Snapshots
+        for (const item of items) {
+            const design = await Design.findByPk(item.designId);
+            const color = await Color.findByPk(item.colorId);
+
+            await OrderItem.create({
+                orderId: order.id,
+                designId: item.designId,
+                colorId: item.colorId,
+                width: item.width,
+                height: item.height,
+                quantity: item.quantity,
+                remarks: item.remarks,
+                // Snapshots
+                designNameSnapshot: design ? design.designNumber : 'Unknown',
+                colorNameSnapshot: color ? color.name : 'Unknown',
+                designImageSnapshot: design ? design.imageUrl : null,
+                colorImageSnapshot: color ? color.imageUrl : null
+            });
+        }
+
+        res.status(201).json(order);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get Orders (Filtered)
+router.get('/', authenticate, async (req, res) => {
+    try {
+        const { status, dealerId, search, sort } = req.query;
+        const where = {};
+
+        // Role Restrictions
+        if (req.user.role === 'DEALER') {
+            where.userId = req.user.id;
+        } else if (req.user.role === 'DISTRIBUTOR') {
+            where.distributorId = req.user.id; // User ID of distributor is stored in orders.distributorId? No, orders.distributorId matches user.id of dist.
+            // Wait, User table has id. Order has distributorId.
+            // If I am a distributor, my ID is 2. Orders for me have distributorId=2.
+            where.distributorId = req.user.id;
+        }
+        // Manufacturer sees all
+
+        // Filters
+        if (status) where.status = status;
+        if (dealerId && req.user.role !== 'DEALER') where.userId = dealerId;
+
+        // Date Filtering
+        if (req.query.startDate && req.query.endDate) {
+            where.createdAt = {
+                [Op.between]: [
+                    new Date(req.query.startDate + 'T00:00:00.000Z'),
+                    new Date(req.query.endDate + 'T23:59:59.999Z')
+                ]
+            };
+        }
+
+        // Search (by ID or Dealer Name)
+        // Complex Search needs Include
+        const include = [
+            {
+                model: User,
+                attributes: ['name', 'username'],
+            },
+            {
+                model: OrderItem,
+                include: [
+                    { model: Design, attributes: ['designNumber'] }, // Fallback if snapshot missing
+                    { model: Color, attributes: ['name'] }
+                ]
+            }
+        ];
+
+        if (search) {
+            // Start with logic for Order ID
+            if (!isNaN(search)) {
+                where.id = search;
+            }
+            // Note: searching across associated dealer name is harder in simple Sequelize without subqueries, 
+            // typically handled on frontend or advanced query. 
+            // ensuring simplicity: we filter by ID if number.
+        }
+
+        const orders = await Order.findAll({
+            where,
+            include,
+            order: [['createdAt', sort === 'oldest' ? 'ASC' : 'DESC']]
+        });
+
+        res.json(orders);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update Status
+router.put('/:id/status', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR', 'DEALER']), async (req, res) => {
+    try {
+        const order = await Order.findByPk(req.params.id);
+        if (!order) return res.status(404).json({ error: 'Not found' });
+
+        const newStatus = req.body.status;
+
+        // Authorization Check for Distributor
+        if (req.user.role === 'DISTRIBUTOR' && order.distributorId !== req.user.id) {
+            return res.status(403).json({ error: 'Unauthorized' });
+        }
+
+        // Authorization Check for Dealer - Can only cancel their own orders before production
+        if (req.user.role === 'DEALER') {
+            // Dealer can only modify their own orders
+            if (order.userId !== req.user.id) {
+                return res.status(403).json({ error: 'Unauthorized - not your order' });
+            }
+            // Dealer can only set status to CANCELLED
+            if (newStatus !== 'CANCELLED') {
+                return res.status(403).json({ error: 'Dealers can only cancel orders' });
+            }
+            // Dealer can only cancel if order is in RECEIVED status (before production)
+            if (order.status !== 'RECEIVED') {
+                return res.status(403).json({ error: 'Cannot cancel - order already in production' });
+            }
+        }
+
+        await order.update({ status: newStatus });
+        res.json(order);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ANALYTICS ENDPOINT (Manufacturer Only)
+router.get('/analytics', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        // 1. KPIs
+        const totalOrders = await Order.count();
+        const pendingOrders = await Order.count({
+            where: { status: { [Op.notIn]: ['DISPATCHED', 'CANCELLED'] } }
+        });
+        const completedOrders = await Order.count({
+            where: { status: 'DISPATCHED' }
+        });
+
+        // 2. Orders per Distributor (Chart Data)
+        // Group by distributorId
+        const distData = await Order.findAll({
+            attributes: [
+                'distributorId',
+                [sequelize.fn('COUNT', sequelize.col('Order.id')), 'count']
+            ],
+            include: [{ model: User, as: 'Distributor', attributes: ['name', 'shopName'] }], // Ensure association exists or handle manually
+            group: ['distributorId', 'Distributor.id'],
+            order: [[sequelize.literal('count'), 'DESC']],
+            limit: 5
+        });
+
+        // 3. Recent Activity
+        const recentOrders = await Order.findAll({
+            limit: 5,
+            order: [['createdAt', 'DESC']],
+            include: [{ model: User, attributes: ['name'] }]
+        });
+
+        res.json({
+            kpi: { totalOrders, pendingOrders, completedOrders },
+            chartData: distData.map(d => ({
+                name: d.Distributor?.name || 'Unknown',
+                count: parseInt(d.getDataValue('count'))
+            })),
+            recentOrders
+        });
+    } catch (error) {
+        console.error("Analytics Error:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// BULK STATUS UPDATE
+router.put('/bulk-status', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        const { orderIds, status } = req.body;
+        if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+            return res.status(400).json({ error: 'Invalid order IDs' });
+        }
+
+        await Order.update({ status }, {
+            where: {
+                id: { [Op.in]: orderIds }
+            }
+        });
+
+        res.json({ message: 'Orders updated successfully' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+module.exports = router;

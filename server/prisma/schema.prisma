@@ -1,0 +1,79 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id            Int      @id @default(autoincrement())
+  username      String   @unique
+  password      String
+  role          String   // MANUFACTURER, DISTRIBUTOR, DEALER
+  name          String
+  distributorId Int?     // For dealers, linked to a distributor
+  distributor   User?    @relation("DistributorDealers", fields: [distributorId], references: [id])
+  dealers       User[]   @relation("DistributorDealers")
+  orders        Order[]
+  createdAt     DateTime @default(now())
+}
+
+model DoorType {
+  id        Int      @id @default(autoincrement())
+  name      String   // PVC, WPC
+  thickness String   // 30mm, 28mm
+  isEnabled Boolean  @default(true)
+  designs   Design[]
+}
+
+model Design {
+  id           Int      @id @default(autoincrement())
+  designNumber String   @unique
+  category     String?
+  imageUrl     String?
+  doorTypeId   Int
+  doorType     DoorType @relation(fields: [doorTypeId], references: [id])
+  isTrending   Boolean  @default(false)
+  colors       Color[]
+  orderItems   OrderItem[]
+}
+
+model Color {
+  id         Int      @id @default(autoincrement())
+  name       String
+  hexCode    String?
+  designId   Int
+  design     Design   @relation(fields: [designId], references: [id])
+  isEnabled  Boolean  @default(true)
+  isTrending Boolean  @default(false)
+  orderItems OrderItem[]
+}
+
+model Order {
+  id            Int         @id @default(autoincrement())
+  userId        Int         // Dealer who placed the order
+  user          User        @relation(fields: [userId], references: [id])
+  distributorId Int?        // Redundant but useful for easy filtering
+  status        String      @default("RECEIVED") // RECEIVED, PRODUCTION, READY, DISPATCHED
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  items         OrderItem[]
+}
+
+model OrderItem {
+  id       Int    @id @default(autoincrement())
+  orderId  Int
+  order    Order  @relation(fields: [orderId], references: [id])
+  designId Int
+  design   Design @relation(fields: [designId], references: [id])
+  colorId  Int
+  color    Color  @relation(fields: [colorId], references: [id])
+  width    Float
+  height   Float
+  quantity Int
+}
