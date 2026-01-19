@@ -26,7 +26,7 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(__dirname, '../client/dist')));
 
 // Handle React Routing (SPA Catch-All)
-app.get('*', (req, res) => {
+app.get('/*', (req, res) => {
     // If request is for API, don't return HTML (404 instead)
     if (req.url.startsWith('/api')) {
         return res.status(404).json({ message: 'API Route not found' });
