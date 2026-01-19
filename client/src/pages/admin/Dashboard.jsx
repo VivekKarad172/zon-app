@@ -315,8 +315,8 @@ export default function AdminDashboard() {
 
     return (
         <div className="min-h-screen bg-gray-100 font-sans">
-            {/* Premium Header */}
-            <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-indigo-800 shadow-xl p-4 sticky top-0 z-50 backdrop-blur-md">
+            {/* Premium Header with Enhanced Layering */}
+            <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-indigo-800 shadow-xl p-4 sticky top-0 z-[100] backdrop-blur-md border-b border-white/10">
                 <div className="max-w-7xl mx-auto flex justify-between items-center text-white">
                     <div className="flex items-center gap-3">
                         <div className="bg-white/10 p-2 rounded-xl backdrop-blur-md border border-white/20 shadow-inner">
@@ -343,9 +343,9 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
-            {/* Floating Navigation Panels */}
-            <div className="px-4 -mt-8 relative z-40 mb-10">
-                <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl p-2 flex justify-between gap-1 max-w-5xl mx-auto overflow-x-auto border border-white/40 ring-1 ring-black/5 no-scrollbar">
+            {/* Floating Navigation Panels - Adjusted Layering */}
+            <div className="px-4 -mt-8 relative z-[90] mb-10">
+                <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl p-2 flex justify-between gap-1 max-w-5xl mx-auto overflow-x-auto border border-white/50 ring-1 ring-black/5 no-scrollbar">
                     {[
                         { id: 'home', label: 'Home', icon: Home },
                         { id: 'orders', label: 'Orders', icon: ShoppingBag },
@@ -602,13 +602,15 @@ export default function AdminDashboard() {
                                 <tbody className="divide-y divide-gray-50">
                                     {orders.length > 0 ? orders.map(order => (
                                         <tr key={order.id} className={`hover:bg-indigo-50/30 transition-colors group ${order.isEdited ? 'bg-orange-50/50' : ''} ${selectedOrders.includes(order.id) ? 'bg-indigo-50' : ''}`}>
-                                            <td className="px-8 py-5">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedOrders.includes(order.id)}
-                                                    onChange={() => toggleOrderSelection(order.id)}
-                                                    className="rounded-lg border-gray-200 text-indigo-600 focus:ring-indigo-500 w-5 h-5 cursor-pointer"
-                                                />
+                                            <td className="px-8 py-5 align-middle">
+                                                <div className="flex items-center justify-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedOrders.includes(order.id)}
+                                                        onChange={() => toggleOrderSelection(order.id)}
+                                                        className="rounded-lg border-gray-200 text-indigo-600 focus:ring-indigo-500 w-5 h-5 cursor-pointer shadow-sm transition-all"
+                                                    />
+                                                </div>
                                             </td>
                                             <td className="px-6 py-5">
                                                 <div className="flex items-center gap-2">
@@ -618,14 +620,14 @@ export default function AdminDashboard() {
                                                 <div className="text-[10px] text-gray-400 font-bold uppercase">{new Date(order.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</div>
                                             </td>
                                             <td className="px-6 py-5">
-                                                <div className="font-black text-gray-800 text-sm tracking-tight">{order.User?.name}</div>
-                                                <div className="text-[10px] text-gray-500 font-bold flex items-center gap-1"><Home size={10} /> {order.User?.shopName}</div>
+                                                <div className="font-black text-gray-900 text-sm tracking-tight truncate max-w-[150px]">{order.User?.name}</div>
+                                                <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1 mt-0.5"><Home size={10} className="opacity-50" /> {order.User?.shopName}</div>
                                             </td>
                                             <td className="px-6 py-5">
                                                 <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest">{order.OrderItems?.length} Units</span>
                                             </td>
                                             <td className="px-6 py-5">
-                                                <span className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tight shadow-sm flex items-center w-fit gap-1.5 ${order.status === 'RECEIVED' ? 'bg-yellow-400 text-yellow-900 ring-4 ring-yellow-50' :
+                                                <span className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tight shadow-sm flex items-center w-fit gap-1.5 whitespace-nowrap ${order.status === 'RECEIVED' ? 'bg-yellow-400 text-yellow-900 ring-4 ring-yellow-50' :
                                                     order.status === 'PRODUCTION' ? 'bg-indigo-600 text-white ring-4 ring-indigo-50' :
                                                         order.status === 'READY' ? 'bg-emerald-600 text-white ring-4 ring-emerald-50' :
                                                             order.status === 'DISPATCHED' ? 'bg-purple-600 text-white ring-4 ring-purple-50' :
@@ -641,7 +643,7 @@ export default function AdminDashboard() {
                                                         <select
                                                             value={order.status}
                                                             onChange={(e) => updateStatus(order.id, e.target.value)}
-                                                            className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest cursor-pointer group-hover/select:bg-white group-hover/select:shadow-lg transition-all outline-none text-gray-700"
+                                                            className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-[10px] font-black uppercase tracking-widest cursor-pointer group-hover/select:bg-white group-hover/select:shadow-lg transition-all outline-none text-gray-700 ring-1 ring-black/5"
                                                         >
                                                             <option value="RECEIVED">📥 Received</option>
                                                             <option value="PRODUCTION">🔧 Production</option>

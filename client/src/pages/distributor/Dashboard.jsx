@@ -167,7 +167,7 @@ export default function DistributorDashboard() {
             'CANCELLED': 'bg-red-100 text-red-800'
         };
         const emojis = { 'RECEIVED': '📥', 'PRODUCTION': '🔧', 'READY': '✅', 'DISPATCHED': '🚚', 'DELAYED': '⏳', 'CANCELLED': '❌' };
-        return <span className={`px-3 py-1 rounded-full text-xs font-bold ${styles[status] || 'bg-gray-100 text-gray-800'}`}>{emojis[status] || ''} {status}</span>;
+        return <span className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tight shadow-sm inline-flex items-center gap-1 whitespace-nowrap ${styles[status] || 'bg-gray-100 text-gray-800'}`}>{emojis[status] || ''} {status}</span>;
     };
 
     const pendingCount = orders.filter(o => ['RECEIVED', 'PRODUCTION'].includes(o.status)).length;
@@ -254,11 +254,14 @@ export default function DistributorDashboard() {
             {/* Premium Header */}
             <div className="bg-gradient-to-r from-blue-700 to-indigo-800 shadow-lg p-4 sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto flex justify-between items-center text-white">
-                    <div className="flex items-center gap-2">
-                        <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                            <span className="font-bold text-xl tracking-wider">Z-ON</span>
+                    <div className="flex items-center gap-3">
+                        <div className="bg-white/20 p-2.5 rounded-xl backdrop-blur-md border border-white/10 shadow-inner">
+                            <span className="font-black text-xl tracking-tighter">Z</span>
                         </div>
-                        <h1 className="text-lg font-medium opacity-90 hidden sm:block">Distributor Panel</h1>
+                        <div>
+                            <h1 className="text-lg font-black tracking-tight leading-tight">Z-ON PANEL</h1>
+                            <span className="text-[10px] font-bold opacity-60 uppercase tracking-widest hidden sm:block">Distributor Workspace</span>
+                        </div>
                     </div>
                     <div className="flex gap-3 text-sm items-center">
                         <span className="hidden sm:inline font-medium opacity-90">Hi, {user?.name}</span>
@@ -271,9 +274,9 @@ export default function DistributorDashboard() {
             </div>
 
             {/* Floating Tabs */}
-            <div className="px-4 -mt-6 relative z-40 mb-8">
-                <div className="bg-white rounded-2xl shadow-xl p-1.5 flex justify-between gap-1 max-w-lg mx-auto overflow-x-auto">
-                    <button onClick={() => setActiveTab('orders')} className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all flex flex-col items-center gap-1 whitespace-nowrap ${activeTab === 'orders' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-gray-400 hover:bg-gray-50'}`}>
+            <div className="px-4 -mt-8 relative z-40 mb-10">
+                <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl p-1.5 flex justify-between gap-1 max-w-lg mx-auto border border-white/50">
+                    <button onClick={() => setActiveTab('orders')} className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all flex flex-col items-center gap-1 whitespace-nowrap ${activeTab === 'orders' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200 ring-2 ring-indigo-50' : 'text-gray-400 hover:bg-gray-50'}`}>
                         <ShoppingBag size={18} />
                         <span>Orders</span>
                     </button>
@@ -347,8 +350,10 @@ export default function DistributorDashboard() {
                                                     {order.isEdited && <span className="inline-block mt-1 bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-full font-bold">EDITED</span>}
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <div className="font-bold text-gray-800">{order.User?.name}</div>
-                                                    <div className="text-gray-400 text-xs">{order.User?.shopName}, {order.User?.city}</div>
+                                                    <div className="font-black text-gray-800 text-sm truncate">{order.User?.name}</div>
+                                                    <div className="text-gray-400 font-bold text-[10px] uppercase tracking-wider truncate">
+                                                        {order.User?.shopName}{order.User?.shopName && order.User?.city ? ', ' : ''}{order.User?.city}
+                                                    </div>
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-lg font-bold text-xs">{order.OrderItems?.length} Products</span>

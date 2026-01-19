@@ -17,7 +17,7 @@ export default function DealerDashboard() {
     const [allColors, setAllColors] = useState([]); // All 20 colors available for all designs
 
     // Order Form State
-    const [orderItem, setOrderItem] = useState({ doorTypeId: '', designId: '', colorId: '', width: '', height: '', quantity: 1, remarks: '' });
+    const [orderItem, setOrderItem] = useState({ doorTypeId: '', designId: '', colorId: '', width: '', height: '', thickness: '30mm', quantity: 1, remarks: '' });
     const [cart, setCart] = useState([]);
 
     // My Orders
@@ -91,13 +91,16 @@ export default function DealerDashboard() {
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
             {/* Premium Mobile Header with Gradient */}
-            <div className="bg-gradient-to-r from-indigo-700 to-purple-800 shadow-lg p-4 sticky top-0 z-50">
+            <div className="bg-gradient-to-r from-indigo-700 to-purple-800 shadow-xl p-4 sticky top-0 z-[100] border-b border-white/10">
                 <div className="flex justify-between items-center text-white">
-                    <div className="flex items-center gap-2">
-                        <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                            <span className="font-bold text-xl tracking-wider">Z-ON</span>
+                    <div className="flex items-center gap-3">
+                        <div className="bg-white/20 p-2.5 rounded-xl backdrop-blur-md border border-white/10 shadow-inner">
+                            <span className="font-black text-xl tracking-tighter">Z</span>
                         </div>
-                        <h1 className="text-lg font-medium opacity-90">Dealer Panel</h1>
+                        <div>
+                            <h1 className="text-lg font-black tracking-tight leading-loose uppercase">Z-ON PANEL</h1>
+                            <span className="text-[10px] font-bold opacity-60 uppercase tracking-widest block -mt-1">Dealer Workspace</span>
+                        </div>
                     </div>
                     <div className="flex gap-3 text-sm items-center">
                         <span className="hidden sm:inline font-medium opacity-90">Hi, {user?.name}</span>
@@ -110,24 +113,24 @@ export default function DealerDashboard() {
             </div>
 
             {/* Premium Tab Navigation (Floating) */}
-            <div className="px-4 -mt-6 relative z-40 mb-6">
-                <div className="bg-white rounded-2xl shadow-xl p-1.5 flex justify-between gap-1 max-w-md mx-auto">
-                    <button onClick={() => setActiveTab('new-order')} className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all flex flex-col items-center gap-1 ${activeTab === 'new-order' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-gray-400 hover:bg-gray-50'}`}>
+            <div className="max-w-md mx-auto px-4 -mt-8 relative z-[90] mb-10">
+                <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl p-1.5 flex justify-between gap-1 border border-white/50">
+                    <button onClick={() => setActiveTab('new-order')} className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all flex flex-col items-center gap-1 ${activeTab === 'new-order' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200 ring-4 ring-indigo-50' : 'text-gray-400 hover:bg-gray-50'}`}>
                         <ShoppingCart size={18} />
                         <span>New Order</span>
                     </button>
-                    <button onClick={() => setActiveTab('my-orders')} className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all flex flex-col items-center gap-1 ${activeTab === 'my-orders' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-gray-400 hover:bg-gray-50'}`}>
+                    <button onClick={() => setActiveTab('my-orders')} className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all flex flex-col items-center gap-1 ${activeTab === 'my-orders' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200 ring-4 ring-indigo-50' : 'text-gray-400 hover:bg-gray-50'}`}>
                         <Clock size={18} />
                         <span>History</span>
                     </button>
-                    <button onClick={() => setActiveTab('whatsnew')} className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all flex flex-col items-center gap-1 ${activeTab === 'whatsnew' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-gray-400 hover:bg-gray-50'}`}>
+                    <button onClick={() => setActiveTab('whatsnew')} className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all flex flex-col items-center gap-1 ${activeTab === 'whatsnew' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200 ring-4 ring-indigo-50' : 'text-gray-400 hover:bg-gray-50'}`}>
                         <Bell size={18} />
                         <span>News</span>
                     </button>
                 </div>
             </div>
 
-            <div className="max-w-xl mx-auto px-4 pb-24">
+            <div className="max-w-xl mx-auto px-4">
                 {activeTab === 'new-order' && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
@@ -229,7 +232,7 @@ export default function DealerDashboard() {
                                                         <div className="w-full h-full" style={{ backgroundColor: c.hexCode || '#eee' }}></div>
                                                     )}
                                                 </div>
-                                                <span className={`text-[10px] font-bold mt-2 text-center leading-tight transition-colors ${orderItem.colorId == c.id ? 'text-indigo-600' : 'text-gray-500 group-hover:text-gray-800'}`}>
+                                                <span className={`text-xs font-black mt-2 text-center leading-tight transition-colors ${orderItem.colorId == c.id ? 'text-indigo-600' : 'text-gray-500 group-hover:text-gray-800'}`}>
                                                     {c.name}
                                                 </span>
                                             </div>
@@ -257,7 +260,16 @@ export default function DealerDashboard() {
                                     </div>
 
                                     <div className="flex gap-4 mb-6">
-                                        <div className="w-24">
+                                        <div className="w-1/2">
+                                            <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">Thickness</label>
+                                            <select className="w-full bg-gray-50 border-gray-100 rounded-xl p-3 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={orderItem.thickness} onChange={e => setOrderItem({ ...orderItem, thickness: e.target.value })}>
+                                                <option value="30mm">30mm</option>
+                                                <option value="32mm">32mm</option>
+                                                <option value="35mm">35mm</option>
+                                                <option value="Custom">Custom</option>
+                                            </select>
+                                        </div>
+                                        <div className="w-1/2">
                                             <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">Qty</label>
                                             <div className="flex items-center bg-gray-50 rounded-xl border border-gray-100 px-1">
                                                 <button onClick={() => setOrderItem(prev => ({ ...prev, quantity: Math.max(1, prev.quantity - 1) }))} className="p-2 text-gray-500 hover:text-indigo-600 font-bold">-</button>
@@ -265,10 +277,11 @@ export default function DealerDashboard() {
                                                 <button onClick={() => setOrderItem(prev => ({ ...prev, quantity: parseInt(prev.quantity) + 1 }))} className="p-2 text-gray-500 hover:text-indigo-600 font-bold">+</button>
                                             </div>
                                         </div>
-                                        <div className="flex-1">
-                                            <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">Remarks</label>
-                                            <input type="text" className="w-full bg-gray-50 border-gray-100 rounded-xl p-3 font-medium text-sm focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Optional notes..." value={orderItem.remarks} onChange={e => setOrderItem({ ...orderItem, remarks: e.target.value })} />
-                                        </div>
+                                    </div>
+
+                                    <div className="mb-6">
+                                        <label className="text-[10px] uppercase font-bold text-gray-400 mb-1 block">Remarks / Custom Size Info</label>
+                                        <input type="text" className="w-full bg-gray-50 border-gray-100 rounded-xl p-3 font-medium text-sm focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Optional notes..." value={orderItem.remarks} onChange={e => setOrderItem({ ...orderItem, remarks: e.target.value })} />
                                     </div>
 
                                     <button onClick={addToCart} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 transform active:scale-95 transition-all">
@@ -296,29 +309,30 @@ export default function DealerDashboard() {
                                     <div className="max-h-40 overflow-y-auto space-y-2 mb-4 scrollbar-hide">
                                         {cart.map((item, i) => (
                                             <div key={item.id} className="flex gap-3 items-center bg-gray-800/50 p-2 rounded-lg">
-                                                <div className="w-10 h-10 rounded-md bg-white overflow-hidden flex-shrink-0">
+                                                <div className="w-14 h-14 rounded-xl bg-white overflow-hidden flex-shrink-0 border border-gray-700/50 shadow-inner">
                                                     {item.designImage && <img src={getImageUrl(item.designImage)} className="w-full h-full object-cover" />}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="font-bold text-sm truncate">{item.designName} <span className="text-indigo-300 text-xs">({item.colorName})</span></div>
-                                                    <div className="text-xs text-gray-400">{item.width}" x {item.height}" | Qty: {item.quantity}</div>
+                                                    <div className="font-black text-sm truncate">{item.designName} <span className="text-indigo-300 text-xs">({item.colorName})</span></div>
+                                                    <div className="text-[10px] text-indigo-400 font-black uppercase tracking-widest">{item.thickness} Thickness</div>
+                                                    <div className="text-xs text-gray-400 font-medium">{item.width}" x {item.height}" | Qty: {item.quantity}</div>
                                                 </div>
                                                 <button onClick={() => setCart(cart.filter(c => c.id !== item.id))} className="text-gray-500 hover:text-red-400"><X size={16} /></button>
                                             </div>
                                         ))}
                                     </div>
-
-                                    <button onClick={placeOrder} className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 transform active:scale-95 transition-all">
-                                        Confirm & Place Order <CheckCircle size={18} />
-                                    </button>
                                 </div>
+
+                                <button onClick={placeOrder} className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 transform active:scale-95 transition-all">
+                                    Confirm & Place Order <CheckCircle size={18} />
+                                </button>
                             </div>
                         )}
                     </div>
                 )}
 
                 {activeTab === 'my-orders' && (
-                    <div className="px-4 max-w-lg mx-auto space-y-4">
+                    <div className="px-1 max-w-lg mx-auto space-y-4 animate-in fade-in slide-in-from-bottom-6 transition-all duration-500">
                         <h2 className="text-lg font-bold text-gray-800 mb-2">My Orders</h2>
                         {myOrders.length === 0 && (
                             <div className="bg-white rounded-xl p-8 text-center text-gray-400">No orders yet. Place your first order!</div>
