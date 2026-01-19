@@ -315,7 +315,7 @@ export default function AdminDashboard() {
 
     return (
         <div className="min-h-screen bg-gray-100 font-sans">
-            {/* Premium Header with Enhanced Layering */}
+            {/* Premium Header */}
             <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-indigo-800 shadow-xl p-4 sticky top-0 z-[100] backdrop-blur-md border-b border-white/10">
                 <div className="max-w-7xl mx-auto flex justify-between items-center text-white">
                     <div className="flex items-center gap-3">
@@ -343,9 +343,9 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
-            {/* Floating Navigation Panels - Adjusted Layering */}
-            <div className="px-4 -mt-8 relative z-[90] mb-10">
-                <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl p-2 flex justify-between gap-1 max-w-5xl mx-auto overflow-x-auto border border-white/50 ring-1 ring-black/5 no-scrollbar">
+            {/* Floating Navigation Panels */}
+            <div className="px-4 -mt-6 relative z-[110] mb-8">
+                <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-2 flex justify-between gap-1 max-w-5xl mx-auto overflow-x-auto border border-white/50 ring-1 ring-black/5 no-scrollbar">
                     {[
                         { id: 'home', label: 'Home', icon: Home },
                         { id: 'orders', label: 'Orders', icon: ShoppingBag },

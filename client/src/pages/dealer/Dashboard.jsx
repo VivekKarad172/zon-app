@@ -91,7 +91,7 @@ export default function DealerDashboard() {
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
             {/* Premium Mobile Header with Gradient */}
-            <div className="bg-gradient-to-r from-indigo-700 to-purple-800 shadow-xl p-4 sticky top-0 z-[100] border-b border-white/10">
+            <div className="bg-gradient-to-r from-indigo-700 to-purple-800 shadow-xl p-4 sticky top-0 z-[100] border-b border-white/10 backdrop-blur-md">
                 <div className="flex justify-between items-center text-white">
                     <div className="flex items-center gap-3">
                         <div className="bg-white/20 p-2.5 rounded-xl backdrop-blur-md border border-white/10 shadow-inner">
@@ -113,7 +113,7 @@ export default function DealerDashboard() {
             </div>
 
             {/* Premium Tab Navigation (Floating) */}
-            <div className="max-w-md mx-auto px-4 -mt-8 relative z-[90] mb-10">
+            <div className="max-w-md mx-auto px-4 -mt-6 relative z-[110] mb-8">
                 <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl p-1.5 flex justify-between gap-1 border border-white/50">
                     <button onClick={() => setActiveTab('new-order')} className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all flex flex-col items-center gap-1 ${activeTab === 'new-order' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200 ring-4 ring-indigo-50' : 'text-gray-400 hover:bg-gray-50'}`}>
                         <ShoppingCart size={18} />
@@ -306,26 +306,26 @@ export default function DealerDashboard() {
                                         <button onClick={() => setCart([])} className="text-xs text-red-300 hover:text-red-100 font-medium px-2 py-1 rounded bg-red-900/30">Clear</button>
                                     </div>
 
-                                    <div className="max-h-40 overflow-y-auto space-y-2 mb-4 scrollbar-hide">
+                                    <div className="max-h-48 overflow-y-auto space-y-2 mb-4 scrollbar-hide">
                                         {cart.map((item, i) => (
-                                            <div key={item.id} className="flex gap-3 items-center bg-gray-800/50 p-2 rounded-lg">
+                                            <div key={item.id} className="flex gap-3 items-center bg-gray-800/50 p-2 rounded-xl border border-gray-700/30">
                                                 <div className="w-14 h-14 rounded-xl bg-white overflow-hidden flex-shrink-0 border border-gray-700/50 shadow-inner">
                                                     {item.designImage && <img src={getImageUrl(item.designImage)} className="w-full h-full object-cover" />}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="font-black text-sm truncate">{item.designName} <span className="text-indigo-300 text-xs">({item.colorName})</span></div>
-                                                    <div className="text-[10px] text-indigo-400 font-black uppercase tracking-widest">{item.thickness} Thickness</div>
-                                                    <div className="text-xs text-gray-400 font-medium">{item.width}" x {item.height}" | Qty: {item.quantity}</div>
+                                                    <div className="font-black text-sm truncate">{item.designName} <span className="text-indigo-300 text-[10px]">({item.colorName})</span></div>
+                                                    <div className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest">{item.thickness} Thickness</div>
+                                                    <div className="text-[10px] text-gray-400 font-medium">{item.width}" x {item.height}" | Qty: {item.quantity}</div>
                                                 </div>
-                                                <button onClick={() => setCart(cart.filter(c => c.id !== item.id))} className="text-gray-500 hover:text-red-400"><X size={16} /></button>
+                                                <button onClick={() => setCart(cart.filter(c => c.id !== item.id))} className="text-gray-500 hover:text-red-400 p-2"><X size={16} /></button>
                                             </div>
                                         ))}
                                     </div>
-                                </div>
 
-                                <button onClick={placeOrder} className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 transform active:scale-95 transition-all">
-                                    Confirm & Place Order <CheckCircle size={18} />
-                                </button>
+                                    <button onClick={placeOrder} className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-black py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 transform active:scale-95 transition-all uppercase tracking-widest text-xs">
+                                        Confirm & Place Order <CheckCircle size={18} />
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>

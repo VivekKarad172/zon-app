@@ -252,7 +252,7 @@ export default function DistributorDashboard() {
     return (
         <div className="min-h-screen bg-gray-50 pb-20 font-sans">
             {/* Premium Header */}
-            <div className="bg-gradient-to-r from-blue-700 to-indigo-800 shadow-lg p-4 sticky top-0 z-50">
+            <div className="bg-gradient-to-r from-blue-700 to-indigo-800 shadow-lg p-4 sticky top-0 z-[100] backdrop-blur-md border-b border-white/10">
                 <div className="max-w-7xl mx-auto flex justify-between items-center text-white">
                     <div className="flex items-center gap-3">
                         <div className="bg-white/20 p-2.5 rounded-xl backdrop-blur-md border border-white/10 shadow-inner">
@@ -274,7 +274,7 @@ export default function DistributorDashboard() {
             </div>
 
             {/* Floating Tabs */}
-            <div className="px-4 -mt-8 relative z-40 mb-10">
+            <div className="px-4 -mt-6 relative z-[110] mb-8">
                 <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl p-1.5 flex justify-between gap-1 max-w-lg mx-auto border border-white/50">
                     <button onClick={() => setActiveTab('orders')} className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all flex flex-col items-center gap-1 whitespace-nowrap ${activeTab === 'orders' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200 ring-2 ring-indigo-50' : 'text-gray-400 hover:bg-gray-50'}`}>
                         <ShoppingBag size={18} />
