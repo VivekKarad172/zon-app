@@ -523,7 +523,7 @@ export default function AdminDashboard() {
                                 <div key={d.id} className={`bg-white p-4 rounded-xl shadow border-l-4 ${d.isEnabled ? 'border-green-500' : 'border-red-500'}`}>
                                     <div className="flex justify-between items-start">
                                         <div>
-                                            <div className="font-bold text-lg">{d.name}</div>
+                                            <div className="font-bold text-lg">{d.name} <span className="text-sm text-gray-400 font-normal">(ID: {d.id})</span></div>
                                             <div className="text-sm text-gray-500">{d.city || 'No City'}</div>
                                             <div className="text-xs font-mono text-indigo-600 mt-1">@{d.username}</div>
                                             {/* V2: Show Order Stats if available in future, for now placeholder or need to fetch from analytics */}
@@ -555,7 +555,7 @@ export default function AdminDashboard() {
                                     >
                                         <option value="">All Distributors</option>
                                         {distributors.map(dist => (
-                                            <option key={dist.id} value={dist.id}>{dist.name} ({dist.username})</option>
+                                            <option key={dist.id} value={dist.id}>{dist.name} (ID: {dist.id})</option>
                                         ))}
                                     </select>
                                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
