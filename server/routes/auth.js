@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { User } = require('../models');
+const { authenticate } = require('../middleware/auth');
 
 // Login (Username/Password) - Manufacturer & Distributor
 router.post('/login', async (req, res) => {
@@ -93,6 +94,56 @@ router.get('/verify', async (req, res) => {
     // Let's rely on the client `api.get` which sends headers, and if it fails (401), client handles it.
     // We'll stick to 'login' returning user data.
     res.json({ status: 'ok' });
+});
+
+// UPDATE PROFILE (Name, Shop, Password)
+router.put('/profile', authenticate, async (req, res) => {
+    try {
+        const { name, shopName, city, currentPassword, newPassword } = req.body;
+        const userId = req.user.id;
+
+        const user = await User.findByPk(userId);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        // Update Basic Info
+        if (name) user.name = name;
+        if (shopName) user.shopName = shopName;
+        if (city) user.city = city;
+
+        // Update Password (Only if provided AND role is not DEALER)
+        // Dealers login via Email only, so they don't manage passwords here.
+        if (newPassword && user.role !== 'DEALER') {
+            if (!currentPassword) {
+                return res.status(400).json({ error: 'Current password is required to set a new one.' });
+            }
+
+            const isMatch = await bcrypt.compare(currentPassword, user.password);
+            if (!isMatch) {
+                return res.status(401).json({ error: 'Current password is incorrect.' });
+            }
+
+            user.password = await bcrypt.hash(newPassword, 10);
+        }
+
+        await user.save();
+
+        res.json({
+            message: 'Profile updated successfully',
+            user: {
+                id: user.id,
+                name: user.name,
+                username: user.username,
+                email: user.email,
+                role: user.role,
+                shopName: user.shopName,
+                city: user.city
+            }
+        });
+
+    } catch (error) {
+        console.error('Profile Update Error:', error);
+        res.status(500).json({ error: 'Failed to update profile' });
+    }
 });
 
 module.exports = router;

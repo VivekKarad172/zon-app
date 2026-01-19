@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
@@ -7,6 +8,7 @@ import * as XLSX from 'xlsx';
 
 export default function DistributorDashboard() {
     const { logout, user } = useAuth();
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('orders');
     const [orderFilter, setOrderFilter] = useState('all'); // all, pending, completed
     const [orders, setOrders] = useState([]);
@@ -248,186 +250,206 @@ export default function DistributorDashboard() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-100">
-            {/* ... (existing nav and stats) ... */}
-
-            {/* ... (existing tabs) ... */}
-            <nav className="bg-white shadow">
-                <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-                    <h1 className="text-xl font-bold text-indigo-800">Distributor Panel</h1>
-                    <div className="flex items-center gap-4">
-                        <span className="font-medium">{user?.name}</span>
-                        <button onClick={() => setShowProfile(true)} className="text-indigo-600 font-bold hover:text-indigo-800">Profile</button>
-                        <button onClick={logout} className="text-red-500 font-bold">Logout</button>
+        <div className="min-h-screen bg-gray-50 pb-20 font-sans">
+            {/* Premium Header */}
+            <div className="bg-gradient-to-r from-blue-700 to-indigo-800 shadow-lg p-4 sticky top-0 z-50">
+                <div className="max-w-7xl mx-auto flex justify-between items-center text-white">
+                    <div className="flex items-center gap-2">
+                        <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                            <span className="font-bold text-xl tracking-wider">Z-ON</span>
+                        </div>
+                        <h1 className="text-lg font-medium opacity-90 hidden sm:block">Distributor Panel</h1>
                     </div>
-                </div>
-            </nav>
-
-            {/* Stats Cards */}
-            <div className="max-w-7xl mx-auto px-4 py-4 grid grid-cols-3 gap-4">
-                <div className="bg-white rounded-xl shadow p-4 flex items-center gap-3">
-                    <div className="bg-yellow-100 p-3 rounded-full"><Clock className="text-yellow-600" /></div>
-                    <div>
-                        <div className="text-2xl font-bold">{pendingCount}</div>
-                        <div className="text-sm text-gray-500">Pending Orders</div>
-                    </div>
-                </div>
-                <div className="bg-white rounded-xl shadow p-4 flex items-center gap-3">
-                    <div className="bg-green-100 p-3 rounded-full"><CheckCircle className="text-green-600" /></div>
-                    <div>
-                        <div className="text-2xl font-bold">{completedCount}</div>
-                        <div className="text-sm text-gray-500">Completed</div>
-                    </div>
-                </div>
-                <div className="bg-white rounded-xl shadow p-4 flex items-center gap-3">
-                    <div className="bg-indigo-100 p-3 rounded-full"><Users className="text-indigo-600" /></div>
-                    <div>
-                        <div className="text-2xl font-bold">{dealers.length || '—'}</div>
-                        <div className="text-sm text-gray-500">My Dealers</div>
+                    <div className="flex gap-3 text-sm items-center">
+                        <span className="hidden sm:inline font-medium opacity-90">Hi, {user?.name}</span>
+                        <button onClick={() => navigate('/profile')} className="bg-white/20 hover:bg-white/30 p-2 rounded-full transition-all backdrop-blur-sm">
+                            <Users size={18} />
+                        </button>
+                        <button onClick={logout} className="text-red-200 hover:text-white font-bold text-xs bg-red-500/20 px-3 py-1 rounded-full border border-red-400/30">Exit</button>
                     </div>
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div className="max-w-7xl mx-auto px-4 py-2">
-                <div className="flex gap-2 flex-wrap">
-                    <button onClick={() => setActiveTab('orders')} className={`flex items-center gap-2 px-6 py-2 rounded-lg font-bold transition-all ${activeTab === 'orders' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500'}`}>
-                        <ShoppingBag size={16} /> Orders
+            {/* Floating Tabs */}
+            <div className="px-4 -mt-6 relative z-40 mb-8">
+                <div className="bg-white rounded-2xl shadow-xl p-1.5 flex justify-between gap-1 max-w-lg mx-auto overflow-x-auto">
+                    <button onClick={() => setActiveTab('orders')} className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all flex flex-col items-center gap-1 whitespace-nowrap ${activeTab === 'orders' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-gray-400 hover:bg-gray-50'}`}>
+                        <ShoppingBag size={18} />
+                        <span>Orders</span>
                     </button>
-                    <button onClick={() => setActiveTab('dealers')} className={`flex items-center gap-2 px-6 py-2 rounded-lg font-bold transition-all ${activeTab === 'dealers' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500'}`}>
-                        <Users size={16} /> My Dealers
+                    <button onClick={() => setActiveTab('dealers')} className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all flex flex-col items-center gap-1 whitespace-nowrap ${activeTab === 'dealers' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-gray-400 hover:bg-gray-50'}`}>
+                        <Users size={18} />
+                        <span>My Dealers</span>
                     </button>
-                    <button onClick={() => setActiveTab('whatsnew')} className={`flex items-center gap-2 px-6 py-2 rounded-lg font-bold transition-all ${activeTab === 'whatsnew' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500'}`}>
-                        <Bell size={16} /> What's New
+                    <button onClick={() => setActiveTab('whatsnew')} className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all flex flex-col items-center gap-1 whitespace-nowrap ${activeTab === 'whatsnew' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-gray-400 hover:bg-gray-50'}`}>
+                        <Bell size={18} />
+                        <span>News</span>
                     </button>
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto px-4 py-4">
+            <div className="max-w-7xl mx-auto px-4">
+
+                {/* Stats Section (Visible on Orders Tab) */}
+                {activeTab === 'orders' && (
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6 animate-in fade-in slide-in-from-bottom-4">
+                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col items-center text-center">
+                            <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">Total</span>
+                            <span className="text-3xl font-bold text-gray-800">{orders.length}</span>
+                        </div>
+                        <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-2xl p-4 shadow-sm border border-yellow-100 flex flex-col items-center text-center">
+                            <span className="text-yellow-600 text-xs font-bold uppercase tracking-wider">Pending</span>
+                            <span className="text-3xl font-bold text-yellow-700">{pendingCount}</span>
+                        </div>
+                        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-4 shadow-sm border border-green-100 flex flex-col items-center text-center">
+                            <span className="text-green-600 text-xs font-bold uppercase tracking-wider">Completed</span>
+                            <span className="text-3xl font-bold text-green-700">{completedCount}</span>
+                        </div>
+                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col items-center text-center">
+                            <span className="text-indigo-400 text-xs font-bold uppercase tracking-wider">Dealers</span>
+                            <span className="text-3xl font-bold text-indigo-800">{dealers.length}</span>
+                        </div>
+                    </div>
+                )}
+
                 {/* Orders Tab */}
                 {activeTab === 'orders' && (
-                    <div>
-                        {/* Order Filter Buttons */}
-                        <div className="flex justify-between items-center mb-4">
-                            <div className="flex gap-2">
-                                <button onClick={() => setOrderFilter('all')} className={`px-4 py-2 rounded-lg font-medium text-sm ${orderFilter === 'all' ? 'bg-indigo-600 text-white' : 'bg-white'}`}>
-                                    All ({orders.length})
-                                </button>
-                                <button onClick={() => setOrderFilter('pending')} className={`px-4 py-2 rounded-lg font-medium text-sm ${orderFilter === 'pending' ? 'bg-yellow-500 text-white' : 'bg-white text-yellow-600'}`}>
-                                    <Clock size={14} className="inline mr-1" /> Pending ({pendingCount})
-                                </button>
-                                <button onClick={() => setOrderFilter('completed')} className={`px-4 py-2 rounded-lg font-medium text-sm ${orderFilter === 'completed' ? 'bg-green-500 text-white' : 'bg-white text-green-600'}`}>
-                                    <CheckCircle size={14} className="inline mr-1" /> Completed ({completedCount})
-                                </button>
+                    <div className="animate-in fade-in duration-500">
+                        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
+                            <div className="bg-white p-1 rounded-xl shadow-sm border border-gray-100 flex gap-1">
+                                <button onClick={() => setOrderFilter('all')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${orderFilter === 'all' ? 'bg-gray-800 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>All</button>
+                                <button onClick={() => setOrderFilter('pending')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${orderFilter === 'pending' ? 'bg-yellow-500 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>Pending</button>
+                                <button onClick={() => setOrderFilter('completed')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${orderFilter === 'completed' ? 'bg-green-500 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>Done</button>
                             </div>
-                            <button onClick={handleExportOrders} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-green-700">
-                                <FileSpreadsheet size={16} /> Export to Excel
+                            <button onClick={handleExportOrders} className="bg-green-600 text-white px-4 py-2 rounded-xl font-bold shadow-lg shadow-green-200 hover:bg-green-700 flex items-center gap-2 transition-all active:scale-95">
+                                <FileSpreadsheet size={18} /> Export Excel
                             </button>
                         </div>
 
-                        <div className="bg-white rounded-xl shadow overflow-hidden">
-                            <table className="min-w-full">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dealer</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Items</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Update Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200">
-                                    {filteredOrders.map(order => (
-                                        <tr key={order.id} className={`hover:bg-gray-50 ${order.isEdited ? 'bg-orange-50 border-l-4 border-orange-400' : ''}`}>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-bold text-indigo-700">#{order.id}</span>
-                                                    {order.isEdited && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-bold">EDITED</span>}
-                                                </div>
-                                                <div className="text-xs text-gray-400">{new Date(order.createdAt).toLocaleDateString()}</div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="font-medium">{order.User?.name}</div>
-                                                <div className="text-xs text-gray-400">{order.User?.shopName}</div>
-                                            </td>
-                                            <td className="px-6 py-4">{order.OrderItems?.length} items</td>
-                                            <td className="px-6 py-4">{getStatusBadge(order.status)}</td>
-                                            <td className="px-6 py-4">
-                                                {!['DISPATCHED', 'CANCELLED'].includes(order.status) ? (
-                                                    <select
-                                                        value={order.status}
-                                                        onChange={(e) => updateStatus(order.id, e.target.value)}
-                                                        className="border rounded-lg p-2 text-sm font-medium"
-                                                    >
-                                                        <option value="RECEIVED">📥 Received</option>
-                                                        <option value="PRODUCTION">🔧 Production</option>
-                                                        <option value="READY">✅ Ready</option>
-                                                        <option value="DELAYED">⏳ Delayed</option>
-                                                    </select>
-                                                ) : (
-                                                    <span className={`text-sm font-bold ${order.status === 'CANCELLED' ? 'text-red-500' : 'text-gray-400'}`}>
-                                                        {order.status === 'CANCELLED' ? '❌ Cancelled' : 'Completed'}
-                                                    </span>
-                                                )}
-                                            </td>
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-gray-50 text-gray-500 font-bold uppercase text-xs">
+                                        <tr>
+                                            <th className="px-6 py-4">Order Info</th>
+                                            <th className="px-6 py-4">Dealer</th>
+                                            <th className="px-6 py-4">Items</th>
+                                            <th className="px-6 py-4">Status</th>
+                                            <th className="px-6 py-4">Action</th>
                                         </tr>
-                                    ))}
-                                    {filteredOrders.length === 0 && (
-                                        <tr><td colSpan="5" className="px-6 py-8 text-center text-gray-400">No orders found</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {filteredOrders.map(order => (
+                                            <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-6 py-4">
+                                                    <span className="font-bold text-indigo-900 block">#{order.id}</span>
+                                                    <span className="text-gray-400 text-xs">{new Date(order.createdAt).toLocaleDateString()}</span>
+                                                    {order.isEdited && <span className="inline-block mt-1 bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-full font-bold">EDITED</span>}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="font-bold text-gray-800">{order.User?.name}</div>
+                                                    <div className="text-gray-400 text-xs">{order.User?.shopName}, {order.User?.city}</div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-lg font-bold text-xs">{order.OrderItems?.length} Products</span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {getStatusBadge(order.status)}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {!['DISPATCHED', 'CANCELLED'].includes(order.status) ? (
+                                                        <select
+                                                            value={order.status}
+                                                            onChange={(e) => updateStatus(order.id, e.target.value)}
+                                                            className="bg-white border border-gray-300 text-gray-700 text-xs font-bold rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2"
+                                                        >
+                                                            <option value="RECEIVED">📥 Received</option>
+                                                            <option value="PRODUCTION">🔧 Production</option>
+                                                            <option value="READY">✅ Ready</option>
+                                                            <option value="DELAYED">⏳ Delayed</option>
+                                                        </select>
+                                                    ) : (
+                                                        <span className="text-xs font-medium text-gray-400 italic">Locked</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {filteredOrders.length === 0 && (
+                                    <div className="p-12 text-center text-gray-400">
+                                        <ShoppingBag size={48} className="mx-auto mb-3 opacity-20" />
+                                        <p>No orders found for this filter.</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
 
                 {/* My Dealers Tab */}
                 {activeTab === 'dealers' && (
-                    <div>
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-lg font-bold">Dealers Assigned to You</h2>
+                    <div className="animate-in fade-in duration-500">
+                        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-800">My Dealers</h2>
+                                <p className="text-gray-500 text-sm">Manage your dealer network</p>
+                            </div>
                             <div className="flex gap-2">
-                                <button onClick={() => setShowBulkUpload(true)} className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">
-                                    <Upload size={16} /> Bulk Upload
+                                <button onClick={() => setShowBulkUpload(true)} className="bg-white border border-green-200 text-green-700 hover:bg-green-50 px-4 py-2 rounded-xl font-bold text-sm shadow-sm flex items-center gap-2 transition-all">
+                                    <FileSpreadsheet size={16} /> Bulk Upload
                                 </button>
                                 <button onClick={() => {
                                     setNewDealer({ name: '', email: '', city: '', shopName: '' });
                                     setIsEditingDealer(false);
                                     setShowAddDealer(true);
-                                }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">
-                                    <Users size={16} /> Add New Dealer
+                                }} className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white px-5 py-2 rounded-xl font-bold text-sm shadow-lg shadow-indigo-200 flex items-center gap-2 transition-all active:scale-95">
+                                    <Users size={18} /> Add Dealer
                                 </button>
                             </div>
                         </div>
 
                         {dealers.length === 0 ? (
-                            <div className="bg-white rounded-xl shadow p-8 text-center text-gray-400">
-                                No dealers assigned to you yet. Click "Add New Dealer" to get started.
+                            <div className="bg-white rounded-3xl p-10 text-center border-2 border-dashed border-gray-200">
+                                <Users size={48} className="mx-auto text-gray-300 mb-4" />
+                                <h3 className="text-lg font-bold text-gray-700">No Dealers Yet</h3>
+                                <p className="text-gray-500 text-sm mb-6">Start by adding individual dealers or uploading a list.</p>
+                                <button onClick={() => setShowAddDealer(true)} className="text-indigo-600 font-bold hover:underline">Add Your First Dealer</button>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                                 {dealers.map(dealer => (
-                                    <div key={dealer.id} className={`bg-white rounded-xl shadow-lg p-4 border-l-4 ${dealer.isEnabled ? 'border-green-500' : 'border-red-500'}`}>
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <div className="font-bold text-lg">{dealer.name}</div>
-                                                <div className="text-sm text-gray-500">{dealer.shopName || 'No shop name'}</div>
-                                                <div className="text-sm text-gray-400">{dealer.city || 'No city'}</div>
+                                    <div key={dealer.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow group relative overflow-hidden">
+                                        <div className={`absolute left-0 top-0 bottom-0 w-1 ${dealer.isEnabled ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-indigo-600 text-lg">
+                                                    {dealer.name.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-bold text-gray-800">{dealer.name}</h3>
+                                                    <p className="text-xs text-gray-500 font-medium">@{dealer.username}</p>
+                                                </div>
                                             </div>
-                                            <span className={`text-xs px-2 py-1 rounded-full font-bold ${dealer.isEnabled ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${dealer.isEnabled ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                                 {dealer.isEnabled ? 'Active' : 'Disabled'}
                                             </span>
                                         </div>
-                                        <div className="mt-3 pt-3 border-t">
-                                            <div className="text-xs text-gray-500">📧 {dealer.email}</div>
-                                            <div className="flex gap-2 mt-2">
-                                                <button onClick={() => openEditDealer(dealer)} className="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded hover:bg-indigo-100 font-bold">
-                                                    Edit
-                                                </button>
-                                                <button onClick={() => setShowDeleteConfirm(dealer.id)} className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded hover:bg-red-100 font-bold">
-                                                    Delete
-                                                </button>
+
+                                        <div className="space-y-2 mb-4">
+                                            <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                                <ShoppingBag size={14} className="text-gray-400" />
+                                                <span className="font-medium">{dealer.shopName || 'No Shop Name'}</span>
                                             </div>
+                                            <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                                <CheckCircle size={14} className="text-gray-400" />
+                                                <span>{dealer.city || 'No City'}</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-2 pt-2 border-t border-gray-100">
+                                            <button onClick={() => openEditDealer(dealer)} className="flex-1 bg-white border border-gray-200 text-gray-700 py-1.5 rounded-lg text-xs font-bold hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-600 transition-colors">Edit</button>
+                                            <button onClick={() => setShowDeleteConfirm(dealer.id)} className="flex-1 bg-white border border-red-50 text-red-400 py-1.5 rounded-lg text-xs font-bold hover:bg-red-50 hover:text-red-600 transition-colors">Delete</button>
                                         </div>
                                     </div>
                                 ))}
@@ -438,27 +460,42 @@ export default function DistributorDashboard() {
 
                 {/* What's New Tab */}
                 {activeTab === 'whatsnew' && (
-                    <div className="max-w-2xl mx-auto space-y-4">
-                        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                            <Bell className="text-indigo-600" /> What's New
-                        </h2>
+                    <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4">
+                        <div className="text-center mb-6">
+                            <h2 className="text-2xl font-bold text-gray-800">Latest Updates</h2>
+                            <p className="text-gray-500">News and announcements for your network</p>
+                        </div>
                         {posts.length === 0 && (
-                            <div className="text-center text-gray-400 py-12 bg-white rounded-xl shadow">No updates yet. Check back soon!</div>
+                            <div className="bg-white rounded-3xl p-12 text-center border border-gray-100 shadow-sm">
+                                <Bell size={48} className="mx-auto text-gray-200 mb-4" />
+                                <p className="text-gray-400 font-medium">No updates available at the moment.</p>
+                            </div>
                         )}
                         {posts.map(post => (
-                            <div key={post.id} className="bg-white rounded-2xl shadow-lg overflow-hidden">
+                            <div key={post.id} className="bg-white rounded-3xl shadow-lg shadow-gray-200/50 overflow-hidden border border-gray-100 hover:shadow-xl transition-shadow">
                                 {post.imageUrl && (
-                                    <div className="h-48 bg-gray-100">
+                                    <div className="h-56 bg-gray-100 relative">
                                         <img src={getImageUrl(post.imageUrl)} className="w-full h-full object-cover" alt="Post" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+                                        <div className="absolute bottom-4 left-4 text-white">
+                                            <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold mb-2 backdrop-blur-md ${post.postType === 'announcement' ? 'bg-blue-500/80' : post.postType === 'new_design' ? 'bg-purple-500/80' : 'bg-yellow-500/80'}`}>
+                                                {post.postType.replace('_', ' ').toUpperCase()}
+                                            </span>
+                                        </div>
                                     </div>
                                 )}
-                                <div className="p-5">
-                                    <span className={`text-xs px-2 py-1 rounded-full font-bold ${post.postType === 'announcement' ? 'bg-blue-100 text-blue-700' : post.postType === 'new_design' ? 'bg-purple-100 text-purple-700' : post.postType === 'promotion' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'}`}>
-                                        {post.postType === 'announcement' ? '📢' : post.postType === 'new_design' ? '🚪' : post.postType === 'promotion' ? '🎉' : '📋'} {post.postType.replace('_', ' ')}
-                                    </span>
-                                    {post.title && <h3 className="font-bold text-lg text-gray-800 mt-2">{post.title}</h3>}
-                                    <p className="text-gray-600 mt-2 whitespace-pre-wrap">{post.content}</p>
-                                    <div className="text-xs text-gray-400 mt-4">{new Date(post.createdAt).toLocaleDateString()}</div>
+                                <div className="p-6">
+                                    {!post.imageUrl && (
+                                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold mb-3 ${post.postType === 'announcement' ? 'bg-blue-100 text-blue-700' : post.postType === 'new_design' ? 'bg-purple-100 text-purple-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                            {post.postType.replace('_', ' ').toUpperCase()}
+                                        </span>
+                                    )}
+                                    <h3 className="font-bold text-xl text-gray-800 mb-3">{post.title}</h3>
+                                    <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">{post.content}</p>
+                                    <div className="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center text-xs text-gray-400 font-medium">
+                                        <span>Posted {new Date(post.createdAt).toLocaleDateString()}</span>
+                                        <span>Z-ON Admin Team</span>
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -466,60 +503,42 @@ export default function DistributorDashboard() {
                 )}
             </div>
 
+            {/* Modals remain essentially the same functionality wise, just styling tweaks if needed, but the wrapper div bg-gray-50 handles most */}
             {/* Add Dealer Modal */}
             {showAddDealer && (
-                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl">
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold">{isEditingDealer ? 'Edit Dealer' : 'Add New Dealer'}</h2>
-                            <button onClick={() => setShowAddDealer(false)} className="text-gray-400 hover:text-gray-600"><X /></button>
+                            <h2 className="text-xl font-bold text-gray-800">{isEditingDealer ? 'Edit Dealer' : 'Add New Dealer'}</h2>
+                            <button onClick={() => setShowAddDealer(false)} className="bg-gray-100 p-2 rounded-full text-gray-500 hover:bg-gray-200 transition-colors"><X size={18} /></button>
                         </div>
                         <form onSubmit={handleAddDealer} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Full Name</label>
-                                <input
-                                    type="text"
-                                    className="w-full border rounded-lg p-2"
-                                    value={newDealer.name}
-                                    onChange={e => setNewDealer({ ...newDealer, name: e.target.value })}
-                                    required
-                                />
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Full Name</label>
+                                <input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 font-semibold focus:ring-2 focus:ring-indigo-500 outline-none" value={newDealer.name} onChange={e => setNewDealer({ ...newDealer, name: e.target.value })} required />
                             </div>
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Email (For Login)</label>
-                                <input
-                                    type="email"
-                                    className="w-full border rounded-lg p-2"
-                                    value={newDealer.email}
-                                    onChange={e => setNewDealer({ ...newDealer, email: e.target.value })}
-                                    required
-                                />
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Email (Login)</label>
+                                <input type="email" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 font-semibold focus:ring-2 focus:ring-indigo-500 outline-none" value={newDealer.email} onChange={e => setNewDealer({ ...newDealer, email: e.target.value })} required disabled={isEditingDealer} /> {/* Email disabled on edit mostly */}
                             </div>
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">City</label>
-                                <input
-                                    type="text"
-                                    className="w-full border rounded-lg p-2"
-                                    value={newDealer.city}
-                                    onChange={e => setNewDealer({ ...newDealer, city: e.target.value })}
-                                />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">City</label>
+                                    <input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 font-semibold focus:ring-2 focus:ring-indigo-500 outline-none" value={newDealer.city} onChange={e => setNewDealer({ ...newDealer, city: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Shop Name</label>
+                                    <input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 font-semibold focus:ring-2 focus:ring-indigo-500 outline-none" value={newDealer.shopName} onChange={e => setNewDealer({ ...newDealer, shopName: e.target.value })} />
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Shop Name</label>
-                                <input
-                                    type="text"
-                                    className="w-full border rounded-lg p-2"
-                                    value={newDealer.shopName}
-                                    onChange={e => setNewDealer({ ...newDealer, shopName: e.target.value })}
-                                />
-                            </div>
-                            <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 mt-4">
-                                {isEditingDealer ? 'Update Dealer' : 'Create Dealer'}
+                            <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-xl shadow-lg hover:bg-indigo-700 mt-4 transition-all active:scale-95">
+                                {isEditingDealer ? 'Update Dealer' : 'Create Dealer Account'}
                             </button>
                         </form>
                     </div>
                 </div>
             )}
+
             {/* Bulk Upload Modal */}
             {showBulkUpload && (
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">

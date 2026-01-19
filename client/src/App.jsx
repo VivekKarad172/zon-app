@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import AdminDashboard from './pages/admin/Dashboard';
 import DistributorDashboard from './pages/distributor/Dashboard';
 import DealerDashboard from './pages/dealer/Dashboard';
+import Profile from './pages/Profile';
 import { Toaster } from 'react-hot-toast';
 
 // Loading Component
@@ -57,6 +58,16 @@ function App() {
             <Routes>
                 {/* Public Route - Login - Renders Immediately */}
                 <Route path="/login" element={<Login />} />
+
+                {/* SHARED: Profile Page (All Authenticated Users) */}
+                <Route
+                    path="/profile"
+                    element={
+                        <ProtectedRoute allowedRoles={['MANUFACTURER', 'DISTRIBUTOR', 'DEALER']}>
+                            <Profile />
+                        </ProtectedRoute>
+                    }
+                />
 
                 {/* Protected Routes */}
                 <Route
