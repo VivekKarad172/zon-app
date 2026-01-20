@@ -320,16 +320,54 @@ router.post('/import', authenticate, authorize(['MANUFACTURER']), async (req, re
                 // Create OrderItems
                 for (const item of orderGroup.items) {
                     try {
-                        const designNumber = getValue(item, 'designNumber', 'design_number', 'design', 'Design Number', 'Design');
-                        const colorName = getValue(item, 'colorName', 'color_name', 'color', 'foilColor', 'foil_color', 'Color Name', 'Foil Color');
+                        let designNumber = getValue(item, 'designNumber', 'design_number', 'design', 'Design Number', 'Design');
+                        let colorName = getValue(item, 'colorName', 'color_name', 'color', 'foilColor', 'foil_color', 'Color Name', 'Foil Color');
                         const width = parseFloat(getValue(item, 'width', 'Width')) || 0;
                         const height = parseFloat(getValue(item, 'height', 'Height')) || 0;
                         const thickness = getValue(item, 'thickness', 'Thickness') || '30mm';
                         const quantity = parseInt(getValue(item, 'quantity', 'qty', 'Quantity')) || 1;
                         const remarks = getValue(item, 'remarks', 'Remarks', 'notes', 'Notes') || '';
 
-                        const design = designNumber ? await Design.findOne({ where: { designNumber: String(designNumber).trim() } }) : null;
-                        const color = colorName ? await Color.findOne({ where: { name: String(colorName).trim() } }) : null;
+                        // Clean up numeric values that Excel might have converted (2.00 -> "2")
+                        if (designNumber !== null && typeof designNumber === 'number') {
+                            designNumber = Number.isInteger(designNumber) ? String(designNumber) : String(Math.round(designNumber));
+                        } else if (designNumber !== null) {
+                            designNumber = String(designNumber).trim();
+                            // Handle "2.00" -> "2"
+                            if (/^\d+\.0+$/.test(designNumber)) {
+                                designNumber = String(parseInt(designNumber));
+                            }
+                        }
+
+                        if (colorName !== null && typeof colorName === 'number') {
+                            colorName = Number.isInteger(colorName) ? String(colorName) : String(Math.round(colorName));
+                        } else if (colorName !== null) {
+                            colorName = String(colorName).trim();
+                            // Handle "2.00" -> "2"
+                            if (/^\d+\.0+$/.test(colorName)) {
+                                colorName = String(parseInt(colorName));
+                            }
+                        }
+
+                        // Find design - try by designNumber first
+                        let design = null;
+                        if (designNumber) {
+                            design = await Design.findOne({ where: { designNumber } });
+                            // If not found and it's numeric, try by ID
+                            if (!design && /^\d+$/.test(designNumber)) {
+                                design = await Design.findByPk(parseInt(designNumber));
+                            }
+                        }
+
+                        // Find color - try by name first
+                        let color = null;
+                        if (colorName) {
+                            color = await Color.findOne({ where: { name: colorName } });
+                            // If not found and it's numeric, try by ID
+                            if (!color && /^\d+$/.test(colorName)) {
+                                color = await Color.findByPk(parseInt(colorName));
+                            }
+                        }
 
                         await OrderItem.create({
                             orderId: order.id,
