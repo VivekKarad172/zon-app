@@ -220,6 +220,57 @@ router.put('/bulk-status', authenticate, authorize(['MANUFACTURER']), async (req
     }
 });
 
+// DELETE SINGLE ORDER (Manufacturer Only)
+router.delete('/:id', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // First delete all order items
+        await OrderItem.destroy({ where: { orderId: id } });
+
+        // Then delete the order
+        const deleted = await Order.destroy({ where: { id } });
+
+        if (deleted === 0) {
+            return res.status(404).json({ error: 'Order not found' });
+        }
+
+        res.json({ message: 'Order deleted successfully' });
+    } catch (error) {
+        console.error('Delete order error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// BULK DELETE ORDERS (Manufacturer Only)
+router.post('/bulk-delete', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        const { orderIds } = req.body;
+        if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+            return res.status(400).json({ error: 'Invalid order IDs' });
+        }
+
+        // First delete all order items for these orders
+        await OrderItem.destroy({
+            where: {
+                orderId: { [Op.in]: orderIds }
+            }
+        });
+
+        // Then delete the orders
+        const deleted = await Order.destroy({
+            where: {
+                id: { [Op.in]: orderIds }
+            }
+        });
+
+        res.json({ message: `${deleted} order(s) deleted successfully`, deleted });
+    } catch (error) {
+        console.error('Bulk delete error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // BULK ORDER IMPORT FROM EXCEL (Manufacturer Only)
 router.post('/import', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
     try {

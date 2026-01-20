@@ -263,6 +263,31 @@ export default function AdminDashboard() {
         try { await api.delete(`/colors/${id}`); toast.success('Color deleted'); fetchColors(); } catch (e) { toast.error('Failed to delete'); }
     };
 
+    // ORDER Delete Handlers
+    const handleDeleteOrder = async (id) => {
+        if (!confirm('Are you sure you want to delete this order? This cannot be undone.')) return;
+        try {
+            await api.delete(`/orders/${id}`);
+            toast.success('Order deleted');
+            fetchOrders();
+        } catch (e) {
+            toast.error('Failed to delete order');
+        }
+    };
+
+    const handleBulkDeleteOrders = async () => {
+        if (selectedOrders.length === 0) return toast.error('No orders selected');
+        if (!confirm(`Are you sure you want to delete ${selectedOrders.length} order(s)? This cannot be undone.`)) return;
+        try {
+            await api.post('/orders/bulk-delete', { orderIds: selectedOrders });
+            toast.success(`${selectedOrders.length} order(s) deleted`);
+            setSelectedOrders([]);
+            fetchOrders();
+        } catch (e) {
+            toast.error('Failed to delete orders');
+        }
+    };
+
     // POST Handlers (What's New)
     const handleCreatePost = async (e) => {
         e.preventDefault();
@@ -712,6 +737,12 @@ export default function AdminDashboard() {
                                             ))}
                                         </div>
                                     )}
+                                    <button
+                                        onClick={handleBulkDeleteOrders}
+                                        className="bg-red-500 hover:bg-red-600 text-white px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg flex items-center gap-2 transition-all"
+                                    >
+                                        <Trash2 size={14} /> Delete
+                                    </button>
                                     <button onClick={() => setSelectedOrders([])} className="bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-2xl transition-all"><X size={18} /></button>
                                 </div>
                             </div>
@@ -778,24 +809,33 @@ export default function AdminDashboard() {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-5">
-                                                {order.status !== 'CANCELLED' ? (
-                                                    <div className="relative group/select">
-                                                        <select
-                                                            value={order.status}
-                                                            onChange={(e) => updateStatus(order.id, e.target.value)}
-                                                            className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-[10px] font-black uppercase tracking-widest cursor-pointer group-hover/select:bg-white group-hover/select:shadow-lg transition-all outline-none text-gray-700 ring-1 ring-black/5"
-                                                        >
-                                                            <option value="RECEIVED">📥 Received</option>
-                                                            <option value="PRODUCTION">🔧 Production</option>
-                                                            <option value="READY">✅ Ready</option>
-                                                            <option value="DISPATCHED">🚚 Dispatched</option>
-                                                            <option value="DELAYED">⏳ Delayed</option>
-                                                            <option value="CANCELLED">❌ Cancel</option>
-                                                        </select>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-red-500 font-black text-[10px] uppercase tracking-widest bg-red-50 px-3 py-1 rounded-xl opacity-60 italic">Voided</span>
-                                                )}
+                                                <div className="flex items-center gap-2">
+                                                    {order.status !== 'CANCELLED' ? (
+                                                        <div className="relative group/select">
+                                                            <select
+                                                                value={order.status}
+                                                                onChange={(e) => updateStatus(order.id, e.target.value)}
+                                                                className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-[10px] font-black uppercase tracking-widest cursor-pointer group-hover/select:bg-white group-hover/select:shadow-lg transition-all outline-none text-gray-700 ring-1 ring-black/5"
+                                                            >
+                                                                <option value="RECEIVED">📥 Received</option>
+                                                                <option value="PRODUCTION">🔧 Production</option>
+                                                                <option value="READY">✅ Ready</option>
+                                                                <option value="DISPATCHED">🚚 Dispatched</option>
+                                                                <option value="DELAYED">⏳ Delayed</option>
+                                                                <option value="CANCELLED">❌ Cancel</option>
+                                                            </select>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-red-500 font-black text-[10px] uppercase tracking-widest bg-red-50 px-3 py-1 rounded-xl opacity-60 italic">Voided</span>
+                                                    )}
+                                                    <button
+                                                        onClick={() => handleDeleteOrder(order.id)}
+                                                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                        title="Delete Order"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     )) : (
