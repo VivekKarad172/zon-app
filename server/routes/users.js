@@ -40,6 +40,11 @@ router.get('/', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), async 
         const users = await User.findAll({
             where,
             attributes: { exclude: ['password'] },
+            include: [{
+                model: User,
+                as: 'Distributor',
+                attributes: ['name', 'shopName']
+            }],
             order: [['createdAt', 'DESC']]
         });
 
@@ -320,12 +325,32 @@ router.post('/bulk', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), a
                         results.errors.push({ row: i + 1, error: `Email '${userData.email}' already exists` });
                         continue;
                     }
+
+                    // Look up Distributor ID if name provided instead of ID
+                    let finalDistributorId = effectiveDistributorId;
+                    if (role === 'DEALER' && isNaN(parseInt(effectiveDistributorId))) {
+                        // User likely provided a name, try to find it
+                        const dist = await User.findOne({
+                            where: {
+                                role: 'DISTRIBUTOR',
+                                name: { [Op.like]: `%${effectiveDistributorId}%` }
+                            }
+                        });
+                        if (dist) {
+                            finalDistributorId = dist.id;
+                        } else {
+                            results.failed++;
+                            results.errors.push({ row: i + 1, error: `Distributor '${effectiveDistributorId}' not found` });
+                            continue;
+                        }
+                    }
+
                     // Create Dealer
                     await User.create({
                         role: 'DEALER',
                         name: userData.name,
                         email: userData.email,
-                        distributorId: parseInt(effectiveDistributorId),
+                        distributorId: parseInt(finalDistributorId),
                         city: userData.city || null,
                         shopName: userData.shopName || null,
                         isEnabled: true
