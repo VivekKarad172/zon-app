@@ -232,12 +232,68 @@ router.post('/import', authenticate, authorize(['MANUFACTURER']), async (req, re
         let failed = 0;
         const errors = [];
 
+        // Helper function to parse date from various formats
+        const parseDate = (dateStr) => {
+            if (!dateStr) return new Date();
+
+            // Handle DD-MM-YYYY or DD/MM/YYYY format (Indian format)
+            const ddmmyyyy = String(dateStr).match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+            if (ddmmyyyy) {
+                const [, day, month, year] = ddmmyyyy;
+                return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            }
+
+            // Handle YYYY-MM-DD format
+            const yyyymmdd = String(dateStr).match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+            if (yyyymmdd) {
+                const [, year, month, day] = yyyymmdd;
+                return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            }
+
+            // Handle Excel serial date number
+            if (typeof dateStr === 'number') {
+                return new Date((dateStr - 25569) * 86400 * 1000);
+            }
+
+            // Fallback to default parsing
+            const parsed = new Date(dateStr);
+            return isNaN(parsed.getTime()) ? new Date() : parsed;
+        };
+
+        // Helper to get value from row with flexible column names
+        const getValue = (row, ...keys) => {
+            for (const key of keys) {
+                if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+                    return row[key];
+                }
+                // Also try lowercase and with spaces
+                const lowerKey = key.toLowerCase();
+                for (const rowKey of Object.keys(row)) {
+                    if (rowKey.toLowerCase().replace(/\s+/g, '') === lowerKey.replace(/\s+/g, '')) {
+                        if (row[rowKey] !== undefined && row[rowKey] !== null && row[rowKey] !== '') {
+                            return row[rowKey];
+                        }
+                    }
+                }
+            }
+            return null;
+        };
+
         // Group items by dealerEmail and orderDate to create orders
         const groupedOrders = {};
         for (const row of orderData) {
-            const key = `${row.dealerEmail}_${row.orderDate || 'today'}`;
+            const dealerEmail = getValue(row, 'dealerEmail', 'dealer_email', 'email', 'Dealer Email');
+            const orderDateStr = getValue(row, 'orderDate', 'order_date', 'date', 'Order Date');
+            const status = getValue(row, 'status', 'Status') || 'RECEIVED';
+
+            const key = `${dealerEmail}_${orderDateStr || 'today'}`;
             if (!groupedOrders[key]) {
-                groupedOrders[key] = { dealerEmail: row.dealerEmail, orderDate: row.orderDate, status: row.status || 'RECEIVED', items: [] };
+                groupedOrders[key] = {
+                    dealerEmail,
+                    orderDate: parseDate(orderDateStr),
+                    status: status.toUpperCase(),
+                    items: []
+                };
             }
             groupedOrders[key].items.push(row);
         }
@@ -252,41 +308,52 @@ router.post('/import', authenticate, authorize(['MANUFACTURER']), async (req, re
                     continue;
                 }
 
-                // Create Order
+                // Create Order with explicit createdAt
                 const order = await Order.create({
                     userId: dealer.id,
                     distributorId: dealer.distributorId,
                     status: orderGroup.status,
-                    createdAt: orderGroup.orderDate ? new Date(orderGroup.orderDate) : new Date()
+                    createdAt: orderGroup.orderDate,
+                    updatedAt: orderGroup.orderDate
                 });
 
                 // Create OrderItems
                 for (const item of orderGroup.items) {
                     try {
-                        const design = await Design.findOne({ where: { designNumber: item.designNumber } });
-                        const color = await Color.findOne({ where: { name: item.colorName } });
+                        const designNumber = getValue(item, 'designNumber', 'design_number', 'design', 'Design Number', 'Design');
+                        const colorName = getValue(item, 'colorName', 'color_name', 'color', 'foilColor', 'foil_color', 'Color Name', 'Foil Color');
+                        const width = parseFloat(getValue(item, 'width', 'Width')) || 0;
+                        const height = parseFloat(getValue(item, 'height', 'Height')) || 0;
+                        const thickness = getValue(item, 'thickness', 'Thickness') || '30mm';
+                        const quantity = parseInt(getValue(item, 'quantity', 'qty', 'Quantity')) || 1;
+                        const remarks = getValue(item, 'remarks', 'Remarks', 'notes', 'Notes') || '';
+
+                        const design = designNumber ? await Design.findOne({ where: { designNumber: String(designNumber).trim() } }) : null;
+                        const color = colorName ? await Color.findOne({ where: { name: String(colorName).trim() } }) : null;
 
                         await OrderItem.create({
                             orderId: order.id,
-                            designId: design?.id,
-                            colorId: color?.id,
-                            width: parseFloat(item.width) || 0,
-                            height: parseFloat(item.height) || 0,
-                            thickness: item.thickness || '30mm',
-                            quantity: parseInt(item.quantity) || 1,
-                            remarks: item.remarks || '',
-                            designSnapshot: item.designNumber,
-                            colorSnapshot: item.colorName,
-                            designImageSnapshot: design?.imageUrl,
-                            colorImageSnapshot: color?.imageUrl
+                            designId: design?.id || null,
+                            colorId: color?.id || null,
+                            width,
+                            height,
+                            thickness: String(thickness),
+                            quantity,
+                            remarks,
+                            designNameSnapshot: designNumber ? String(designNumber).trim() : (design?.designNumber || 'Unknown'),
+                            colorNameSnapshot: colorName ? String(colorName).trim() : (color?.name || 'Unknown'),
+                            designImageSnapshot: design?.imageUrl || null,
+                            colorImageSnapshot: color?.imageUrl || null
                         });
                         created++;
                     } catch (itemErr) {
+                        console.error('Item creation error:', itemErr.message);
                         errors.push({ row: item, error: itemErr.message });
                         failed++;
                     }
                 }
             } catch (orderErr) {
+                console.error('Order creation error:', orderErr.message);
                 errors.push({ row: key, error: orderErr.message });
                 failed += orderGroup.items.length;
             }

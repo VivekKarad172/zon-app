@@ -142,25 +142,18 @@ export default function MobileDealerDashboard({
                                 </div>
                                 <div className="bg-white p-3 rounded-xl shadow-sm space-y-2">
                                     {/* Header */}
-                                    <div className="grid grid-cols-12 gap-2 text-[9px] uppercase font-bold text-gray-400 px-1">
+                                    <div className="grid grid-cols-9 gap-2 text-[9px] uppercase font-bold text-gray-400 px-1">
                                         <span className="col-span-3">Width</span>
                                         <span className="col-span-3">Height</span>
-                                        <span className="col-span-3">Thick</span>
                                         <span className="col-span-2">Qty</span>
                                         <span className="col-span-1"></span>
                                     </div>
                                     {/* Rows */}
                                     <div className="space-y-2 max-h-[200px] overflow-y-auto">
                                         {sizeRows.map(row => (
-                                            <div key={row.id} className="grid grid-cols-12 gap-2 items-center bg-gray-50 p-2 rounded-lg">
+                                            <div key={row.id} className="grid grid-cols-9 gap-2 items-center bg-gray-50 p-2 rounded-lg">
                                                 <input type="number" placeholder="W" className="col-span-3 bg-white border rounded-lg p-2 text-center text-sm font-bold" value={row.width} onChange={e => updateRow(row.id, 'width', e.target.value)} />
                                                 <input type="number" placeholder="H" className="col-span-3 bg-white border rounded-lg p-2 text-center text-sm font-bold" value={row.height} onChange={e => updateRow(row.id, 'height', e.target.value)} />
-                                                <select className="col-span-3 bg-white border rounded-lg p-2 text-xs font-bold" value={row.thickness} onChange={e => updateRow(row.id, 'thickness', e.target.value)}>
-                                                    <option value="30mm">30mm</option>
-                                                    <option value="32mm">32mm</option>
-                                                    <option value="35mm">35mm</option>
-                                                    <option value="Custom">Custom</option>
-                                                </select>
                                                 <input type="number" min="1" className="col-span-2 bg-white border rounded-lg p-2 text-center text-sm font-bold" value={row.quantity} onChange={e => updateRow(row.id, 'quantity', Math.max(1, parseInt(e.target.value) || 1))} />
                                                 <button onClick={() => removeRow(row.id)} disabled={sizeRows.length <= 1} className={`col-span-1 p-1 ${sizeRows.length > 1 ? 'text-red-400' : 'text-gray-300'}`}>
                                                     <Trash2 size={16} />

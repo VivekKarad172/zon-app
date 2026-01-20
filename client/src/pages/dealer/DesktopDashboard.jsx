@@ -183,25 +183,18 @@ export default function DesktopDealerDashboard({
                                         </div>
                                         <div className="bg-white p-6 rounded-2xl shadow-md">
                                             {/* Table Header */}
-                                            <div className="grid grid-cols-12 gap-4 mb-3 text-xs font-bold text-gray-400 uppercase px-2">
+                                            <div className="grid grid-cols-9 gap-4 mb-3 text-xs font-bold text-gray-400 uppercase px-2">
                                                 <span className="col-span-3">Width (inch)</span>
                                                 <span className="col-span-3">Height (inch)</span>
-                                                <span className="col-span-3">Thickness</span>
                                                 <span className="col-span-2">Quantity</span>
                                                 <span className="col-span-1"></span>
                                             </div>
                                             {/* Rows */}
                                             <div className="space-y-3 max-h-[300px] overflow-y-auto">
                                                 {sizeRows.map(row => (
-                                                    <div key={row.id} className="grid grid-cols-12 gap-4 items-center bg-gray-50 p-3 rounded-xl">
+                                                    <div key={row.id} className="grid grid-cols-9 gap-4 items-center bg-gray-50 p-3 rounded-xl">
                                                         <input type="number" placeholder="Width" className="col-span-3 bg-white border border-gray-200 rounded-xl p-3 text-center font-bold focus:ring-2 focus:ring-indigo-500 outline-none" value={row.width} onChange={e => updateRow(row.id, 'width', e.target.value)} />
                                                         <input type="number" placeholder="Height" className="col-span-3 bg-white border border-gray-200 rounded-xl p-3 text-center font-bold focus:ring-2 focus:ring-indigo-500 outline-none" value={row.height} onChange={e => updateRow(row.id, 'height', e.target.value)} />
-                                                        <select className="col-span-3 bg-white border border-gray-200 rounded-xl p-3 font-bold focus:ring-2 focus:ring-indigo-500 outline-none" value={row.thickness} onChange={e => updateRow(row.id, 'thickness', e.target.value)}>
-                                                            <option value="30mm">30mm</option>
-                                                            <option value="32mm">32mm</option>
-                                                            <option value="35mm">35mm</option>
-                                                            <option value="Custom">Custom</option>
-                                                        </select>
                                                         <input type="number" min="1" className="col-span-2 bg-white border border-gray-200 rounded-xl p-3 text-center font-bold focus:ring-2 focus:ring-indigo-500 outline-none" value={row.quantity} onChange={e => updateRow(row.id, 'quantity', Math.max(1, parseInt(e.target.value) || 1))} />
                                                         <button onClick={() => removeRow(row.id)} disabled={sizeRows.length <= 1} className={`col-span-1 p-2 rounded-lg transition-all ${sizeRows.length > 1 ? 'text-red-500 hover:bg-red-50' : 'text-gray-300'}`}>
                                                             <Trash2 size={18} />
