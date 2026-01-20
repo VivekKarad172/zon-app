@@ -324,7 +324,6 @@ router.post('/import', authenticate, authorize(['MANUFACTURER']), async (req, re
                         let colorName = getValue(item, 'colorName', 'color_name', 'color', 'foilColor', 'foil_color', 'Color Name', 'Foil Color');
                         const width = parseFloat(getValue(item, 'width', 'Width')) || 0;
                         const height = parseFloat(getValue(item, 'height', 'Height')) || 0;
-                        const thickness = getValue(item, 'thickness', 'Thickness') || '30mm';
                         const quantity = parseInt(getValue(item, 'quantity', 'qty', 'Quantity')) || 1;
                         const remarks = getValue(item, 'remarks', 'Remarks', 'notes', 'Notes') || '';
 
@@ -375,7 +374,6 @@ router.post('/import', authenticate, authorize(['MANUFACTURER']), async (req, re
                             colorId: color?.id || null,
                             width,
                             height,
-                            thickness: String(thickness),
                             quantity,
                             remarks,
                             designNameSnapshot: designNumber ? String(designNumber).trim() : (design?.designNumber || 'Unknown'),

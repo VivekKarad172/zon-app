@@ -28,7 +28,7 @@ export default function DealerDashboard() {
 
     // Order Form State - Multi-Size Quick Add
     const [orderSelection, setOrderSelection] = useState({ doorTypeId: '', designId: '', colorId: '' });
-    const [sizeRows, setSizeRows] = useState([{ id: 1, width: '', height: '', thickness: '30mm', quantity: 1, remarks: '' }]);
+    const [sizeRows, setSizeRows] = useState([{ id: 1, width: '', height: '', quantity: 1, remarks: '' }]);
     const [cart, setCart] = useState([]);
 
     // My Orders & Posts
@@ -62,7 +62,7 @@ export default function DealerDashboard() {
 
     // === CART & ORDER FUNCTIONS ===
     const addRow = () => {
-        setSizeRows([...sizeRows, { id: Date.now(), width: '', height: '', thickness: '30mm', quantity: 1, remarks: '' }]);
+        setSizeRows([...sizeRows, { id: Date.now(), width: '', height: '', quantity: 1, remarks: '' }]);
     };
 
     const removeRow = (id) => {
@@ -99,7 +99,7 @@ export default function DealerDashboard() {
         }));
 
         setCart([...cart, ...newItems]);
-        setSizeRows([{ id: 1, width: '', height: '', thickness: '30mm', quantity: 1, remarks: '' }]);
+        setSizeRows([{ id: 1, width: '', height: '', quantity: 1, remarks: '' }]);
         toast.success(`${validRows.length} item(s) added to cart!`);
     };
 
