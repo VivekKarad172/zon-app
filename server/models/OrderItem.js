@@ -10,11 +10,6 @@ const OrderItem = sequelize.define('OrderItem', {
         type: DataTypes.FLOAT,
         allowNull: false
     },
-    thickness: {
-        type: DataTypes.STRING,
-        allowNull: true,
-        defaultValue: '30mm'
-    },
     quantity: {
         type: DataTypes.INTEGER,
         allowNull: false
