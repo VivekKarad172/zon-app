@@ -7,6 +7,9 @@ const DesignColor = require('./DesignColor');
 const Order = require('./Order');
 const OrderItem = require('./OrderItem');
 const Post = require('./Post'); // NEW: What's New posts
+const Worker = require('./Worker');
+const ProductionUnit = require('./ProductionUnit');
+const ProcessRecord = require('./ProcessRecord');
 
 // User Associations
 User.hasMany(User, { as: 'Dealers', foreignKey: 'distributorId' });
@@ -31,9 +34,22 @@ Color.belongsToMany(Design, { through: DesignColor });
 Order.hasMany(OrderItem, { foreignKey: 'orderId' });
 OrderItem.belongsTo(Order, { foreignKey: 'orderId' });
 
-// OrderItem relations (still keep FKs for active reference, but rely on snapshots for history)
+// OrderItem relations
 OrderItem.belongsTo(Design, { foreignKey: 'designId' });
 OrderItem.belongsTo(Color, { foreignKey: 'colorId' });
+
+// --- FACTORY SYSTEM V2 ---
+// OrderItem -> ProductionUnits (1 OrderItem = quantity * Units)
+OrderItem.hasMany(ProductionUnit, { foreignKey: 'orderItemId' });
+ProductionUnit.belongsTo(OrderItem, { foreignKey: 'orderItemId' });
+
+// ProductionUnit -> ProcessRecords (History)
+ProductionUnit.hasMany(ProcessRecord, { foreignKey: 'productionUnitId' });
+ProcessRecord.belongsTo(ProductionUnit, { foreignKey: 'productionUnitId' });
+
+// Worker -> ProcessRecords
+Worker.hasMany(ProcessRecord, { foreignKey: 'workerId' });
+ProcessRecord.belongsTo(Worker, { foreignKey: 'workerId' });
 
 module.exports = {
     sequelize,
@@ -44,5 +60,8 @@ module.exports = {
     DesignColor,
     Order,
     OrderItem,
-    Post  // NEW
+    Post,
+    Worker,
+    ProductionUnit,
+    ProcessRecord
 };

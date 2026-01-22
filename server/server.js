@@ -40,6 +40,7 @@ app.use('/api', masterDataRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/posts', postsRoutes); // NEW: What's New
+app.use('/api/workers', require('./routes/workers')); // FACTORY SYSTEM
 
 // TEMPORARY: Seed Database via URL
 app.get('/api/seed', async (req, res) => {

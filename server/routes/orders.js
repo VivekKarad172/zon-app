@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Order, OrderItem, Design, Color, User, DoorType, sequelize } = require('../models');
+const { Order, OrderItem, Design, Color, User, DoorType, sequelize, ProductionUnit } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
@@ -204,6 +204,27 @@ router.put('/:id/status', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR'
         }
 
         await order.update({ status: newStatus });
+
+        // FACTORY SYSTEM: Generate Production Units if moving to PRODUCTION
+        if (newStatus === 'PRODUCTION') {
+            const items = await OrderItem.findAll({ where: { orderId: order.id } });
+
+            for (const item of items) {
+                // Check if units already exist (prevent duplicates)
+                const existing = await ProductionUnit.count({ where: { orderItemId: item.id } });
+                if (existing > 0) continue;
+
+                // Create Unit for each quantity
+                for (let i = 1; i <= item.quantity; i++) {
+                    await ProductionUnit.create({
+                        orderItemId: item.id,
+                        unitNumber: i,
+                        uniqueCode: `OD${order.id}-IT${item.id}-QN${i}`,
+                        currentStage: 'PVC_CUT'
+                    });
+                }
+            }
+        }
         res.json(order);
     } catch (error) {
         res.status(500).json({ error: error.message });
