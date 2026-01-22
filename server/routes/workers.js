@@ -239,4 +239,46 @@ router.get('/', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
     }
 });
 
+// POST /workers/repair - Backfill missing Production Units for existing orders
+router.post('/repair', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        console.log('Starting Factory Data Repair...');
+
+        // 1. Sync Tables (Ensure they exist)
+        await Worker.sync();
+        await ProductionUnit.sync();
+
+        // 2. Find Orders in PRODUCTION
+        const orders = await sequelize.models.Order.findAll({
+            where: { status: 'PRODUCTION' },
+            include: [OrderItem]
+        });
+
+        let createdCount = 0;
+
+        for (const order of orders) {
+            for (const item of order.OrderItems) {
+                const existing = await ProductionUnit.count({ where: { orderItemId: item.id } });
+                if (existing > 0) continue;
+
+                for (let i = 1; i <= item.quantity; i++) {
+                    await ProductionUnit.create({
+                        orderItemId: item.id,
+                        unitNumber: i,
+                        uniqueCode: `OD${order.id}-IT${item.id}-QN${i}`,
+                        currentStage: 'PVC_CUT',
+                        status: 'PENDING'
+                    });
+                    createdCount++;
+                }
+            }
+        }
+
+        res.json({ message: `Repair Complete. Created ${createdCount} missing units.`, ordersFixed: orders.length });
+    } catch (error) {
+        console.error('Repair failed:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 module.exports = router;

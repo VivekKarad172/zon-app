@@ -863,7 +863,23 @@ export default function AdminDashboard() {
                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
                         {/* 1. Live Floor Stats */}
                         <div>
-                            <h2 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-3"><div className="w-1.5 h-8 bg-gradient-to-b from-indigo-500 to-indigo-700 rounded-full"></div>Live Floor Status</h2>
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-xl font-black text-gray-800 flex items-center gap-3"><div className="w-1.5 h-8 bg-gradient-to-b from-indigo-500 to-indigo-700 rounded-full"></div>Live Floor Status</h2>
+                                <button
+                                    onClick={async () => {
+                                        if (!confirm('Fix missing data for existing orders?')) return;
+                                        const toastId = toast.loading('Repairing...');
+                                        try {
+                                            const res = await api.post('/workers/repair');
+                                            toast.success(res.data.message, { id: toastId });
+                                            fetchFactoryStats();
+                                        } catch (e) { toast.error('Repair failed', { id: toastId }); }
+                                    }}
+                                    className="text-[10px] font-bold text-indigo-500 hover:text-indigo-700 bg-indigo-50 px-3 py-2 rounded-lg"
+                                >
+                                    ⚠️ Fix Missing Data
+                                </button>
+                            </div>
                             <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                                 {['PVC_CUT', 'FOIL_PASTING', 'EMBOSS', 'DOOR_MAKING', 'PACKING'].map((stage, idx) => (
                                     <div key={stage} className="bg-white p-5 rounded-3xl shadow-lg shadow-gray-100 border border-gray-100 relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
