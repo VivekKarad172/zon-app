@@ -158,6 +158,16 @@ export default function Login() {
                         </button>
                     </form>
                 )}
+
+                <div className="mt-8 text-center border-t border-gray-100 pt-6">
+                    <p className="text-xs text-gray-400 font-bold mb-3 uppercase tracking-widest">Internal Access</p>
+                    <button
+                        onClick={() => navigate('/worker/login')}
+                        className="text-indigo-600 hover:text-indigo-800 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 mx-auto hover:bg-indigo-50 px-4 py-2 rounded-lg transition-all"
+                    >
+                        🏭 Factory Floor Login
+                    </button>
+                </div>
             </div>
         </div>
     );

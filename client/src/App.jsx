@@ -1,6 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
+import WorkerLogin from './pages/worker/WorkerLogin';
+import WorkerDashboard from './pages/worker/WorkerDashboard';
 import AdminDashboard from './pages/admin/Dashboard';
 import DistributorDashboard from './pages/distributor/Dashboard';
 import DealerDashboard from './pages/dealer/Dashboard';
@@ -58,6 +60,10 @@ function App() {
             <Routes>
                 {/* Public Route - Login - Renders Immediately */}
                 <Route path="/login" element={<Login />} />
+
+                {/* Factory Routes */}
+                <Route path="/worker/login" element={<WorkerLogin />} />
+                <Route path="/worker/dashboard" element={<WorkerDashboard />} />
 
                 {/* SHARED: Profile Page (All Authenticated Users) */}
                 <Route
