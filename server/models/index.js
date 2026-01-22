@@ -10,6 +10,7 @@ const Post = require('./Post'); // NEW: What's New posts
 const Worker = require('./Worker');
 const ProductionUnit = require('./ProductionUnit');
 const ProcessRecord = require('./ProcessRecord');
+const SystemSetting = require('./SystemSetting');
 
 // User Associations
 User.hasMany(User, { as: 'Dealers', foreignKey: 'distributorId' });
@@ -63,5 +64,6 @@ module.exports = {
     Post,
     Worker,
     ProductionUnit,
-    ProcessRecord
+    ProcessRecord,
+    SystemSetting
 };

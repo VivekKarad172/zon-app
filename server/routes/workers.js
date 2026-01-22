@@ -1,9 +1,49 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const { Worker, ProductionUnit, OrderItem, Design, Color, Order, User, sequelize } = require('../models');
+const { Worker, ProductionUnit, OrderItem, Design, Color, Order, User, sequelize, SystemSetting } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
 const { Op } = require('sequelize');
+
+// --- GEO FENCING HELPERS ---
+function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+    if (!lat1 || !lon1 || !lat2 || !lon2) return 999999;
+    var R = 6371; // Radius of the earth in km
+    var dLat = deg2rad(lat2 - lat1);
+    var dLon = deg2rad(lon2 - lon1);
+    var a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    var d = R * c; // Distance in km
+    return d * 1000; // Meters
+}
+function deg2rad(deg) { return deg * (Math.PI / 180); }
+
+// SETTINGS ROUTES (ADMIN)
+router.post('/settings/location', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        const { lat, lng } = req.body;
+        await SystemSetting.sync(); // Ensure table exists
+        await SystemSetting.upsert({ key: 'FACTORY_COORDS', value: JSON.stringify({ lat, lng }) });
+        console.log('Factory Location Updated:', lat, lng);
+        res.json({ success: true });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.get('/settings/location', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        await SystemSetting.sync();
+        const s = await SystemSetting.findByPk('FACTORY_COORDS');
+        res.json(s ? JSON.parse(s.value) : null);
+    } catch (e) {
+        res.json(null);
+    }
+});
 
 // GET /workers/stats - Factory Floor Status (Pending Counts based on Flags)
 router.get('/stats', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
@@ -200,6 +240,24 @@ router.post('/complete', async (req, res) => {
 
         const unit = await ProductionUnit.findByPk(unitId);
         if (!unit) return res.status(404).json({ error: 'Unit not found' });
+
+        // CHECK GEOFENCE
+        const { lat, lng } = req.body;
+        await SystemSetting.sync(); // Ensure table exists
+        const setting = await SystemSetting.findByPk('FACTORY_COORDS');
+        if (setting) {
+            const factory = JSON.parse(setting.value);
+            // 500 meters tolerance
+            if (lat && lng) {
+                const dist = getDistanceFromLatLonInMeters(lat, lng, factory.lat, factory.lng);
+                console.log(`Worker Dist: ${dist}m`);
+                if (dist > 500) {
+                    return res.status(403).json({ error: `You are ${Math.round(dist)}m away from Factory!` });
+                }
+            } else {
+                return res.status(403).json({ error: 'GPS Location Access Required' });
+            }
+        }
 
         // DEFINE RULES
         const ROLE_MAP = {

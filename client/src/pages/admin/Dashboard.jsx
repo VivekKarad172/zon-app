@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
-import { Plus, X, Image as ImageIcon, Filter, Search, Edit2, Eye, EyeOff, Save, Trash2, User, Users, ShoppingBag, Bell, Upload, Download, FileSpreadsheet, Home, CheckSquare, Calendar, ChevronDown, Factory, Hammer, RefreshCw } from 'lucide-react';
+import { Plus, X, Image as ImageIcon, Filter, Search, Edit2, Eye, EyeOff, Save, Trash2, User, Users, ShoppingBag, Bell, Upload, Download, FileSpreadsheet, Home, CheckSquare, Calendar, ChevronDown, Factory, Hammer, RefreshCw, MapPin } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -63,6 +63,7 @@ export default function AdminDashboard() {
     const [workers, setWorkers] = useState([]);
     const [factoryStats, setFactoryStats] = useState({});
     const [factoryTracking, setFactoryTracking] = useState([]);
+    const [factoryLocation, setFactoryLocation] = useState(null);
     const [showAddWorker, setShowAddWorker] = useState(false);
     const [newWorker, setNewWorker] = useState({ name: '', pinCode: '', role: 'PVC_CUT' });
 
@@ -76,7 +77,7 @@ export default function AdminDashboard() {
         if (activeTab === 'home') fetchAnalytics();
         if (activeTab === 'orders') fetchOrders();
         if (activeTab === 'production') { fetchProductionOrders(); fetchDistributors(); }
-        if (activeTab === 'factory') { fetchWorkers(); fetchFactoryStats(); fetchFactoryTracking(); }
+        if (activeTab === 'factory') { fetchWorkers(); fetchFactoryStats(); fetchFactoryTracking(); fetchFactoryLocation(); }
         if (activeTab === 'designs' || activeTab === 'masters') { fetchDesigns(); fetchDoors(); fetchColors(); }
         if (activeTab === 'distributors') fetchDistributors();
         if (activeTab === 'dealers') { fetchDealers(); fetchDistributors(); }
@@ -102,7 +103,29 @@ export default function AdminDashboard() {
 
     const fetchFactoryStats = async () => { try { const res = await api.get('/workers/stats'); setFactoryStats(res.data); } catch (e) { } };
     const fetchFactoryTracking = async () => { try { const res = await api.get('/workers/tracking'); setFactoryTracking(res.data); } catch (e) { } };
+    const fetchFactoryLocation = async () => { try { const res = await api.get('/workers/settings/location'); setFactoryLocation(res.data); } catch (e) { } };
     const fetchWorkers = async () => { try { const res = await api.get('/workers'); setWorkers(res.data); } catch (e) { } };
+
+    const handleSetLocation = () => {
+        if (!navigator.geolocation) return toast.error('Browser does not support GPS');
+        const tId = toast.loading('Getting Admin GPS...');
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            try {
+                const { latitude, longitude } = pos.coords;
+                await api.post('/workers/settings/location', { lat: latitude, lng: longitude });
+                toast.success('Factory Location Updated!');
+                fetchFactoryLocation();
+                toast.dismiss(tId);
+            } catch (error) {
+                toast.error('Failed to save location');
+                toast.dismiss(tId);
+            }
+        }, (err) => {
+            console.error(err);
+            toast.error('Location Access Denied');
+            toast.dismiss(tId);
+        });
+    };
 
     const handleAddWorker = async (e) => {
         e.preventDefault();
@@ -1052,6 +1075,22 @@ export default function AdminDashboard() {
                                         )}
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+
+                        {/* FACTORY SETTINGS */}
+                        <div className="mt-6 flex justify-end">
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+                                <div>
+                                    <h3 className="text-xs font-black uppercase text-gray-400">Factory Geofence</h3>
+                                    <div className="font-bold text-gray-700 text-sm flex items-center gap-1">
+                                        <MapPin size={14} className={factoryLocation ? 'text-green-500' : 'text-red-400'} />
+                                        {factoryLocation ? `Set: ${factoryLocation.lat.toFixed(4)}, ${factoryLocation.lng.toFixed(4)}` : 'Not Set'}
+                                    </div>
+                                </div>
+                                <button onClick={handleSetLocation} className="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 active:scale-95 transition-all">
+                                    {factoryLocation ? 'Update Location' : 'Set Factory Here'}
+                                </button>
                             </div>
                         </div>
 

@@ -96,14 +96,34 @@ export default function WorkerDashboard() {
         return { locked: false };
     };
 
-    const handleComplete = async (unitId) => {
-        try {
-            await api.post('/workers/complete', { workerId: worker.id, unitId });
-            toast.success('Done!');
-            fetchTasks();
-        } catch (error) {
-            toast.error(error.response?.data?.error || 'Failed');
-        }
+    const handleComplete = (unitId) => {
+        if (!navigator.geolocation) return toast.error('GPS not supported');
+
+        const toastId = toast.loading('Verifying Location...');
+
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            try {
+                const { latitude, longitude } = pos.coords;
+                // Add tiny delay for toast to render
+                await api.post('/workers/complete', {
+                    workerId: worker.id,
+                    unitId,
+                    lat: latitude,
+                    lng: longitude
+                });
+                toast.dismiss(toastId);
+                toast.success('Done!');
+                fetchTasks(); // Refresh list 
+            } catch (error) {
+                toast.dismiss(toastId);
+                const msg = error.response?.data?.error || 'Failed';
+                toast.error(msg);
+            }
+        }, (err) => {
+            toast.dismiss(toastId);
+            console.error(err);
+            toast.error('Location Access Denied. enable GPS.');
+        }, { enableHighAccuracy: true, timeout: 10000 });
     };
 
     const handleLogout = () => {
