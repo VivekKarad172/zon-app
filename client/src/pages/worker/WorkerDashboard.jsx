@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
-import { LogOut, RefreshCw, Check, Lock, AlertOctagon, Box, Ruler, User } from 'lucide-react';
+import { LogOut, RefreshCw, Check, Lock, AlertOctagon, Box, Ruler, User, Layers } from 'lucide-react';
 
 export default function WorkerDashboard() {
     const navigate = useNavigate();
-    const [tasks, setTasks] = useState([]);
+    const [groupedTasks, setGroupedTasks] = useState([]);
     const [loading, setLoading] = useState(true);
     const worker = JSON.parse(localStorage.getItem('workerToken'));
 
@@ -39,14 +39,37 @@ export default function WorkerDashboard() {
             // Filter out tasks I have already done
             const pendingTasks = res.data.filter(t => !t[myRole.flag]);
 
-            // Sort: High Priority First
-            const sorted = pendingTasks.sort((a, b) => {
-                const aPrio = checkPriority(a) ? 1 : 0;
-                const bPrio = checkPriority(b) ? 1 : 0;
-                return bPrio - aPrio;
+            // Group by Order ID
+            const groups = {};
+            pendingTasks.forEach(t => {
+                const order = t.OrderItem?.Order;
+                if (!order) return;
+                const oid = order.id;
+
+                if (!groups[oid]) {
+                    groups[oid] = {
+                        id: oid,
+                        ref: order.referenceNumber, // Might be undefined, handled purely visually
+                        distributor: order.Distributor,
+                        items: []
+                    };
+                }
+                groups[oid].items.push(t);
             });
 
-            setTasks(sorted);
+            // Convert to Array
+            const groupArray = Object.values(groups).sort((a, b) => a.id - b.id);
+
+            // Sort items within group by priority?
+            groupArray.forEach(g => {
+                g.items.sort((a, b) => {
+                    const aPrio = checkPriority(a) ? 1 : 0;
+                    const bPrio = checkPriority(b) ? 1 : 0;
+                    return bPrio - aPrio;
+                });
+            });
+
+            setGroupedTasks(groupArray);
             setLoading(false);
         } catch (error) {
             console.error(error);
@@ -111,11 +134,11 @@ export default function WorkerDashboard() {
                 </div>
             </div>
 
-            {/* List */}
-            <div className="flex-1 p-3 max-w-xl mx-auto w-full space-y-3">
+            {/* Grouped List */}
+            <div className="flex-1 p-3 max-w-xl mx-auto w-full space-y-6">
                 {loading ? (
-                    <div className="text-center py-20 text-gray-400 font-bold animate-pulse">Loading...</div>
-                ) : tasks.length === 0 ? (
+                    <div className="text-center py-20 text-gray-400 font-bold animate-pulse">Loading Tasks...</div>
+                ) : groupedTasks.length === 0 ? (
                     <div className="text-center py-20 opacity-50">
                         <div className="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
                             <Check size={40} strokeWidth={4} />
@@ -125,112 +148,124 @@ export default function WorkerDashboard() {
                 ) : (
                     <>
                         <div className="px-1 text-[10px] font-black text-gray-400 uppercase tracking-widest flex justify-between">
-                            <span>Pending: {tasks.length}</span>
+                            <span>Pending Orders: {groupedTasks.length}</span>
                         </div>
 
-                        {tasks.map(unit => {
-                            const item = unit.OrderItem;
-                            const design = item?.Design;
-                            const color = item?.Color;
-                            const order = item?.Order;
-                            const distributor = order?.Distributor;
-                            const dealer = order?.User; // The Creator
-
-                            const { locked, reason } = checkDependencies(unit);
-                            const isHighPriority = checkPriority(unit);
-
-                            // CUSTOM RENDERING PER ROLE
-                            const showSize = ['PVC_CUT', 'FOIL_PASTING', 'DOOR_MAKING', 'PACKING'].includes(worker.role);
-                            const bigSize = ['PVC_CUT', 'DOOR_MAKING'].includes(worker.role);
-                            const showColor = ['FOIL_PASTING', 'EMBOSS', 'PACKING'].includes(worker.role);
-                            const bigColor = ['FOIL_PASTING'].includes(worker.role);
-                            const showDesign = ['EMBOSS', 'PACKING', 'PVC_CUT', 'DOOR_MAKING'].includes(worker.role); // Standard show
-                            const showFullDetails = worker.role === 'PACKING';
-
-                            return (
-                                <div key={unit.id} className={`bg-white rounded-2xl shadow-sm border overflow-hidden relative ${isHighPriority ? 'border-red-500 ring-2 ring-red-100' : 'border-gray-200'}`}>
-
-                                    {isHighPriority && (
-                                        <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-black uppercase px-2 py-1 rounded-bl-lg z-20 flex items-center gap-1 shadow-md">
-                                            <AlertOctagon size={10} /> Urgent
+                        {groupedTasks.map(group => (
+                            <div key={group.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                                {/* GROUP HEADER */}
+                                <div className="bg-indigo-50/50 px-4 py-3 border-b border-indigo-100 flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                        <div className="bg-indigo-600 text-white font-mono font-bold text-xs px-2 py-1 rounded">#{group.id}</div>
+                                        <div className="text-xs font-bold text-indigo-900 flex items-center gap-1">
+                                            <User size={12} /> {group.distributor?.shopName || 'Distributor'}
                                         </div>
-                                    )}
-
-                                    {/* SHARED HEADER: Order Info */}
-                                    <div className="bg-gray-50 px-3 py-2 border-b border-gray-100 flex justify-between items-center text-xs">
-                                        <span className="font-mono font-bold text-gray-500">Order #{order?.id || 'Ref'} / Unit {unit.unitNumber}</span>
-                                        <span className="font-bold text-indigo-700 flex items-center gap-1">
-                                            <User size={10} /> {distributor?.shopName || 'Distributor'}
-                                        </span>
                                     </div>
-
-                                    <div className="flex">
-                                        {/* LEFT VISUALS */}
-                                        <div className="w-1/3 bg-gray-200 relative min-h-[140px]">
-                                            {/* Design Image */}
-                                            {showDesign && design?.imageUrl ? (
-                                                <img
-                                                    src={`${BASE_URL}${design.imageUrl}`}
-                                                    className={`w-full h-full object-cover ${locked ? 'grayscale opacity-60' : ''}`}
-                                                />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-gray-400"><Box size={24} /></div>
-                                            )}
-
-                                            {/* Color Overlay (Big for Foil) */}
-                                            {showColor && color?.imageUrl && (
-                                                <div className={`absolute bottom-0 right-0 overflow-hidden shadow-lg border-2 border-white ${bigColor ? 'w-2/3 h-2/3 rounded-tl-2xl' : 'w-10 h-10 rounded-tl-lg'}`}>
-                                                    <img src={`${BASE_URL}${color.imageUrl}`} className="w-full h-full object-cover" />
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* RIGHT DETAILS */}
-                                        <div className="w-2/3 p-3 flex flex-col justify-between">
-                                            <div>
-                                                {/* Dimensions (Highlight for PVC/Door) */}
-                                                {showSize && (
-                                                    <div className={`font-black text-gray-800 flex items-center gap-1 mb-1 ${bigSize ? 'text-2xl' : 'text-sm'}`}>
-                                                        <Ruler size={bigSize ? 20 : 12} className="text-gray-400" />
-                                                        {item?.width}" × {item?.height}"
-                                                    </div>
-                                                )}
-
-                                                {/* Design/Color Names */}
-                                                <div className="text-xs text-gray-600 font-bold mb-1 truncate">
-                                                    {design?.designNumber} - {color?.name}
-                                                </div>
-
-                                                {/* Full Details for Packing */}
-                                                {showFullDetails && (
-                                                    <div className="mt-2 bg-indigo-50 rounded p-2 text-[10px] space-y-1 text-indigo-900 border border-indigo-100">
-                                                        <div><span className="opacity-50 font-bold">DLR:</span> {dealer?.shopName}</div>
-                                                        <div><span className="opacity-50 font-bold">ORD:</span> #{order?.id} ({order?.referenceNumber})</div>
-                                                        <div><span className="opacity-50 font-bold">SPEC:</span> {item?.width}x{item?.height} | {color?.name}</div>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* ACTION BUTTON */}
-                                            <div className="mt-2">
-                                                {locked ? (
-                                                    <button disabled className="w-full bg-gray-100 text-gray-400 font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 cursor-not-allowed text-[10px] uppercase tracking-wide">
-                                                        <Lock size={12} /> {reason}
-                                                    </button>
-                                                ) : (
-                                                    <button
-                                                        onClick={() => handleComplete(unit.id)}
-                                                        className={`w-full py-2.5 rounded-xl font-black text-white shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 text-sm uppercase tracking-wide ${isHighPriority ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}
-                                                    >
-                                                        <Check size={18} strokeWidth={4} /> DONE
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
+                                    <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-wide flex items-center gap-1">
+                                        <Layers size={12} /> {group.items.length} Units
                                     </div>
                                 </div>
-                            );
-                        })}
+
+                                {/* UNIT LIST */}
+                                <div className="divide-y divide-gray-100">
+                                    {group.items.map(unit => {
+                                        const item = unit.OrderItem;
+                                        const design = item?.Design;
+                                        const color = item?.Color;
+                                        const dealer = item?.Order?.User;
+
+                                        const { locked, reason } = checkDependencies(unit);
+                                        const isHighPriority = checkPriority(unit);
+
+                                        // CUSTOM RENDERING PER ROLE
+                                        const showSize = ['PVC_CUT', 'FOIL_PASTING', 'DOOR_MAKING', 'PACKING'].includes(worker.role);
+                                        const bigSize = ['PVC_CUT', 'DOOR_MAKING'].includes(worker.role);
+                                        const showColor = ['FOIL_PASTING', 'EMBOSS', 'PACKING'].includes(worker.role);
+                                        const bigColor = ['FOIL_PASTING'].includes(worker.role);
+                                        const showDesign = ['EMBOSS', 'PACKING', 'PVC_CUT', 'DOOR_MAKING'].includes(worker.role);
+                                        const showFullDetails = worker.role === 'PACKING';
+
+                                        return (
+                                            <div key={unit.id} className={`p-0 flex relative ${isHighPriority ? 'bg-red-50/30' : ''}`}>
+
+                                                {isHighPriority && (
+                                                    <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-bl-lg z-20 shadow-md">
+                                                        Urgent
+                                                    </div>
+                                                )}
+
+                                                {/* LEFT VISUALS */}
+                                                <div className="w-24 bg-gray-100 relative shrink-0 border-r border-gray-100">
+                                                    {/* Design Image */}
+                                                    {showDesign && design?.imageUrl ? (
+                                                        <img
+                                                            src={`${BASE_URL}${design.imageUrl}`}
+                                                            className={`w-full h-full object-cover ${locked ? 'grayscale opacity-60' : ''}`}
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-gray-300"><Box size={20} /></div>
+                                                    )}
+
+                                                    {/* Color Overlay (Big for Foil) */}
+                                                    {showColor && color?.imageUrl && (
+                                                        <div className={`absolute bottom-0 right-0 overflow-hidden shadow-sm border border-white ${bigColor ? 'w-full h-1/2' : 'w-8 h-8 rounded-tl-lg'}`}>
+                                                            <img src={`${BASE_URL}${color.imageUrl}`} className="w-full h-full object-cover" />
+                                                        </div>
+                                                    )}
+
+                                                    {/* Unit Number Badge */}
+                                                    <div className="absolute top-1 left-1 bg-black/50 text-white text-[9px] font-mono px-1 rounded backdrop-blur-sm">
+                                                        #{unit.unitNumber}
+                                                    </div>
+                                                </div>
+
+                                                {/* RIGHT DETAILS */}
+                                                <div className="flex-1 p-3 flex flex-col justify-between min-h-[100px]">
+                                                    <div>
+                                                        {/* Dimensions */}
+                                                        {showSize && (
+                                                            <div className={`font-black text-gray-800 flex items-center gap-1 ${bigSize ? 'text-xl' : 'text-sm'}`}>
+                                                                <Ruler size={bigSize ? 16 : 12} className="text-gray-400" />
+                                                                {item?.width}" × {item?.height}"
+                                                            </div>
+                                                        )}
+
+                                                        {/* Design/Color Names */}
+                                                        <div className="text-xs text-gray-500 font-medium truncate mt-0.5">
+                                                            {design?.designNumber} • {color?.name}
+                                                        </div>
+
+                                                        {/* Full Details for Packing */}
+                                                        {showFullDetails && (
+                                                            <div className="mt-2 text-[10px] space-y-0.5 text-indigo-900 bg-indigo-50/50 p-1 rounded">
+                                                                <div className="flex justify-between"><span>DLR: {dealer?.shopName}</span></div>
+                                                                <div className="font-mono opacity-50 text-[9px]">{unit.uniqueCode}</div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* ACTION BUTTON */}
+                                                    <div className="mt-2">
+                                                        {locked ? (
+                                                            <button disabled className="w-full bg-gray-50 text-gray-300 font-bold py-2 rounded-lg flex items-center justify-center gap-2 cursor-not-allowed text-[10px] uppercase tracking-wide border border-gray-100">
+                                                                <Lock size={10} /> {reason}
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => handleComplete(unit.id)}
+                                                                className={`w-full py-2 rounded-lg font-black text-white shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-wide ${isHighPriority ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}
+                                                            >
+                                                                <Check size={14} strokeWidth={4} /> DONE
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
                     </>
                 )}
             </div>

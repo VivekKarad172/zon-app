@@ -8,32 +8,76 @@ const { Op } = require('sequelize');
 // GET /workers/stats - Factory Floor Status (Pending Counts based on Flags)
 router.get('/stats', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
     try {
-        // Count Pending Items (Flag is False and Not Packed)
-        const counts = await ProductionUnit.findAll({
-            where: { isPacked: false },
-            attributes: [
-                [sequelize.fn('SUM', sequelize.literal('CASE WHEN "isPvcDone" = 0 THEN 1 ELSE 0 END')), 'PVC_CUT'],
-                [sequelize.fn('SUM', sequelize.literal('CASE WHEN "isFoilDone" = 0 THEN 1 ELSE 0 END')), 'FOIL_PASTING'],
-                [sequelize.fn('SUM', sequelize.literal('CASE WHEN "isEmbossDone" = 0 THEN 1 ELSE 0 END')), 'EMBOSS'],
-                [sequelize.fn('SUM', sequelize.literal('CASE WHEN "isDoorMade" = 0 THEN 1 ELSE 0 END')), 'DOOR_MAKING'],
-                [sequelize.fn('SUM', sequelize.literal('CASE WHEN "isPacked" = 0 THEN 1 ELSE 0 END')), 'PACKING']
-            ],
-            raw: true
+        // Safe Count Implementation (Counting PENDING items)
+        // Pending means: Flag is FALSE and Item is NOT Packed.
+
+        const pvcPending = await ProductionUnit.count({ where: { isPvcDone: false, isPacked: false } });
+        const foilPending = await ProductionUnit.count({ where: { isFoilDone: false, isPacked: false } });
+        const embossPending = await ProductionUnit.count({ where: { isEmbossDone: false, isPacked: false } });
+        const doorPending = await ProductionUnit.count({ where: { isDoorMade: false, isPacked: false } });
+        const packingPending = await ProductionUnit.count({ where: { isPacked: false } });
+
+        res.json({
+            PVC_CUT: pvcPending,
+            FOIL_PASTING: foilPending,
+            EMBOSS: embossPending,
+            DOOR_MAKING: doorPending,
+            PACKING: packingPending
         });
-
-        // Fallback or simplier query if above fails on certain SQL dialects
-        // But for safety let's use separate counts if we want to be 100% sure across DBs
-        const stats = {
-            PVC_CUT: await ProductionUnit.count({ where: { isPvcDone: false, isPacked: false } }),
-            FOIL_PASTING: await ProductionUnit.count({ where: { isFoilDone: false, isPacked: false } }),
-            EMBOSS: await ProductionUnit.count({ where: { isEmbossDone: false, isPacked: false } }),
-            DOOR_MAKING: await ProductionUnit.count({ where: { isDoorMade: false, isPacked: false } }),
-            PACKING: await ProductionUnit.count({ where: { isPacked: false } })
-        };
-
-        res.json(stats);
     } catch (error) {
         console.error('Stats Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /workers/tracking - Detailed Order Progress
+router.get('/tracking', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        const orders = await Order.findAll({
+            where: { status: 'PRODUCTION' },
+            include: [
+                { model: User, as: 'Distributor', attributes: ['name', 'shopName'] },
+                {
+                    model: OrderItem,
+                    include: [{ model: ProductionUnit }]
+                }
+            ],
+            order: [['updatedAt', 'DESC']]
+        });
+
+        const tracking = orders.map(order => {
+            let totalUnits = 0;
+            let stats = { pvc: 0, foil: 0, emboss: 0, door: 0, packed: 0 };
+
+            order.OrderItems.forEach(item => {
+                // Use actual unit records if available, else quantity
+                // If repair ran, ProductionUnits exist.
+                if (item.ProductionUnits && item.ProductionUnits.length > 0) {
+                    totalUnits += item.ProductionUnits.length;
+                    item.ProductionUnits.forEach(u => {
+                        if (u.isPvcDone) stats.pvc++;
+                        if (u.isFoilDone) stats.foil++;
+                        if (u.isEmbossDone) stats.emboss++;
+                        if (u.isDoorMade) stats.door++;
+                        if (u.isPacked) stats.packed++;
+                    });
+                } else {
+                    totalUnits += item.quantity;
+                }
+            });
+
+            return {
+                id: order.id,
+                distributor: order.Distributor?.shopName || 'Direct',
+                total: totalUnits,
+                progress: stats,
+                pending: totalUnits - stats.packed // Approximate
+            };
+        });
+
+        res.json(tracking);
+    } catch (error) {
+        console.error('Tracking Error:', error);
         res.status(500).json({ error: error.message });
     }
 });
