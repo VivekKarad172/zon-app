@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const { User, sequelize } = require('../models');
+const { User, Order, sequelize } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
 const { Op } = require('sequelize');
 const fs = require('fs');
@@ -9,17 +9,19 @@ const path = require('path');
 
 // Helper for file logging
 const logToFile = (msg) => {
-    const logPath = path.join(__dirname, '../debug.log');
-    const timestamp = new Date().toISOString();
-    fs.appendFileSync(logPath, `[${timestamp}] ${msg}\n`);
+    try {
+        const logPath = path.join(__dirname, '../debug.log');
+        const timestamp = new Date().toISOString();
+        fs.appendFileSync(logPath, `[${timestamp}] ${msg}\n`);
+    } catch (e) {
+        console.error('Logging failed:', e);
+    }
 };
 
 // GET Users by Role
 router.get('/', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), async (req, res) => {
     try {
         logToFile('--- GET /users REQUEST ---');
-        logToFile(`User Token Payload: ${JSON.stringify(req.user)}`);
-        // console.log('Query:', req.query);
 
         const { role } = req.query;
         const where = {};
@@ -28,31 +30,13 @@ router.get('/', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), async 
         if (req.user.role === 'DISTRIBUTOR') {
             where.distributorId = req.user.id;
             where.role = 'DEALER';
-            // logToFile(`Applying Filter: distributorId=${req.user.id}`);
         } else if (role) {
             where.role = role;
         }
 
-        // console.log('Final Where Clause:', where);
-
         const users = await User.findAll({
             where,
-            attributes: {
-                exclude: ['password'],
-                include: [
-                    [
-                        sequelize.literal(`(
-                            SELECT COUNT(*)
-                            FROM Orders AS o
-                            WHERE
-                                (User.role = 'DISTRIBUTOR' AND o.distributorId = User.id)
-                                OR
-                                (User.role = 'DEALER' AND o.userId = User.id)
-                        )`),
-                        'orderCount'
-                    ]
-                ]
-            },
+            attributes: { exclude: ['password'] },
             include: [{
                 model: User,
                 as: 'Distributor',
@@ -61,9 +45,26 @@ router.get('/', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), async 
             order: [['createdAt', 'DESC']]
         });
 
-        console.log(`Found ${users.length} users.`);
-        logToFile(`Found ${users.length} users.`);
-        res.json(users);
+        // Manually calculate order counts to be safe against SQL alias issues
+        const usersWithCounts = await Promise.all(users.map(async (u) => {
+            const userJson = u.toJSON();
+            try {
+                let count = 0;
+                if (userJson.role === 'DISTRIBUTOR') {
+                    count = await Order.count({ where: { distributorId: userJson.id } });
+                } else if (userJson.role === 'DEALER') {
+                    count = await Order.count({ where: { userId: userJson.id } });
+                }
+                userJson.orderCount = count;
+            } catch (err) {
+                console.error('Count Error:', err);
+                userJson.orderCount = 0;
+            }
+            return userJson;
+        }));
+
+        logToFile(`Found ${usersWithCounts.length} users.`);
+        res.json(usersWithCounts);
     } catch (error) {
         console.error('GET /users ERROR:', error);
         logToFile(`ERROR: ${error.message}`);
