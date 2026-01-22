@@ -21,11 +21,30 @@ const ProductionUnit = sequelize.define('ProductionUnit', {
         allowNull: false
     },
 
-    currentStage: {
-        type: DataTypes.ENUM('PVC_CUT', 'FOIL_PASTING', 'EMBOSS', 'DOOR_MAKING', 'PACKING', 'COMPLETED'),
-        defaultValue: 'PVC_CUT',
-        allowNull: false
+    // PARALLEL PROCESS TRACKING
+    isPvcDone: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
     },
+    isFoilDone: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+    isEmbossDone: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+    isDoorMade: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+    isPacked: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+
+    // Legacy/Computed Stage (Optional, can be Virtual field for UI if needed)
+    // But for DB, we stick to flags.
 
     isBlocked: {
         type: DataTypes.BOOLEAN,

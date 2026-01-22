@@ -99,36 +99,30 @@ router.get('/public', async (req, res) => {
     }
 });
 
-// GET /workers/tasks - Get pending tasks for the logged-in worker's station
+// GET /workers/tasks - Get ALL visible tasks (Parallel Workflow)
 router.get('/tasks', async (req, res) => {
     try {
-        const token = req.headers.authorization?.split(' ')[1]; // Simple token extraction (It's just the ID/JSON in this simple app?)
-        // Wait, I didn't implement JWT middleware for workers.
-        // The client should send `worker-id` header or I can assume the ID is passed as query/block.
-        // PROPER WAY: Use the `workerId` from query or header.
-        // Let's use a custom header `x-worker-id`.
-
         const workerId = req.headers['x-worker-id'];
         if (!workerId) return res.status(401).json({ error: 'Worker ID required' });
 
         const worker = await Worker.findByPk(workerId);
         if (!worker) return res.status(404).json({ error: 'Worker not found' });
 
-        // Fetch units currently at this worker's stage
+        // VISIBILITY RULE: "Every process user can see all orders immediately"
+        // Return all pending units (not yet packed).
         const tasks = await ProductionUnit.findAll({
             where: {
-                currentStage: worker.role,
-                // status: 'PENDING' // implied by being at a stage vs COMPLETED
+                // If Packed, it's done for everyone (removed from floor)
+                isPacked: false
             },
             include: [{
                 model: OrderItem,
                 include: [
-                    { model: Design, attributes: ['designNumber', 'imageUrl'] }, // Use snapshots if needed, but model is easier for now
-                    // Note: OrderItem has `designNameSnapshot`, checking relations
+                    { model: Design, attributes: ['designNumber', 'imageUrl'] },
                     { model: Color, attributes: ['name', 'imageUrl'] }
                 ]
             }],
-            order: [['updatedAt', 'ASC']] // Oldest first (FIFO)
+            order: [['updatedAt', 'ASC']] // Oldest first
         });
 
         res.json(tasks);
@@ -137,12 +131,10 @@ router.get('/tasks', async (req, res) => {
     }
 });
 
-// POST /workers/complete - Mark task as done
+// POST /workers/complete - Mark task as done (With Dependency Checks)
 router.post('/complete', async (req, res) => {
     try {
         const { workerId, unitId } = req.body;
-
-        const STAGES = ['PVC_CUT', 'FOIL_PASTING', 'EMBOSS', 'DOOR_MAKING', 'PACKING', 'COMPLETED'];
 
         const worker = await Worker.findByPk(workerId);
         if (!worker) return res.status(404).json({ error: 'Worker not found' });
@@ -150,19 +142,34 @@ router.post('/complete', async (req, res) => {
         const unit = await ProductionUnit.findByPk(unitId);
         if (!unit) return res.status(404).json({ error: 'Unit not found' });
 
-        // Verify stage matches worker role
-        if (unit.currentStage !== worker.role) {
-            return res.status(400).json({ error: 'Unit is not at your station' });
+        // DEFINE RULES
+        const ROLE_MAP = {
+            'PVC_CUT': { flag: 'isPvcDone', deps: [] },
+            'FOIL_PASTING': { flag: 'isFoilDone', deps: [] },
+            'EMBOSS': { flag: 'isEmbossDone', deps: ['isFoilDone'] },
+            'DOOR_MAKING': { flag: 'isDoorMade', deps: ['isPvcDone', 'isFoilDone', 'isEmbossDone'] },
+            'PACKING': { flag: 'isPacked', deps: ['isDoorMade'] }
+        };
+
+        const rule = ROLE_MAP[worker.role];
+        if (!rule) return res.status(400).json({ error: 'Invalid Worker Role' });
+
+        // CHECK 1: Already Done?
+        if (unit[rule.flag]) {
+            return res.json({ message: 'Already completed' });
         }
 
-        // Determine Next Stage
-        const currentIndex = STAGES.indexOf(unit.currentStage);
-        const nextStage = STAGES[currentIndex + 1];
+        // CHECK 2: Dependencies
+        const missingDeps = rule.deps.filter(dep => !unit[dep]);
+        if (missingDeps.length > 0) {
+            return res.status(400).json({ error: `Start failed. Waiting for: ${missingDeps.join(', ')}` });
+        }
 
-        // Update Unit
-        await unit.update({
-            currentStage: nextStage
-        });
+        // EXECUTE
+        const updateData = {};
+        updateData[rule.flag] = true;
+
+        await unit.update(updateData);
 
         // Create History Record
         await sequelize.models.ProcessRecord.create({
@@ -172,14 +179,12 @@ router.post('/complete', async (req, res) => {
             timestamp: new Date()
         });
 
-        // Check if Order is fully complete (if LAST stage)
-        if (nextStage === 'COMPLETED') {
-            // Optional: Check if all units in this OrderItem/Order are done.
-            // But let's keep it fast for now.
-            // Maybe update OrderItem status?
+        // Auto-mark Status COMPLETED if Packed?
+        if (rule.flag === 'isPacked') {
+            // Logic to check Order status...
         }
 
-        res.json({ message: 'Task Completed', nextStage });
+        res.json({ message: 'Task Completed', flags: updateData });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -246,7 +251,7 @@ router.post('/repair', authenticate, authorize(['MANUFACTURER']), async (req, re
 
         // 1. Sync Tables (Ensure they exist)
         await Worker.sync();
-        await ProductionUnit.sync();
+        await ProductionUnit.sync({ alter: true });
 
         // 2. Find Orders in PRODUCTION
         const orders = await sequelize.models.Order.findAll({
@@ -255,28 +260,79 @@ router.post('/repair', authenticate, authorize(['MANUFACTURER']), async (req, re
         });
 
         let createdCount = 0;
+        let updatedCount = 0;
 
         for (const order of orders) {
             for (const item of order.OrderItems) {
-                const existing = await ProductionUnit.count({ where: { orderItemId: item.id } });
-                if (existing > 0) continue;
+                // Find or Create
+                const existingUnits = await ProductionUnit.findAll({ where: { orderItemId: item.id } });
 
-                for (let i = 1; i <= item.quantity; i++) {
-                    await ProductionUnit.create({
-                        orderItemId: item.id,
-                        unitNumber: i,
-                        uniqueCode: `OD${order.id}-IT${item.id}-QN${i}`,
-                        currentStage: 'PVC_CUT',
-                        status: 'PENDING'
-                    });
-                    createdCount++;
+                if (existingUnits.length === 0) {
+                    for (let i = 1; i <= item.quantity; i++) {
+                        await ProductionUnit.create({
+                            orderItemId: item.id,
+                            unitNumber: i,
+                            uniqueCode: `OD${order.id}-IT${item.id}-QN${i}`
+                        });
+                        createdCount++;
+                    }
+                } else {
+                    // Migrate
+                    for (const unit of existingUnits) {
+                        if (!unit.isPvcDone && !unit.isFoilDone && unit.currentStage) {
+                            const updates = {};
+                            if (['FOIL_PASTING', 'EMBOSS', 'DOOR_MAKING', 'PACKING', 'COMPLETED'].includes(unit.currentStage)) updates.isPvcDone = true;
+                            if (['EMBOSS', 'DOOR_MAKING', 'PACKING', 'COMPLETED'].includes(unit.currentStage)) updates.isFoilDone = true;
+                            if (['DOOR_MAKING', 'PACKING', 'COMPLETED'].includes(unit.currentStage)) updates.isEmbossDone = true;
+                            if (['PACKING', 'COMPLETED'].includes(unit.currentStage)) updates.isDoorMade = true;
+
+                            if (Object.keys(updates).length > 0) {
+                                await unit.update(updates);
+                                updatedCount++;
+                            }
+                        }
+                    }
                 }
             }
         }
-
-        res.json({ message: `Repair Complete. Created ${createdCount} missing units.`, ordersFixed: orders.length });
+        res.json({ message: `Complete. Created ${createdCount}, Migrated ${updatedCount} units.` });
     } catch (error) {
         console.error('Repair failed:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ADMIN: Get units at a specific stage
+router.get('/stage/:stage', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        const units = await ProductionUnit.findAll({
+            where: { currentStage: req.params.stage },
+            include: [{
+                model: OrderItem,
+                include: [
+                    { model: Design, attributes: ['designNumber'] },
+                    { model: Color, attributes: ['name'] }
+                ]
+            }]
+        });
+        res.json(units);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ADMIN: Force Move Unit to specific stage
+router.post('/move', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        const { unitIds, targetStage } = req.body;
+
+        await ProductionUnit.update(
+            { currentStage: targetStage },
+            { where: { id: { [Op.in]: unitIds } } }
+        );
+
+        res.json({ message: 'Units moved successfully' });
+    } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });

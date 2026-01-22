@@ -65,6 +65,12 @@ export default function AdminDashboard() {
     const [showAddWorker, setShowAddWorker] = useState(false);
     const [newWorker, setNewWorker] = useState({ name: '', pinCode: '', role: 'PVC_CUT' });
 
+    // Stage Management (Manual Move)
+    const [selectedStage, setSelectedStage] = useState(null);
+    const [stageUnits, setStageUnits] = useState([]);
+    const [selectedUnitIds, setSelectedUnitIds] = useState([]);
+    const [moveTarget, setMoveTarget] = useState('');
+
     useEffect(() => {
         if (activeTab === 'home') fetchAnalytics();
         if (activeTab === 'orders') fetchOrders();
