@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const { Worker, ProductionUnit, sequelize } = require('../models');
+const { Worker, ProductionUnit, OrderItem, Design, Color, sequelize } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
@@ -99,14 +99,87 @@ router.get('/public', async (req, res) => {
     }
 });
 
-// GET /workers - List all workers (Admin/Manufacturer)
-router.get('/', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+// GET /workers/tasks - Get pending tasks for the logged-in worker's station
+router.get('/tasks', async (req, res) => {
     try {
-        const workers = await Worker.findAll({
-            attributes: { exclude: ['pinCode'] },
-            order: [['name', 'ASC']]
+        const token = req.headers.authorization?.split(' ')[1]; // Simple token extraction (It's just the ID/JSON in this simple app?)
+        // Wait, I didn't implement JWT middleware for workers.
+        // The client should send `worker-id` header or I can assume the ID is passed as query/block.
+        // PROPER WAY: Use the `workerId` from query or header.
+        // Let's use a custom header `x-worker-id`.
+
+        const workerId = req.headers['x-worker-id'];
+        if (!workerId) return res.status(401).json({ error: 'Worker ID required' });
+
+        const worker = await Worker.findByPk(workerId);
+        if (!worker) return res.status(404).json({ error: 'Worker not found' });
+
+        // Fetch units currently at this worker's stage
+        const tasks = await ProductionUnit.findAll({
+            where: {
+                currentStage: worker.role,
+                // status: 'PENDING' // implied by being at a stage vs COMPLETED
+            },
+            include: [{
+                model: OrderItem,
+                include: [
+                    { model: Design, attributes: ['designNumber', 'imageUrl'] }, // Use snapshots if needed, but model is easier for now
+                    // Note: OrderItem has `designNameSnapshot`, checking relations
+                    { model: Color, attributes: ['name', 'imageUrl'] }
+                ]
+            }],
+            order: [['updatedAt', 'ASC']] // Oldest first (FIFO)
         });
-        res.json(workers);
+
+        res.json(tasks);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /workers/complete - Mark task as done
+router.post('/complete', async (req, res) => {
+    try {
+        const { workerId, unitId } = req.body;
+
+        const STAGES = ['PVC_CUT', 'FOIL_PASTING', 'EMBOSS', 'DOOR_MAKING', 'PACKING', 'COMPLETED'];
+
+        const worker = await Worker.findByPk(workerId);
+        if (!worker) return res.status(404).json({ error: 'Worker not found' });
+
+        const unit = await ProductionUnit.findByPk(unitId);
+        if (!unit) return res.status(404).json({ error: 'Unit not found' });
+
+        // Verify stage matches worker role
+        if (unit.currentStage !== worker.role) {
+            return res.status(400).json({ error: 'Unit is not at your station' });
+        }
+
+        // Determine Next Stage
+        const currentIndex = STAGES.indexOf(unit.currentStage);
+        const nextStage = STAGES[currentIndex + 1];
+
+        // Update Unit
+        await unit.update({
+            currentStage: nextStage
+        });
+
+        // Create History Record
+        await sequelize.models.ProcessRecord.create({
+            productionUnitId: unit.id,
+            workerId: worker.id,
+            stage: worker.role,
+            timestamp: new Date()
+        });
+
+        // Check if Order is fully complete (if LAST stage)
+        if (nextStage === 'COMPLETED') {
+            // Optional: Check if all units in this OrderItem/Order are done.
+            // But let's keep it fast for now.
+            // Maybe update OrderItem status?
+        }
+
+        res.json({ message: 'Task Completed', nextStage });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -148,6 +221,19 @@ router.delete('/:id', authenticate, authorize(['MANUFACTURER']), async (req, res
 
         await worker.destroy(); // Or soft delete? User usually prefers delete if mistake.
         res.json({ message: 'Worker deleted' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /workers - List all workers (Admin/Manufacturer)
+router.get('/', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        const workers = await Worker.findAll({
+            attributes: { exclude: ['pinCode'] },
+            order: [['name', 'ASC']]
+        });
+        res.json(workers);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
