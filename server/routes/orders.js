@@ -68,6 +68,9 @@ router.get('/', authenticate, async (req, res) => {
         // Filters
         if (status) where.status = status;
         if (dealerId && req.user.role !== 'DEALER') where.userId = dealerId;
+        if (req.query.distributorId && req.user.role === 'MANUFACTURER') {
+            where.distributorId = req.query.distributorId;
+        }
 
         // Date Filtering
         if (req.query.startDate && req.query.endDate) {

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const { User } = require('../models');
+const { User, sequelize } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
 const { Op } = require('sequelize');
 const fs = require('fs');
@@ -19,7 +19,7 @@ router.get('/', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), async 
     try {
         logToFile('--- GET /users REQUEST ---');
         logToFile(`User Token Payload: ${JSON.stringify(req.user)}`);
-        console.log('Query:', req.query);
+        // console.log('Query:', req.query);
 
         const { role } = req.query;
         const where = {};
@@ -28,18 +28,31 @@ router.get('/', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), async 
         if (req.user.role === 'DISTRIBUTOR') {
             where.distributorId = req.user.id;
             where.role = 'DEALER';
-            logToFile(`Applying Filter: distributorId=${req.user.id} (${typeof req.user.id})`);
-            console.log(`Applying Distributor Filter: distributorId=${req.user.id}`);
+            // logToFile(`Applying Filter: distributorId=${req.user.id}`);
         } else if (role) {
             where.role = role;
         }
 
-        console.log('Final Where Clause:', where);
-        logToFile(`Final Where: ${JSON.stringify(where)}`);
+        // console.log('Final Where Clause:', where);
 
         const users = await User.findAll({
             where,
-            attributes: { exclude: ['password'] },
+            attributes: {
+                exclude: ['password'],
+                include: [
+                    [
+                        sequelize.literal(`(
+                            SELECT COUNT(*)
+                            FROM Orders AS o
+                            WHERE
+                                (User.role = 'DISTRIBUTOR' AND o.distributorId = User.id)
+                                OR
+                                (User.role = 'DEALER' AND o.userId = User.id)
+                        )`),
+                        'orderCount'
+                    ]
+                ]
+            },
             include: [{
                 model: User,
                 as: 'Distributor',

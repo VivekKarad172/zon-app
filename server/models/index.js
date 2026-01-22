@@ -15,6 +15,10 @@ User.belongsTo(User, { as: 'Distributor', foreignKey: 'distributorId' });
 User.hasMany(Order, { foreignKey: 'userId' });
 Order.belongsTo(User, { foreignKey: 'userId' });
 
+// Association for Distributors to access all their dealers' orders directly
+User.hasMany(Order, { as: 'DistributedOrders', foreignKey: 'distributorId' });
+Order.belongsTo(User, { as: 'Distributor', foreignKey: 'distributorId' });
+
 // DoorType has many Designs
 DoorType.hasMany(Design, { foreignKey: 'doorTypeId' });
 Design.belongsTo(DoorType, { foreignKey: 'doorTypeId' });

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
-import { Plus, X, Image as ImageIcon, Filter, Search, Edit2, Eye, EyeOff, Save, Trash2, User, Users, ShoppingBag, Bell, Upload, Download, FileSpreadsheet, Home, CheckSquare, Calendar, ChevronDown } from 'lucide-react';
+import { Plus, X, Image as ImageIcon, Filter, Search, Edit2, Eye, EyeOff, Save, Trash2, User, Users, ShoppingBag, Bell, Upload, Download, FileSpreadsheet, Home, CheckSquare, Calendar, ChevronDown, Factory } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -55,19 +55,45 @@ export default function AdminDashboard() {
     const [showBulkDesigns, setShowBulkDesigns] = useState(false);
     const [showBulkColors, setShowBulkColors] = useState(false);
 
+    // NEW: Production View State
+    const [productionOrders, setProductionOrders] = useState([]);
+    const [productionDistributorId, setProductionDistributorId] = useState('');
 
     useEffect(() => {
         if (activeTab === 'home') fetchAnalytics();
         if (activeTab === 'orders') fetchOrders();
+        if (activeTab === 'production') { fetchProductionOrders(); fetchDistributors(); }
         if (activeTab === 'designs' || activeTab === 'masters') { fetchDesigns(); fetchDoors(); fetchColors(); }
         if (activeTab === 'distributors') fetchDistributors();
         if (activeTab === 'dealers') { fetchDealers(); fetchDistributors(); }
         if (activeTab === 'whatsnew') fetchPosts();
-    }, [activeTab, orderFilter, dateRange]); // Trigger on dateRange change too
+    }, [activeTab, orderFilter, dateRange, productionDistributorId]); // Trigger on dateRange change too
 
-    // FETCHERS (Same as before)
     // FETCHERS
     const fetchAnalytics = async () => { try { const res = await api.get('/orders/analytics'); setAnalytics(res.data); } catch (e) { } };
+
+    const fetchProductionOrders = async () => {
+        try {
+            let query = `?status=PRODUCTION`; // Or Received + Production? User said "Pending in Production". Usually includes Received.
+            // Let's assume Pending means NOT ready/dispatched.
+            // But API filter only supports single status string? No, backend: "if (status) where.status = status;". Code supports single status.
+            // I might need to update backend to support passing multiple statuses OR just fetch all and filter client side.
+            // Or better: fetch all and filter in frontend since volume isn't massive yet.
+            // Actually, let's just fetch all for now or fetch by distributor and filter.
+
+            const params = new URLSearchParams();
+            if (productionDistributorId) params.append('distributorId', productionDistributorId);
+
+            // Backend doesn't support list of statuses easily without change.
+            // Let's fetch ALL for the distributor, then filter in client.
+            const res = await api.get(`/orders?${params.toString()}`);
+
+            // Filter for Pending/Production
+            const pending = res.data.filter(o => ['RECEIVED', 'PRODUCTION'].includes(o.status));
+            setProductionOrders(pending);
+        } catch (e) { }
+    };
+
     const fetchOrders = async () => {
         try {
             const params = new URLSearchParams(orderFilter);
@@ -509,6 +535,7 @@ export default function AdminDashboard() {
                 <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-2 flex justify-between gap-1 max-w-5xl mx-auto overflow-x-auto border border-white/50 ring-1 ring-black/5 no-scrollbar">
                     {[
                         { id: 'home', label: 'Home', icon: Home },
+                        { id: 'production', label: 'Production', icon: Factory, hideFor: ['DISTRIBUTOR'] }, // NEW: Production Tab
                         { id: 'orders', label: 'Orders', icon: ShoppingBag },
                         { id: 'distributors', label: 'Distributors', icon: Users, hideFor: ['DISTRIBUTOR'] },
                         { id: 'dealers', label: 'Dealers', icon: User },
@@ -706,6 +733,96 @@ export default function AdminDashboard() {
                         </div>
                     </div>
                 )}
+
+                {/* NEW: PRODUCTION DASHBOARD */}
+                {activeTab === 'production' && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
+                        <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6">
+                            <div>
+                                <h2 className="text-2xl font-black text-gray-900 tracking-tight">Production Floor</h2>
+                                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Pending Manufacturer Orders</p>
+                            </div>
+
+                            <div className="relative group w-full md:w-72">
+                                <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={16} />
+                                <select
+                                    value={productionDistributorId}
+                                    onChange={(e) => setProductionDistributorId(e.target.value)}
+                                    className="w-full pl-12 pr-10 py-3 bg-indigo-50 border-none rounded-2xl text-[10px] font-black text-indigo-900 appearance-none focus:ring-4 ring-indigo-100 transition-all cursor-pointer uppercase tracking-widest"
+                                >
+                                    <option value="">All Distributors</option>
+                                    {distributors.map(dist => (
+                                        <option key={dist.id} value={dist.id}>{dist.name}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-400 pointer-events-none" size={14} />
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
+                            <table className="min-w-full text-left">
+                                <thead className="bg-gray-50/50 text-gray-400 font-black uppercase text-[10px] tracking-widest border-b border-gray-100">
+                                    <tr>
+                                        <th className="px-8 py-6">Order Ref</th>
+                                        <th className="px-6 py-6">Dealer (Client)</th>
+                                        <th className="px-6 py-6">Distributor</th>
+                                        <th className="px-6 py-6">Items</th>
+                                        <th className="px-6 py-6 h-10 w-10">Status</th>
+                                        <th className="px-6 py-6">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {productionOrders.length > 0 ? productionOrders.map(order => (
+                                        <tr key={order.id} className="hover:bg-indigo-50/30 transition-colors group">
+                                            <td className="px-8 py-5">
+                                                <div className="font-black text-gray-900">#{order.id}</div>
+                                                <div className="text-[10px] text-gray-400 font-bold">{new Date(order.createdAt).toLocaleDateString()}</div>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-black text-xs">
+                                                        {order.User?.name?.charAt(0)}
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-bold text-gray-900 text-xs">{order.User?.name}</div>
+                                                        <div className="text-[10px] text-gray-400">{order.User?.shopName}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <div className="text-xs font-bold text-indigo-600 bg-indigo-50 w-fit px-2 py-1 rounded-lg">
+                                                    {distributors.find(d => d.id === order.distributorId)?.name || 'Unknown'}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <span className="font-black text-gray-700">{order.OrderItems?.length || 0} Doors</span>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tight flex items-center gap-1.5 w-fit ${order.status === 'RECEIVED' ? 'bg-yellow-100 text-yellow-700' : 'bg-indigo-100 text-indigo-700'
+                                                    }`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${order.status === 'RECEIVED' ? 'bg-yellow-500' : 'bg-indigo-500'
+                                                        }`}></span>
+                                                    {order.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <button
+                                                    onClick={() => setSelectedOrder(order)}
+                                                    className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-all font-bold text-xs flex items-center gap-2"
+                                                >
+                                                    <Eye size={16} /> View
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    )) : (
+                                        <tr><td colSpan="6" className="px-6 py-20 text-center"><div className="text-gray-300 font-black uppercase tracking-[0.2em] italic">No Pending Orders Found</div></td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
                 {activeTab === 'orders' && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
                         {/* Bulk Action Alert Bar */}
