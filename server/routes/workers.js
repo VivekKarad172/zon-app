@@ -1,8 +1,32 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const { Worker } = require('../models');
+const { Worker, ProductionUnit, sequelize } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
+const { Op } = require('sequelize');
+
+// GET /workers/stats - Factory Floor Status
+router.get('/stats', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        const stats = await ProductionUnit.findAll({
+            attributes: ['currentStage', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
+            group: ['currentStage']
+        });
+
+        const result = {
+            PVC_CUT: 0, FOIL_PASTING: 0, EMBOSS: 0, DOOR_MAKING: 0, PACKING: 0
+        };
+
+        stats.forEach(row => {
+            result[row.currentStage] = parseInt(row.get('count'));
+        });
+
+        res.json(result);
+    } catch (error) {
+        console.error('Stats Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // GET /workers - List all workers (Admin/Manufacturer)
 router.get('/', authenticate, authorize(['MANUFACTURER']), async (req, res) => {

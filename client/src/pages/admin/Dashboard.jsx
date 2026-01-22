@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
-import { Plus, X, Image as ImageIcon, Filter, Search, Edit2, Eye, EyeOff, Save, Trash2, User, Users, ShoppingBag, Bell, Upload, Download, FileSpreadsheet, Home, CheckSquare, Calendar, ChevronDown, Factory } from 'lucide-react';
+import { Plus, X, Image as ImageIcon, Filter, Search, Edit2, Eye, EyeOff, Save, Trash2, User, Users, ShoppingBag, Bell, Upload, Download, FileSpreadsheet, Home, CheckSquare, Calendar, ChevronDown, Factory, Hammer } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -59,18 +59,52 @@ export default function AdminDashboard() {
     const [productionOrders, setProductionOrders] = useState([]);
     const [productionDistributorId, setProductionDistributorId] = useState('');
 
+    // NEW: Factory State
+    const [workers, setWorkers] = useState([]);
+    const [factoryStats, setFactoryStats] = useState({});
+    const [showAddWorker, setShowAddWorker] = useState(false);
+    const [newWorker, setNewWorker] = useState({ name: '', pinCode: '', role: 'PVC_CUT' });
+
     useEffect(() => {
         if (activeTab === 'home') fetchAnalytics();
         if (activeTab === 'orders') fetchOrders();
         if (activeTab === 'production') { fetchProductionOrders(); fetchDistributors(); }
+        if (activeTab === 'factory') { fetchWorkers(); fetchFactoryStats(); }
         if (activeTab === 'designs' || activeTab === 'masters') { fetchDesigns(); fetchDoors(); fetchColors(); }
         if (activeTab === 'distributors') fetchDistributors();
         if (activeTab === 'dealers') { fetchDealers(); fetchDistributors(); }
         if (activeTab === 'whatsnew') fetchPosts();
-    }, [activeTab, orderFilter, dateRange, productionDistributorId]); // Trigger on dateRange change too
+    }, [activeTab, orderFilter, dateRange, productionDistributorId]);
 
     // FETCHERS
     const fetchAnalytics = async () => { try { const res = await api.get('/orders/analytics'); setAnalytics(res.data); } catch (e) { } };
+
+    const fetchFactoryStats = async () => { try { const res = await api.get('/workers/stats'); setFactoryStats(res.data); } catch (e) { } };
+    const fetchWorkers = async () => { try { const res = await api.get('/workers'); setWorkers(res.data); } catch (e) { } };
+
+    const handleAddWorker = async (e) => {
+        e.preventDefault();
+        try {
+            await api.post('/workers', newWorker);
+            toast.success('Worker Added');
+            setShowAddWorker(false);
+            setNewWorker({ name: '', pinCode: '', role: 'PVC_CUT' });
+            fetchWorkers();
+        } catch (error) {
+            toast.error(error.response?.data?.error || 'Failed to add worker');
+        }
+    };
+
+    const handleDeleteWorker = async (id) => {
+        if (!confirm('Are you sure?')) return;
+        try {
+            await api.delete(`/workers/${id}`);
+            toast.success('Worker Removed');
+            fetchWorkers();
+        } catch (error) {
+            toast.error('Failed to delete');
+        }
+    };
 
     const fetchProductionOrders = async () => {
         try {
@@ -535,7 +569,8 @@ export default function AdminDashboard() {
                 <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-2 flex justify-between gap-1 max-w-5xl mx-auto overflow-x-auto border border-white/50 ring-1 ring-black/5 no-scrollbar">
                     {[
                         { id: 'home', label: 'Home', icon: Home },
-                        { id: 'production', label: 'Production', icon: Factory, hideFor: ['DISTRIBUTOR'] }, // NEW: Production Tab
+                        { id: 'production', label: 'Production', icon: Factory, hideFor: ['DISTRIBUTOR'] },
+                        { id: 'factory', label: 'Factory Mgmt', icon: Hammer, hideFor: ['DISTRIBUTOR'] }, // NEW
                         { id: 'orders', label: 'Orders', icon: ShoppingBag },
                         { id: 'distributors', label: 'Distributors', icon: Users, hideFor: ['DISTRIBUTOR'] },
                         { id: 'dealers', label: 'Dealers', icon: User },
@@ -820,6 +855,160 @@ export default function AdminDashboard() {
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                )}
+
+                {/* FACTORY MANAGEMENT TAB */}
+                {activeTab === 'factory' && (
+                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
+                        {/* 1. Live Floor Stats */}
+                        <div>
+                            <h2 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-3"><div className="w-1.5 h-8 bg-gradient-to-b from-indigo-500 to-indigo-700 rounded-full"></div>Live Floor Status</h2>
+                            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                                {['PVC_CUT', 'FOIL_PASTING', 'EMBOSS', 'DOOR_MAKING', 'PACKING'].map((stage, idx) => (
+                                    <div key={stage} className="bg-white p-5 rounded-3xl shadow-lg shadow-gray-100 border border-gray-100 relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
+                                        <div className={`absolute top-0 left-0 w-full h-1 ${idx === 0 ? 'bg-blue-500' : idx === 1 ? 'bg-purple-500' : idx === 2 ? 'bg-orange-500' : idx === 3 ? 'bg-cyan-500' : 'bg-green-500'
+                                            }`} />
+                                        <div className="flex justify-between items-start mb-4">
+                                            <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400">{stage.replace('_', ' ')}</h3>
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg ${idx === 0 ? 'bg-blue-500 shadow-blue-200' : idx === 1 ? 'bg-purple-500 shadow-purple-200' : idx === 2 ? 'bg-orange-500 shadow-orange-200' : idx === 3 ? 'bg-cyan-500 shadow-cyan-200' : 'bg-green-500 shadow-green-200'
+                                                }`}>{idx + 1}</div>
+                                        </div>
+                                        <div className="text-3xl font-black text-gray-800 tabular-nums">
+                                            {factoryStats[stage] || 0} <span className="text-xs text-gray-400 font-bold ml-1">Units</span>
+                                        </div>
+                                        <div className="mt-2 text-[10px] bg-gray-50 text-gray-400 font-bold px-2 py-1 rounded-lg w-fit">Pending</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* 2. Worker Roster */}
+                        <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
+                            <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
+                                <div>
+                                    <h2 className="text-xl font-black text-gray-900 tracking-tight">Worker Roster</h2>
+                                    <p className="text-xs text-gray-400 font-bold mt-1">Manage Factory Staff & Access</p>
+                                </div>
+                                <button
+                                    onClick={() => setShowAddWorker(true)}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wide shadow-lg shadow-indigo-200 transition-all flex items-center gap-2"
+                                >
+                                    <Plus size={16} strokeWidth={3} /> Register Worker
+                                </button>
+                            </div>
+
+                            <table className="min-w-full text-left">
+                                <thead className="bg-gray-50 text-gray-400 font-black uppercase text-[10px] tracking-widest border-b border-gray-100">
+                                    <tr>
+                                        <th className="px-8 py-5">Worker Name</th>
+                                        <th className="px-6 py-5">Role / Station</th>
+                                        <th className="px-6 py-5">PIN Access</th>
+                                        <th className="px-6 py-5">Status</th>
+                                        <th className="px-6 py-5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {workers.length > 0 ? workers.map(worker => (
+                                        <tr key={worker.id} className="hover:bg-indigo-50/30 transition-colors group">
+                                            <td className="px-8 py-4">
+                                                <div className="font-black text-gray-900">{worker.name}</div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="bg-indigo-50 text-indigo-700 font-bold text-[10px] uppercase px-2 py-1 rounded-lg border border-indigo-100">
+                                                    {worker.role.replace('_', ' ')}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="text-gray-400 text-xs font-mono">****</span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                                                    <span className="text-[10px] font-black text-green-600 uppercase">Active</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <button
+                                                    onClick={() => handleDeleteWorker(worker.id)}
+                                                    className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    )) : (
+                                        <tr><td colSpan="5" className="px-6 py-20 text-center text-gray-300 font-black uppercase tracking-widest italic">No Workers Registered</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Add Worker Modal */}
+                        {showAddWorker && (
+                            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-indigo-900/20 backdrop-blur-sm animate-in fade-in duration-200">
+                                <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-8 relative animate-in zoom-in-95 duration-200 border border-white/50">
+                                    <button onClick={() => setShowAddWorker(false)} className="absolute right-6 top-6 text-gray-400 hover:text-gray-600 transition-colors"><X size={24} /></button>
+
+                                    <div className="mb-8">
+                                        <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600 mb-4 shadow-inner">
+                                            <User size={24} />
+                                        </div>
+                                        <h2 className="text-2xl font-black text-gray-900">Add Staff</h2>
+                                        <p className="text-gray-500 text-sm mt-1">Create a new factory login.</p>
+                                    </div>
+
+                                    <form onSubmit={handleAddWorker} className="space-y-4">
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-1 block">Full Name</label>
+                                            <input
+                                                type="text"
+                                                value={newWorker.name}
+                                                onChange={e => setNewWorker({ ...newWorker, name: e.target.value })}
+                                                className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm font-bold text-gray-900 focus:ring-2 ring-indigo-500"
+                                                placeholder="e.g. Ramesh Kumar"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-1 block">4-Digit PIN</label>
+                                            <input
+                                                type="text" // text to avoid spinners
+                                                pattern="\d{4}"
+                                                maxLength="4"
+                                                value={newWorker.pinCode}
+                                                onChange={e => setNewWorker({ ...newWorker, pinCode: e.target.value.replace(/\D/g, '') })}
+                                                className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm font-bold text-gray-900 focus:ring-2 ring-indigo-500 tracking-[0.5em] text-center"
+                                                placeholder="0000"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-1 block">Assigned Station</label>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {['PVC_CUT', 'FOIL_PASTING', 'EMBOSS', 'DOOR_MAKING', 'PACKING'].map(role => (
+                                                    <button
+                                                        type="button"
+                                                        key={role}
+                                                        onClick={() => setNewWorker({ ...newWorker, role })}
+                                                        className={`text-[10px] font-black uppercase py-3 rounded-xl border transition-all ${newWorker.role === role
+                                                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200'
+                                                            : 'bg-white text-gray-400 border-gray-100 hover:border-indigo-100 hover:bg-gray-50'
+                                                            }`}
+                                                    >
+                                                        {role.replace('_', ' ')}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-xl shadow-xl shadow-indigo-200 transition-all mt-4 active:scale-95">
+                                            CREATE ACCOUNT
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
