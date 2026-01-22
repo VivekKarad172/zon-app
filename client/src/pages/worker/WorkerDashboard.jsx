@@ -50,7 +50,8 @@ export default function WorkerDashboard() {
             setLoading(false);
         } catch (error) {
             console.error(error);
-            toast.error('Connection Error');
+            const msg = error.response?.data?.error || error.message;
+            toast.error(`Error: ${msg}`);
             setLoading(false);
         }
     };
