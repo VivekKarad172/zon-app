@@ -1003,8 +1003,11 @@ export default function AdminDashboard() {
                                                 <span className="text-gray-700 font-black truncate max-w-[120px]">{d.city}</span>
                                             </div>
                                             <div className="flex justify-between items-center text-xs">
-                                                <span className="text-gray-400 font-bold">Order Volume</span>
-                                                <span className="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg font-black">{d.orderCount || 0} Orders</span>
+                                                <span className="text-gray-400 font-bold">Volume</span>
+                                                <div className="flex gap-1">
+                                                    <span className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded-lg font-black text-[10px]">{d.orderCount || 0} Total</span>
+                                                    <span className="bg-amber-50 text-amber-700 px-2 py-1 rounded-lg font-black text-[10px]">{d.pendingOrderCount || 0} Pend.</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -1055,7 +1058,7 @@ export default function AdminDashboard() {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-12">
-                            {dealers.length > 0 ? dealers.map(dealer => (
+                            {filteredDealers.length > 0 ? filteredDealers.map(dealer => (
                                 <div key={dealer.id} className="bg-white p-6 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 relative group hover:border-indigo-200 transition-all duration-300">
                                     <div className="flex justify-between items-start mb-6">
                                         <div className="flex items-center gap-4">

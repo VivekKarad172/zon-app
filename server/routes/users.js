@@ -50,12 +50,26 @@ router.get('/', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), async 
             const userJson = u.toJSON();
             try {
                 let count = 0;
+                let pendingCount = 0;
                 if (userJson.role === 'DISTRIBUTOR') {
                     count = await Order.count({ where: { distributorId: userJson.id } });
+                    pendingCount = await Order.count({
+                        where: {
+                            distributorId: userJson.id,
+                            status: { [Op.or]: ['RECEIVED', 'PRODUCTION', 'READY'] }
+                        }
+                    });
                 } else if (userJson.role === 'DEALER') {
                     count = await Order.count({ where: { userId: userJson.id } });
+                    pendingCount = await Order.count({
+                        where: {
+                            userId: userJson.id,
+                            status: { [Op.or]: ['RECEIVED', 'PRODUCTION', 'READY'] }
+                        }
+                    });
                 }
                 userJson.orderCount = count;
+                userJson.pendingOrderCount = pendingCount;
             } catch (err) {
                 console.error('Count Error:', err);
                 userJson.orderCount = 0;

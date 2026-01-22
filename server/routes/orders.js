@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Order, OrderItem, Design, Color, User, DoorType } = require('../models');
+const { Order, OrderItem, Design, Color, User, DoorType, sequelize } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
@@ -44,6 +44,59 @@ router.post('/', authenticate, authorize(['DEALER']), async (req, res) => {
         res.status(201).json(order);
     } catch (error) {
         console.error(error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Analytics & KPI Endpoint
+router.get('/analytics', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), async (req, res) => {
+    try {
+        const where = {};
+        if (req.user.role === 'DISTRIBUTOR') {
+            where.distributorId = req.user.id;
+        }
+
+        const totalOrders = await Order.count({ where });
+        const pendingOrders = await Order.count({
+            where: {
+                ...where,
+                status: { [Op.or]: ['RECEIVED', 'PRODUCTION', 'READY'] }
+            }
+        });
+        const completedOrders = await Order.count({
+            where: {
+                ...where,
+                status: 'DISPATCHED'
+            }
+        });
+
+        // Recent 5 Orders
+        const recentOrders = await Order.findAll({
+            where,
+            limit: 5,
+            order: [['createdAt', 'DESC']], // Latest first
+            include: [{ model: User, attributes: ['name', 'shopName'] }]
+        });
+
+        // Chart Data: Orders by Status
+        const statusCounts = await Order.findAll({
+            where,
+            attributes: ['status', [sequelize.fn('COUNT', sequelize.col('status')), 'count']],
+            group: ['status']
+        });
+
+        const chartData = statusCounts.map(row => ({
+            name: row.status,
+            value: parseInt(row.get('count'))
+        }));
+
+        res.json({
+            kpi: { totalOrders, pendingOrders, completedOrders },
+            recentOrders,
+            chartData
+        });
+    } catch (error) {
+        console.error('Analytics Error:', error);
         res.status(500).json({ error: error.message });
     }
 });
