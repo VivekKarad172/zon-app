@@ -82,6 +82,16 @@ export default function AdminDashboard() {
         if (activeTab === 'whatsnew') fetchPosts();
     }, [activeTab, orderFilter, dateRange, productionDistributorId]);
 
+    // Live Factory Stats Polling
+    useEffect(() => {
+        let interval;
+        if (activeTab === 'factory') {
+            fetchFactoryStats();
+            interval = setInterval(fetchFactoryStats, 5000);
+        }
+        return () => clearInterval(interval);
+    }, [activeTab]);
+
     // FETCHERS
     const fetchAnalytics = async () => { try { const res = await api.get('/orders/analytics'); setAnalytics(res.data); } catch (e) { } };
 

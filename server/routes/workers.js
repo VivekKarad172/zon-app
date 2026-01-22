@@ -1,27 +1,37 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const { Worker, ProductionUnit, OrderItem, Design, Color, sequelize } = require('../models');
+const { Worker, ProductionUnit, OrderItem, Design, Color, Order, User, sequelize } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
-// GET /workers/stats - Factory Floor Status
+// GET /workers/stats - Factory Floor Status (Pending Counts based on Flags)
 router.get('/stats', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
     try {
-        const stats = await ProductionUnit.findAll({
-            attributes: ['currentStage', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
-            group: ['currentStage']
+        // Count Pending Items (Flag is False and Not Packed)
+        const counts = await ProductionUnit.findAll({
+            where: { isPacked: false },
+            attributes: [
+                [sequelize.fn('SUM', sequelize.literal('CASE WHEN "isPvcDone" = 0 THEN 1 ELSE 0 END')), 'PVC_CUT'],
+                [sequelize.fn('SUM', sequelize.literal('CASE WHEN "isFoilDone" = 0 THEN 1 ELSE 0 END')), 'FOIL_PASTING'],
+                [sequelize.fn('SUM', sequelize.literal('CASE WHEN "isEmbossDone" = 0 THEN 1 ELSE 0 END')), 'EMBOSS'],
+                [sequelize.fn('SUM', sequelize.literal('CASE WHEN "isDoorMade" = 0 THEN 1 ELSE 0 END')), 'DOOR_MAKING'],
+                [sequelize.fn('SUM', sequelize.literal('CASE WHEN "isPacked" = 0 THEN 1 ELSE 0 END')), 'PACKING']
+            ],
+            raw: true
         });
 
-        const result = {
-            PVC_CUT: 0, FOIL_PASTING: 0, EMBOSS: 0, DOOR_MAKING: 0, PACKING: 0
+        // Fallback or simplier query if above fails on certain SQL dialects
+        // But for safety let's use separate counts if we want to be 100% sure across DBs
+        const stats = {
+            PVC_CUT: await ProductionUnit.count({ where: { isPvcDone: false, isPacked: false } }),
+            FOIL_PASTING: await ProductionUnit.count({ where: { isFoilDone: false, isPacked: false } }),
+            EMBOSS: await ProductionUnit.count({ where: { isEmbossDone: false, isPacked: false } }),
+            DOOR_MAKING: await ProductionUnit.count({ where: { isDoorMade: false, isPacked: false } }),
+            PACKING: await ProductionUnit.count({ where: { isPacked: false } })
         };
 
-        stats.forEach(row => {
-            result[row.currentStage] = parseInt(row.get('count'));
-        });
-
-        res.json(result);
+        res.json(stats);
     } catch (error) {
         console.error('Stats Error:', error);
         res.status(500).json({ error: error.message });
@@ -111,18 +121,23 @@ router.get('/tasks', async (req, res) => {
         // VISIBILITY RULE: "Every process user can see all orders immediately"
         // Return all pending units (not yet packed).
         const tasks = await ProductionUnit.findAll({
-            where: {
-                // If Packed, it's done for everyone (removed from floor)
-                isPacked: false
-            },
+            where: { isPacked: false },
             include: [{
                 model: OrderItem,
                 include: [
                     { model: Design, attributes: ['designNumber', 'imageUrl'] },
-                    { model: Color, attributes: ['name', 'imageUrl'] }
+                    { model: Color, attributes: ['name', 'imageUrl'] },
+                    {
+                        model: Order,
+                        attributes: ['id', 'referenceNumber'],
+                        include: [
+                            { model: User, as: 'Distributor', attributes: ['name', 'shopName'] },
+                            { model: User, attributes: ['name', 'shopName'] } // Dealer
+                        ]
+                    }
                 ]
             }],
-            order: [['updatedAt', 'ASC']] // Oldest first
+            order: [['updatedAt', 'ASC']]
         });
 
         res.json(tasks);
