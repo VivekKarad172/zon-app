@@ -129,7 +129,7 @@ router.get('/tasks', async (req, res) => {
                     { model: Color, attributes: ['name', 'imageUrl'] },
                     {
                         model: Order,
-                        attributes: ['id', 'referenceNumber'],
+                        attributes: ['id'],
                         include: [
                             { model: User, as: 'Distributor', attributes: ['name', 'shopName'] },
                             { model: User, attributes: ['name', 'shopName'] } // Dealer
