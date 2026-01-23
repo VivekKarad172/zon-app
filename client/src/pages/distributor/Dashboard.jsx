@@ -184,11 +184,50 @@ export default function DistributorDashboard() {
     };
 
     // === COMPUTED VALUES ===
+    const [groupBy, setGroupBy] = useState('order'); // 'order', 'design', 'color', 'dealer'
+
     const filteredOrders = orders.filter(order => {
         if (orderFilter === 'pending') return ['RECEIVED', 'PRODUCTION'].includes(order.status);
         if (orderFilter === 'completed') return ['READY', 'DISPATCHED'].includes(order.status);
         return true;
     });
+
+    const groupedOrders = useMemo(() => {
+        if (groupBy === 'order') return filteredOrders;
+
+        const groups = {};
+        filteredOrders.forEach(order => {
+            if (!order.OrderItems) return;
+
+            if (groupBy === 'dealer') {
+                const key = order.User?.name || 'Unknown Dealer';
+                if (!groups[key]) {
+                    groups[key] = {
+                        name: key,
+                        dealer: order.User,
+                        totalOrders: 0,
+                        totalItems: 0,
+                        items: [] // Aggregate items for display if needed
+                    };
+                }
+                groups[key].totalOrders += 1;
+                groups[key].totalItems += order.OrderItems.length;
+                groups[key].items.push(...order.OrderItems);
+            } else {
+                // Design or Color
+                order.OrderItems.forEach(item => {
+                    const key = groupBy === 'design' ? item.designNameSnapshot : item.colorNameSnapshot;
+                    if (!groups[key]) {
+                        groups[key] = { name: key, totalItems: 0, items: [] };
+                    }
+                    groups[key].totalItems += item.quantity;
+                    groups[key].items.push(item);
+                });
+            }
+        });
+
+        return Object.values(groups).sort((a, b) => b.totalItems - a.totalItems);
+    }, [filteredOrders, groupBy]);
 
     const pendingCount = orders.filter(o => ['RECEIVED', 'PRODUCTION'].includes(o.status)).length;
     const completedCount = orders.filter(o => ['READY', 'DISPATCHED'].includes(o.status)).length;
@@ -210,6 +249,7 @@ export default function DistributorDashboard() {
         user, logout, navigate,
         activeTab, setActiveTab,
         orders, filteredOrders, orderFilter, setOrderFilter,
+        groupBy, setGroupBy, groupedOrders, // New Props
         dealers, posts,
         updateStatus, handleExportOrders,
         showAddDealer, setShowAddDealer, newDealer, setNewDealer, handleAddDealer,

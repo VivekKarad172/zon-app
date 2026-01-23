@@ -12,6 +12,7 @@ export default function DesktopDealerDashboard({
     sizeRows, addRow, removeRow, updateRow, addAllToCart,
     cart, setCart, placeOrder,
     myOrders, cancelOrder,
+    groupBy, setGroupBy, groupedOrders, // New Props
     posts,
     getImageUrl
 }) {
@@ -271,75 +272,119 @@ export default function DesktopDealerDashboard({
                 {/* MY ORDERS TAB */}
                 {activeTab === 'my-orders' && (
                     <div className="p-8">
-                        <h1 className="text-3xl font-black text-gray-900 mb-2">Order History</h1>
+                        <div className="flex justify-between items-center mb-6">
+                            <h1 className="text-3xl font-black text-gray-900">Order History</h1>
+
+                            {/* Group By Control */}
+                            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border shadow-sm">
+                                <span className="text-xs font-bold text-gray-400 uppercase">Group By:</span>
+                                <select
+                                    value={groupBy}
+                                    onChange={(e) => setGroupBy(e.target.value)}
+                                    className="font-bold text-indigo-700 bg-transparent outline-none cursor-pointer"
+                                >
+                                    <option value="order">Order Number</option>
+                                    <option value="design">Design</option>
+                                    <option value="color">Foil Color</option>
+                                </select>
+                            </div>
+                        </div>
                         <p className="text-gray-500 mb-8">Track your orders and view past purchases</p>
 
-                        {myOrders.length === 0 ? (
+                        {groupedOrders.length === 0 ? (
                             <div className="text-center text-gray-400 py-16 bg-white rounded-2xl shadow">
                                 <Clock size={48} className="mx-auto mb-4 opacity-30" />
-                                <p>No orders yet</p>
+                                <p>No records found</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-2 gap-6">
-                                {myOrders.map(order => {
-                                    const statusSteps = ['RECEIVED', 'PRODUCTION', 'READY', 'DISPATCHED'];
-                                    const currentStep = statusSteps.indexOf(order.status);
-                                    const statusColors = {
-                                        RECEIVED: 'bg-yellow-100 text-yellow-700',
-                                        PRODUCTION: 'bg-blue-100 text-blue-700',
-                                        READY: 'bg-green-100 text-green-700',
-                                        DISPATCHED: 'bg-purple-100 text-purple-700',
-                                        CANCELLED: 'bg-red-100 text-red-700'
-                                    };
-                                    return (
-                                        <div key={order.id} className="bg-white rounded-2xl shadow-lg p-6">
-                                            <div className="flex justify-between items-start mb-4">
-                                                <div>
-                                                    <div className="text-xl font-bold text-gray-900">Order #{order.id}</div>
-                                                    <div className="text-sm text-gray-500">{new Date(order.createdAt).toLocaleDateString()}</div>
+                            <div className="space-y-6">
+                                {groupedOrders.map((item, idx) => {
+                                    if (groupBy === 'order') {
+                                        const statusSteps = ['Received', 'Production', 'Ready', 'Dispatched'];
+                                        const currentStep = ['RECEIVED', 'PRODUCTION', 'READY', 'DISPATCHED'].indexOf(item.status);
+                                        const statusColors = {
+                                            RECEIVED: 'bg-yellow-100 text-yellow-700',
+                                            PRODUCTION: 'bg-blue-100 text-blue-700',
+                                            READY: 'bg-green-100 text-green-700',
+                                            DISPATCHED: 'bg-purple-100 text-purple-700',
+                                            CANCELLED: 'bg-red-100 text-red-700'
+                                        };
+                                        return (
+                                            <div key={item.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div>
+                                                        <div className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Order #{item.id}</div>
+                                                        <div className="text-sm text-gray-500">{new Date(item.createdAt).toLocaleDateString()}</div>
+                                                    </div>
+                                                    <span className={`text-sm font-bold px-3 py-1 rounded-full ${statusColors[item.status] || 'bg-gray-100'}`}>
+                                                        {item.status}
+                                                    </span>
                                                 </div>
-                                                <span className={`text-sm font-bold px-3 py-1 rounded-full ${statusColors[order.status] || 'bg-gray-100'}`}>
-                                                    {order.status}
-                                                </span>
-                                            </div>
 
-                                            {/* Progress Bar */}
-                                            {order.status !== 'CANCELLED' && (
-                                                <div className="grid grid-cols-4 gap-2 mb-4">
-                                                    {statusSteps.map((step, idx) => (
-                                                        <div key={step} className="text-center">
-                                                            <div className={`h-2 rounded-full ${idx <= currentStep ? 'bg-indigo-500' : 'bg-gray-200'}`} />
-                                                            <div className={`text-xs mt-1 ${idx <= currentStep ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
-                                                                {step}
+                                                {/* Progress Bar */}
+                                                {item.status !== 'CANCELLED' && (
+                                                    <div className="grid grid-cols-4 gap-2 mb-4">
+                                                        {statusSteps.map((step, idx) => (
+                                                            <div key={step} className="text-center">
+                                                                <div className={`h-2 rounded-full ${idx <= currentStep ? 'bg-indigo-500' : 'bg-gray-200'}`} />
+                                                                <div className={`text-xs mt-1 ${idx <= currentStep ? 'text-gray-700 font-medium' : 'text-gray-300'}`}>
+                                                                    {step}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                {/* Cancel Button */}
+                                                {item.status === 'RECEIVED' && (
+                                                    <button onClick={() => cancelOrder(item.id)} className="w-full bg-red-100 hover:bg-red-200 text-red-600 py-2 rounded-lg text-sm font-bold mb-4 transition-all">
+                                                        ❌ Cancel Order
+                                                    </button>
+                                                )}
+
+                                                {/* Items */}
+                                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                                    {item.OrderItems?.map((orderItem, i) => (
+                                                        <div key={i} className="flex gap-3 bg-gray-50 p-3 rounded-lg">
+                                                            <div className="w-12 h-12 rounded bg-gray-200 overflow-hidden flex-shrink-0">
+                                                                {orderItem.designImageSnapshot && <img src={getImageUrl(orderItem.designImageSnapshot)} className="w-full h-full object-cover" />}
+                                                            </div>
+                                                            <div className="text-sm">
+                                                                <div className="font-bold text-gray-900">{orderItem.designNameSnapshot} - {orderItem.colorNameSnapshot}</div>
+                                                                <div className="text-gray-500 text-xs">{orderItem.width}" × {orderItem.height}" | Qty: {orderItem.quantity}</div>
                                                             </div>
                                                         </div>
                                                     ))}
                                                 </div>
-                                            )}
-
-                                            {/* Cancel Button */}
-                                            {order.status === 'RECEIVED' && (
-                                                <button onClick={() => cancelOrder(order.id)} className="w-full bg-red-100 hover:bg-red-200 text-red-600 py-2 rounded-lg text-sm font-bold mb-4 transition-all">
-                                                    ❌ Cancel Order
-                                                </button>
-                                            )}
-
-                                            {/* Items */}
-                                            <div className="space-y-2 max-h-48 overflow-y-auto">
-                                                {order.OrderItems?.map((item, i) => (
-                                                    <div key={i} className="flex gap-3 bg-gray-50 p-3 rounded-lg">
-                                                        <div className="w-12 h-12 rounded bg-gray-200 overflow-hidden flex-shrink-0">
-                                                            {item.designImageSnapshot && <img src={getImageUrl(item.designImageSnapshot)} className="w-full h-full object-cover" />}
-                                                        </div>
-                                                        <div className="text-sm">
-                                                            <div className="font-bold">{item.designNameSnapshot} - {item.colorNameSnapshot}</div>
-                                                            <div className="text-gray-500">{item.width}" × {item.height}" | Qty: {item.quantity}</div>
+                                            </div>
+                                        );
+                                    } else {
+                                        // GROUPED CARD (Design/Color)
+                                        return (
+                                            <div key={idx} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+                                                <div className="flex justify-between items-center">
+                                                    <div className="flex items-center gap-4">
+                                                        {item.items[0]?.designImageSnapshot && (
+                                                            <div className="w-16 h-16 rounded-xl bg-gray-100 overflow-hidden shadow-sm">
+                                                                <img src={getImageUrl(item.items[0].designImageSnapshot)} className="w-full h-full object-cover" />
+                                                            </div>
+                                                        )}
+                                                        <div>
+                                                            <h3 className="text-xl font-black text-gray-900">{item.name}</h3>
+                                                            <div className="flex gap-2 mt-1">
+                                                                <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-xs font-bold">{item.ordersCount} Orders</span>
+                                                                <span className="text-gray-400 text-xs flex items-center">Last: {new Date(item.lastDate).toLocaleDateString()}</span>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                ))}
+                                                    <div className="text-right">
+                                                        <div className="text-3xl font-black text-indigo-600">{item.totalItems}</div>
+                                                        <div className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Total Units</div>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    );
+                                        );
+                                    }
                                 })}
                             </div>
                         )}

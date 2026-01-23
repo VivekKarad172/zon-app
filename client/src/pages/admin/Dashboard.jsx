@@ -109,6 +109,51 @@ export default function AdminDashboard() {
     const fetchFactoryLocation = async () => { try { const res = await api.get('/workers/settings/location'); setFactoryLocation(res.data); } catch (e) { } };
     const fetchWorkers = async () => { try { const res = await api.get('/workers'); setWorkers(res.data); } catch (e) { } };
 
+    // State for Grouping & Filtering
+    const [groupBy, setGroupBy] = useState('order'); // 'order', 'design', 'color', 'distributor'
+    const [trackingFilter, setTrackingFilter] = useState('');
+
+    // Aggregation Logic
+    const groupedTrackingData = useMemo(() => {
+        let data = factoryTracking;
+        if (!data) return [];
+
+        // 1. Filter
+        if (trackingFilter) {
+            const lowerFilter = trackingFilter.toLowerCase();
+            data = data.filter(order =>
+                order.id.toString().includes(lowerFilter) ||
+                order.distributor.toLowerCase().includes(lowerFilter) ||
+                (order.items && order.items.some(i => i.designName.toLowerCase().includes(lowerFilter) || i.colorName.toLowerCase().includes(lowerFilter)))
+            );
+        }
+
+        // 2. Group
+        if (groupBy === 'order') return data;
+
+        const groups = {};
+        data.forEach(order => {
+            if (!order.items) return;
+
+            if (groupBy === 'distributor') {
+                const key = order.distributor;
+                if (!groups[key]) groups[key] = { name: key, distributor: key, total: 0, progress: { pvc: 0, foil: 0, emboss: 0, door: 0, packed: 0 }, pending: 0 };
+                groups[key].total += order.total;
+                groups[key].pending += order.pending;
+                ['pvc', 'foil', 'emboss', 'door', 'packed'].forEach(k => groups[key].progress[k] += order.progress[k]);
+            } else {
+                order.items.forEach(item => {
+                    const key = groupBy === 'design' ? item.designName : item.colorName;
+                    if (!groups[key]) groups[key] = { name: key, total: 0, progress: { pvc: 0, foil: 0, emboss: 0, door: 0, packed: 0 }, pending: 0 };
+                    groups[key].total += item.quantity;
+                    if (item.progress) ['pvc', 'foil', 'emboss', 'door', 'packed'].forEach(k => groups[key].progress[k] += item.progress[k]);
+                });
+            }
+        });
+
+        return Object.values(groups).sort((a, b) => b.total - a.total);
+    }, [factoryTracking, groupBy, trackingFilter]);
+
     const handleSetLocation = () => {
         if (!navigator.geolocation) return toast.error('Browser does not support GPS');
         const tId = toast.loading('Getting Admin GPS (High Accuracy)...');
@@ -1024,68 +1069,143 @@ export default function AdminDashboard() {
                             </table>
                         </div>
 
+
                         {/* ORDER TRACKING TABLE */}
                         <div className="bg-white rounded-xl shadow-sm border border-gray-100 mt-6 overflow-hidden">
-                            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                                <h3 className="font-bold text-gray-700">Live Production Tracking</h3>
-                                <div className="flex gap-2">
-                                    <button onClick={fetchFactoryTracking} className="p-1 hover:bg-gray-200 rounded text-indigo-600"><RefreshCw size={14} /></button>
+                            <div className="p-4 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center bg-gray-50 gap-4">
+                                <div>
+                                    <h3 className="font-bold text-gray-700">Live Production Tracking</h3>
+                                    <p className="text-xs text-gray-400">Real-time status from factory floor</p>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2">
+                                    {/* Group By Control */}
+                                    <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border shadow-sm">
+                                        <span className="text-xs font-bold text-gray-400 uppercase">Group By:</span>
+                                        <select
+                                            value={groupBy}
+                                            onChange={(e) => setGroupBy(e.target.value)}
+                                            className="text-sm font-bold text-indigo-700 bg-transparent outline-none cursor-pointer"
+                                        >
+                                            <option value="order">Order Number</option>
+                                            <option value="design">Design Number</option>
+                                            <option value="color">Foil Color</option>
+                                            <option value="distributor">Distributor</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Filter Control */}
+                                    <div className="relative">
+                                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="Filter..."
+                                            value={trackingFilter}
+                                            onChange={(e) => setTrackingFilter(e.target.value)}
+                                            className="pl-8 pr-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-100 outline-none w-40"
+                                        />
+                                    </div>
+
+                                    <button onClick={fetchFactoryTracking} className="p-2 hover:bg-gray-200 rounded-lg text-indigo-600 transition-colors">
+                                        <RefreshCw size={16} />
+                                    </button>
                                 </div>
                             </div>
+
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left text-sm">
                                     <thead>
                                         <tr className="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider border-b">
-                                            <th className="p-3 font-bold">Order #</th>
-                                            <th className="p-3 font-bold">Distributor</th>
+                                            <th className="p-3 font-bold">{groupBy === 'order' ? 'Order #' : groupBy === 'design' ? 'Design' : groupBy === 'color' ? 'Color' : 'Distributor'}</th>
+                                            {groupBy === 'order' && <th className="p-3 font-bold">Distributor</th>}
                                             <th className="p-3 font-bold text-center">Total</th>
                                             <th className="p-3 font-bold text-center text-blue-600">PVC</th>
                                             <th className="p-3 font-bold text-center text-purple-600">Foil</th>
                                             <th className="p-3 font-bold text-center text-orange-600">Emboss</th>
                                             <th className="p-3 font-bold text-center text-cyan-600">Door</th>
                                             <th className="p-3 font-bold text-center text-green-600">Pack</th>
-                                            <th className="p-3 font-bold text-right">Status</th>
+                                            {groupBy === 'order' && <th className="p-3 font-bold text-right">Pending</th>}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
-                                        {factoryTracking.map(order => (
-                                            <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                                                <td className="p-3 font-mono font-bold text-indigo-900">#{order.id}</td>
-                                                <td className="p-3 font-medium text-gray-700">{order.distributor}</td>
-                                                <td className="p-3 text-center font-bold">{order.total}</td>
-                                                <td className="p-3 text-center">
-                                                    <span className={`px-2 py-1 rounded text-xs font-bold ${order.progress.pvc >= order.total ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400'}`}>
-                                                        {order.progress.pvc}/{order.total}
-                                                    </span>
-                                                </td>
-                                                <td className="p-3 text-center">
-                                                    <span className={`px-2 py-1 rounded text-xs font-bold ${order.progress.foil >= order.total ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-400'}`}>
-                                                        {order.progress.foil}/{order.total}
-                                                    </span>
-                                                </td>
-                                                <td className="p-3 text-center">
-                                                    <span className={`px-2 py-1 rounded text-xs font-bold ${order.progress.emboss >= order.total ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-400'}`}>
-                                                        {order.progress.emboss}/{order.total}
-                                                    </span>
-                                                </td>
-                                                <td className="p-3 text-center">
-                                                    <span className={`px-2 py-1 rounded text-xs font-bold ${order.progress.door >= order.total ? 'bg-cyan-100 text-cyan-700' : 'bg-gray-100 text-gray-400'}`}>
-                                                        {order.progress.door}/{order.total}
-                                                    </span>
-                                                </td>
-                                                <td className="p-3 text-center">
-                                                    <span className={`px-2 py-1 rounded text-xs font-bold ${order.progress.packed >= order.total ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
-                                                        {order.progress.packed}/{order.total}
-                                                    </span>
-                                                </td>
-                                                <td className="p-3 text-right">
-                                                    {order.progress.packed >= order.total ? (
-                                                        <span className="text-green-600 font-bold text-xs uppercase bg-green-50 px-2 py-1 rounded">Done</span>
-                                                    ) : (
-                                                        <span className="text-amber-500 font-bold text-xs uppercase bg-amber-50 px-2 py-1 rounded animate-pulse">Active</span>
+                                        {groupedTrackingData.length === 0 ? (
+                                            <tr><td colSpan="9" className="text-center py-10 text-gray-400 italic">No Active Production</td></tr>
+                                        ) : (
+                                            groupedTrackingData.map((row, idx) => (
+                                                <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                                    <td className="p-3 font-bold text-indigo-900">
+                                                        {groupBy === 'order' ? `#${row.id}` : row.name}
+                                                    </td>
+                                                    {groupBy === 'order' && <td className="p-3 font-medium text-gray-700">{row.distributor}</td>}
+                                                    <td className="p-3 text-center font-bold bg-gray-50">{row.total}</td>
+
+                                                    {['pvc', 'foil', 'emboss', 'door', 'packed'].map(stage => (
+                                                        <td key={stage} className="p-3 text-center">
+                                                            <div className="flex flex-col items-center">
+                                                                <span className={`px-2 py-0.5 rounded text-xs font-bold ${row.progress[stage] >= row.total ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                                                                    {row.progress[stage]}
+                                                                </span>
+                                                                {/* Progress Bar for Grouped Views */}
+                                                                {groupBy !== 'order' && row.total > 0 && (
+                                                                    <div className="w-12 h-1 bg-gray-200 rounded-full mt-1 overflow-hidden">
+                                                                        <div
+                                                                            className={`h-full ${stage === 'packed' ? 'bg-green-500' : 'bg-indigo-400'}`}
+                                                                            style={{ width: `${(row.progress[stage] / row.total) * 100}%` }}
+                                                                        />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    ))}
+
+                                                    {groupBy === 'order' && (
+                                                        <td className="p-3 text-right">
+                                                            <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-bold">
+                                                                {row.pending}
+                                                            </span>
+                                                        </td>
                                                     )}
-                                                </td>
-                                            </tr>
+                                                </tr>
+                                            ))
+                                        )}
+
+                                        <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                                            <td className="p-3 font-mono font-bold text-indigo-900">#{order.id}</td>
+                                            <td className="p-3 font-medium text-gray-700">{order.distributor}</td>
+                                            <td className="p-3 text-center font-bold">{order.total}</td>
+                                            <td className="p-3 text-center">
+                                                <span className={`px-2 py-1 rounded text-xs font-bold ${order.progress.pvc >= order.total ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400'}`}>
+                                                    {order.progress.pvc}/{order.total}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-center">
+                                                <span className={`px-2 py-1 rounded text-xs font-bold ${order.progress.foil >= order.total ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-400'}`}>
+                                                    {order.progress.foil}/{order.total}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-center">
+                                                <span className={`px-2 py-1 rounded text-xs font-bold ${order.progress.emboss >= order.total ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-400'}`}>
+                                                    {order.progress.emboss}/{order.total}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-center">
+                                                <span className={`px-2 py-1 rounded text-xs font-bold ${order.progress.door >= order.total ? 'bg-cyan-100 text-cyan-700' : 'bg-gray-100 text-gray-400'}`}>
+                                                    {order.progress.door}/{order.total}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-center">
+                                                <span className={`px-2 py-1 rounded text-xs font-bold ${order.progress.packed >= order.total ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                                                    {order.progress.packed}/{order.total}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-right">
+                                                {order.progress.packed >= order.total ? (
+                                                    <span className="text-green-600 font-bold text-xs uppercase bg-green-50 px-2 py-1 rounded">Done</span>
+                                                ) : (
+                                                    <span className="text-amber-500 font-bold text-xs uppercase bg-amber-50 px-2 py-1 rounded animate-pulse">Active</span>
+                                                )}
+                                            </td>
+                                        </tr>
                                         ))}
                                         {factoryTracking.length === 0 && (
                                             <tr>

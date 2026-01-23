@@ -87,31 +87,43 @@ router.get('/tracking', authenticate, authorize(['MANUFACTURER']), async (req, r
 
         const tracking = orders.map(order => {
             let totalUnits = 0;
-            let stats = { pvc: 0, foil: 0, emboss: 0, door: 0, packed: 0 };
+            let orderStats = { pvc: 0, foil: 0, emboss: 0, door: 0, packed: 0 };
 
-            order.OrderItems.forEach(item => {
-                // Use actual unit records if available, else quantity
-                // If repair ran, ProductionUnits exist.
+            const items = order.OrderItems.map(item => {
+                let itemTotal = 0;
+                let itemStats = { pvc: 0, foil: 0, emboss: 0, door: 0, packed: 0 };
+
                 if (item.ProductionUnits && item.ProductionUnits.length > 0) {
-                    totalUnits += item.ProductionUnits.length;
+                    itemTotal = item.ProductionUnits.length;
                     item.ProductionUnits.forEach(u => {
-                        if (u.isPvcDone) stats.pvc++;
-                        if (u.isFoilDone) stats.foil++;
-                        if (u.isEmbossDone) stats.emboss++;
-                        if (u.isDoorMade) stats.door++;
-                        if (u.isPacked) stats.packed++;
+                        if (u.isPvcDone) { orderStats.pvc++; itemStats.pvc++; }
+                        if (u.isFoilDone) { orderStats.foil++; itemStats.foil++; }
+                        if (u.isEmbossDone) { orderStats.emboss++; itemStats.emboss++; }
+                        if (u.isDoorMade) { orderStats.door++; itemStats.door++; }
+                        if (u.isPacked) { orderStats.packed++; itemStats.packed++; }
                     });
                 } else {
-                    totalUnits += item.quantity;
+                    itemTotal = item.quantity;
                 }
+                totalUnits += itemTotal;
+
+                return {
+                    designName: item.Design?.designNumber || 'Unknown',
+                    colorName: item.Color?.name || 'Unknown',
+                    width: item.width,
+                    height: item.height,
+                    quantity: itemTotal,
+                    progress: itemStats
+                };
             });
 
             return {
                 id: order.id,
                 distributor: order.Distributor?.shopName || 'Direct',
                 total: totalUnits,
-                progress: stats,
-                pending: totalUnits - stats.packed // Approximate
+                progress: orderStats,
+                pending: totalUnits - orderStats.packed,
+                items: items // Expose items for grouping
             };
         });
 

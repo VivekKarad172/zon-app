@@ -7,7 +7,9 @@ import { Bell, ShoppingBag, Users, Clock, CheckCircle, Upload, X, FileSpreadshee
 export default function DesktopDistributorDashboard({
     user, logout, navigate,
     activeTab, setActiveTab,
+    activeTab, setActiveTab,
     orders, filteredOrders, orderFilter, setOrderFilter,
+    groupBy, setGroupBy, groupedOrders, // New props
     dealers, posts,
     updateStatus, handleExportOrders,
     showAddDealer, setShowAddDealer, newDealer, setNewDealer, handleAddDealer,
@@ -100,13 +102,27 @@ export default function DesktopDistributorDashboard({
                             </div>
                         </div>
 
-                        {/* Filter */}
+                        {/* Filter & Grouping */}
                         <div className="flex gap-4 mb-6">
-                            <select value={orderFilter} onChange={e => setOrderFilter(e.target.value)} className="bg-white border rounded-xl px-4 py-2 font-bold">
+                            <select value={orderFilter} onChange={e => setOrderFilter(e.target.value)} className="bg-white border rounded-xl px-4 py-2 font-bold focus:ring-2 focus:ring-indigo-100 outline-none">
                                 <option value="all">All Orders</option>
                                 <option value="pending">Pending</option>
                                 <option value="completed">Completed</option>
                             </select>
+
+                            <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border shadow-sm">
+                                <span className="text-xs font-bold text-gray-400 uppercase">Group By:</span>
+                                <select
+                                    value={groupBy}
+                                    onChange={(e) => setGroupBy(e.target.value)}
+                                    className="font-bold text-indigo-700 bg-transparent outline-none cursor-pointer"
+                                >
+                                    <option value="order">Order Number</option>
+                                    <option value="dealer">Dealer</option>
+                                    <option value="design">Design</option>
+                                    <option value="color">Foil Color</option>
+                                </select>
+                            </div>
                         </div>
 
                         {/* Orders Table */}
@@ -114,55 +130,92 @@ export default function DesktopDistributorDashboard({
                             <table className="w-full">
                                 <thead className="bg-gray-50 border-b">
                                     <tr>
-                                        <th className="text-left p-4 font-bold text-sm text-gray-600">Order</th>
-                                        <th className="text-left p-4 font-bold text-sm text-gray-600">Dealer</th>
-                                        <th className="text-left p-4 font-bold text-sm text-gray-600">Items</th>
-                                        <th className="text-left p-4 font-bold text-sm text-gray-600">Date</th>
-                                        <th className="text-left p-4 font-bold text-sm text-gray-600">Status</th>
-                                        <th className="text-left p-4 font-bold text-sm text-gray-600">Action</th>
+                                        <th className="text-left p-4 font-bold text-sm text-gray-600">
+                                            {groupBy === 'order' ? 'Order' : groupBy === 'dealer' ? 'Dealer' : groupBy === 'design' ? 'Design' : 'Color'}
+                                        </th>
+                                        {groupBy === 'order' && <th className="text-left p-4 font-bold text-sm text-gray-600">Dealer</th>}
+                                        <th className="text-left p-4 font-bold text-sm text-gray-600">
+                                            {groupBy === 'dealer' ? 'Summary' : groupBy === 'order' ? 'Items' : 'Quantity'}
+                                        </th>
+                                        {groupBy === 'order' && <th className="text-left p-4 font-bold text-sm text-gray-600">Date</th>}
+                                        {groupBy === 'order' && <th className="text-left p-4 font-bold text-sm text-gray-600">Status</th>}
+                                        {groupBy === 'order' && <th className="text-left p-4 font-bold text-sm text-gray-600">Action</th>}
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredOrders.length === 0 && (
-                                        <tr><td colSpan="6" className="text-center py-12 text-gray-400">No orders found</td></tr>
+                                    {groupedOrders.length === 0 && (
+                                        <tr><td colSpan="6" className="text-center py-12 text-gray-400">No records found</td></tr>
                                     )}
-                                    {filteredOrders.map(order => (
-                                        <tr key={order.id} className="border-b hover:bg-gray-50 transition-colors">
-                                            <td className="p-4 font-bold text-gray-900">#{order.id}</td>
-                                            <td className="p-4">
-                                                <div className="font-bold text-gray-900">{order.User?.name}</div>
-                                                <div className="text-xs text-gray-500">{order.User?.shopName || order.User?.city}</div>
-                                            </td>
-                                            <td className="p-4">
-                                                <div className="flex items-center gap-1">
-                                                    {order.OrderItems?.slice(0, 3).map((item, i) => (
-                                                        <div key={i} className="w-8 h-8 rounded bg-gray-100 overflow-hidden">
-                                                            {item.designImageSnapshot && <img src={getImageUrl(item.designImageSnapshot)} className="w-full h-full object-cover" />}
+
+                                    {groupedOrders.map((row, idx) => (
+                                        <tr key={idx} className="border-b hover:bg-gray-50 transition-colors">
+                                            {groupBy === 'order' ? (
+                                                // STANDARD ORDER ROW
+                                                <>
+                                                    <td className="p-4 font-bold text-gray-900">#{row.id}</td>
+                                                    <td className="p-4">
+                                                        <div className="font-bold text-gray-900">{row.User?.name}</div>
+                                                        <div className="text-xs text-gray-500">{row.User?.shopName || row.User?.city}</div>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <div className="flex items-center gap-1">
+                                                            {row.OrderItems?.slice(0, 3).map((item, i) => (
+                                                                <div key={i} className="w-8 h-8 rounded bg-gray-100 overflow-hidden">
+                                                                    {item.designImageSnapshot && <img src={getImageUrl(item.designImageSnapshot)} className="w-full h-full object-cover" />}
+                                                                </div>
+                                                            ))}
+                                                            {row.OrderItems?.length > 3 && (
+                                                                <span className="text-xs text-gray-500 ml-1">+{row.OrderItems.length - 3}</span>
+                                                            )}
                                                         </div>
-                                                    ))}
-                                                    {order.OrderItems?.length > 3 && (
-                                                        <span className="text-xs text-gray-500 ml-1">+{order.OrderItems.length - 3}</span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="p-4 text-sm text-gray-600">{new Date(order.createdAt).toLocaleDateString()}</td>
-                                            <td className="p-4">{getStatusBadge(order.status)}</td>
-                                            <td className="p-4">
-                                                {order.status !== 'DISPATCHED' && order.status !== 'CANCELLED' ? (
-                                                    <select
-                                                        value={order.status}
-                                                        onChange={e => updateStatus(order.id, e.target.value)}
-                                                        className="bg-gray-50 border rounded-lg px-3 py-2 text-sm font-bold"
-                                                    >
-                                                        <option value="RECEIVED">📥 Received</option>
-                                                        <option value="PRODUCTION">🔧 Production</option>
-                                                        <option value="READY">✅ Ready</option>
-                                                        <option value="DISPATCHED">🚚 Dispatched</option>
-                                                    </select>
-                                                ) : (
-                                                    <span className="text-gray-400 text-sm">—</span>
-                                                )}
-                                            </td>
+                                                    </td>
+                                                    <td className="p-4 text-sm text-gray-600">{new Date(row.createdAt).toLocaleDateString()}</td>
+                                                    <td className="p-4">{getStatusBadge(row.status)}</td>
+                                                    <td className="p-4">
+                                                        {row.status !== 'DISPATCHED' && row.status !== 'CANCELLED' ? (
+                                                            <select
+                                                                value={row.status}
+                                                                onChange={e => updateStatus(row.id, e.target.value)}
+                                                                className="bg-gray-50 border rounded-lg px-3 py-2 text-sm font-bold"
+                                                            >
+                                                                <option value="RECEIVED">📥 Received</option>
+                                                                <option value="PRODUCTION">🔧 Production</option>
+                                                                <option value="READY">✅ Ready</option>
+                                                                <option value="DISPATCHED">🚚 Dispatched</option>
+                                                            </select>
+                                                        ) : (
+                                                            <span className="text-gray-400 text-sm">—</span>
+                                                        )}
+                                                    </td>
+                                                </>
+                                            ) : (
+                                                // GROUPED ROW (Dealer, Design, Color)
+                                                <>
+                                                    <td className="p-4">
+                                                        <div className="font-bold text-gray-900 text-lg">{row.name}</div>
+                                                        {groupBy === 'dealer' && (
+                                                            <div className="text-xs text-gray-500">{row.dealer?.shopName || row.dealer?.city}</div>
+                                                        )}
+                                                    </td>
+
+                                                    <td className="p-4">
+                                                        {groupBy === 'dealer' ? (
+                                                            <div className="flex gap-4">
+                                                                <div className="bg-indigo-50 px-3 py-1 rounded-lg">
+                                                                    <span className="block text-xs font-bold text-indigo-400 uppercase">Orders</span>
+                                                                    <span className="font-black text-indigo-700">{row.totalOrders}</span>
+                                                                </div>
+                                                                <div className="bg-purple-50 px-3 py-1 rounded-lg">
+                                                                    <span className="block text-xs font-bold text-purple-400 uppercase">Total Items</span>
+                                                                    <span className="font-black text-purple-700">{row.totalItems}</span>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="font-bold text-gray-700 text-xl">{row.totalItems} <span className="text-sm font-normal text-gray-400">units</span></div>
+                                                        )}
+                                                    </td>
+                                                </>
+                                            )}
                                         </tr>
                                     ))}
                                 </tbody>

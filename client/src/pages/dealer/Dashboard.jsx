@@ -77,6 +77,46 @@ export default function DealerDashboard() {
         ));
     };
 
+    // === CART & ORDER FUNCTIONS ===
+    // ...
+
+    // === COMPUTED VALUES FOR ORDER HISTORY ===
+    const [groupBy, setGroupBy] = useState('order'); // 'order', 'design', 'color'
+
+    const groupedOrders = useMemo(() => {
+        if (!myOrders) return [];
+        if (groupBy === 'order') return myOrders;
+
+        const groups = {};
+        myOrders.forEach(order => {
+            if (!order.OrderItems) return;
+
+            order.OrderItems.forEach(item => {
+                const key = groupBy === 'design' ? item.designNameSnapshot : item.colorNameSnapshot;
+                if (!groups[key]) {
+                    groups[key] = {
+                        name: key,
+                        totalItems: 0,
+                        items: [],
+                        ordersCount: 0,
+                        lastDate: order.createdAt // track latest date
+                    };
+                }
+                groups[key].totalItems += item.quantity;
+                groups[key].items.push({ ...item, orderId: order.id, status: order.status, date: order.createdAt });
+                // We could count unique orders if needed
+            });
+        });
+
+        // Calculate unique order count per group
+        Object.values(groups).forEach(g => {
+            const uniqueOrders = new Set(g.items.map(i => i.orderId));
+            g.ordersCount = uniqueOrders.size;
+        });
+
+        return Object.values(groups).sort((a, b) => b.totalItems - a.totalItems);
+    }, [myOrders, groupBy]);
+
     const addAllToCart = () => {
         if (!orderSelection.designId || !orderSelection.colorId) return toast.error('Select Design and Color first');
 
