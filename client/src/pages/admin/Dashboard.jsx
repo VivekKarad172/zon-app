@@ -969,115 +969,117 @@ export default function AdminDashboard() {
 
                 {/* FACTORY MANAGEMENT TAB */}
                 {activeTab === 'factory' && (
-
-                    < div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
-                        <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
-                            <div>
-                                <h2 className="text-xl font-black text-gray-900 tracking-tight">Worker Roster</h2>
-                                <p className="text-xs text-gray-400 font-bold mt-1">Manage Factory Staff & Access</p>
-                            </div>
-                            <button
-                                onClick={() => setShowAddWorker(true)}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wide shadow-lg shadow-indigo-200 transition-all flex items-center gap-2"
-                            >
-                                <Plus size={16} strokeWidth={3} /> Register Worker
-                            </button>
-                        </div>
-
-                        <table className="min-w-full text-left">
-                            <thead className="bg-gray-50 text-gray-400 font-black uppercase text-[10px] tracking-widest border-b border-gray-100">
-                                <tr>
-                                    <th className="px-8 py-5">Worker Name</th>
-                                    <th className="px-6 py-5">Role / Station</th>
-                                    <th className="px-6 py-5">PIN Access</th>
-                                    <th className="px-6 py-5">Status</th>
-                                    <th className="px-6 py-5 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50">
-                                {workers.length > 0 ? workers.map(worker => (
-                                    <tr key={worker.id} className="hover:bg-indigo-50/30 transition-colors group">
-                                        <td className="px-8 py-4">
-                                            <div className="font-black text-gray-900">{worker.name}</div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className="bg-indigo-50 text-indigo-700 font-bold text-[10px] uppercase px-2 py-1 rounded-lg border border-indigo-100">
-                                                {worker.role.replace('_', ' ')}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className="text-gray-400 text-xs font-mono">****</span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-1.5">
-                                                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                                                <span className="text-[10px] font-black text-green-600 uppercase">Active</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <button
-                                                onClick={() => handleDeleteWorker(worker.id)}
-                                                className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                )) : (
-                                    <tr><td colSpan="5" className="px-6 py-20 text-center text-gray-300 font-black uppercase tracking-widest italic">No Workers Registered</td></tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-
-
-            {/* FACTORY SETTINGS */}
-                <div className="mt-6 flex justify-end">
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3">
-                        <div className="flex items-center justify-between gap-4">
-                            <div>
-                                <h3 className="text-xs font-black uppercase text-gray-400">Factory Geofence</h3>
-                                <div className="font-bold text-gray-700 text-sm flex items-center gap-1">
-                                    <MapPin size={14} className={factoryLocation ? 'text-green-500' : 'text-red-400'} />
-                                    {factoryLocation ? `Set: ${factoryLocation.lat.toFixed(4)}, ${factoryLocation.lng.toFixed(4)}` : 'Not Set'}
+                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
+                        {/* 2. Worker Roster */}
+                        <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
+                            <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
+                                <div>
+                                    <h2 className="text-xl font-black text-gray-900 tracking-tight">Worker Roster</h2>
+                                    <p className="text-xs text-gray-400 font-bold mt-1">Manage Factory Staff & Access</p>
                                 </div>
-                            </div>
-                            <div className="flex gap-2">
-                                <button onClick={() => setShowManualGeo(!showManualGeo)} className="bg-gray-100 text-gray-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-gray-200">
-                                    {showManualGeo ? 'Cancel' : 'Manual'}
+                                <button
+                                    onClick={() => setShowAddWorker(true)}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wide shadow-lg shadow-indigo-200 transition-all flex items-center gap-2"
+                                >
+                                    <Plus size={16} strokeWidth={3} /> Register Worker
                                 </button>
-                                {!showManualGeo && (
-                                    <button onClick={handleSetLocation} className="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 active:scale-95 transition-all">
-                                        {factoryLocation ? 'Update GPS' : 'Set GPS'}
-                                    </button>
+                            </div>
+
+                            <table className="min-w-full text-left">
+                                <thead className="bg-gray-50 text-gray-400 font-black uppercase text-[10px] tracking-widest border-b border-gray-100">
+                                    <tr>
+                                        <th className="px-8 py-5">Worker Name</th>
+                                        <th className="px-6 py-5">Role / Station</th>
+                                        <th className="px-6 py-5">PIN Access</th>
+                                        <th className="px-6 py-5">Status</th>
+                                        <th className="px-6 py-5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {workers.length > 0 ? workers.map(worker => (
+                                        <tr key={worker.id} className="hover:bg-indigo-50/30 transition-colors group">
+                                            <td className="px-8 py-4">
+                                                <div className="font-black text-gray-900">{worker.name}</div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="bg-indigo-50 text-indigo-700 font-bold text-[10px] uppercase px-2 py-1 rounded-lg border border-indigo-100">
+                                                    {worker.role.replace('_', ' ')}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="text-gray-400 text-xs font-mono">****</span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                                                    <span className="text-[10px] font-black text-green-600 uppercase">Active</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <button
+                                                    onClick={() => handleDeleteWorker(worker.id)}
+                                                    className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    )) : (
+                                        <tr><td colSpan="5" className="px-6 py-20 text-center text-gray-300 font-black uppercase tracking-widest italic">No Workers Registered</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+
+                        {/* FACTORY SETTINGS */}
+                        <div className="mt-6 flex justify-end">
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3">
+                                <div className="flex items-center justify-between gap-4">
+                                    <div>
+                                        <h3 className="text-xs font-black uppercase text-gray-400">Factory Geofence</h3>
+                                        <div className="font-bold text-gray-700 text-sm flex items-center gap-1">
+                                            <MapPin size={14} className={factoryLocation ? 'text-green-500' : 'text-red-400'} />
+                                            {factoryLocation ? `Set: ${factoryLocation.lat.toFixed(4)}, ${factoryLocation.lng.toFixed(4)}` : 'Not Set'}
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setShowManualGeo(!showManualGeo)} className="bg-gray-100 text-gray-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-gray-200">
+                                            {showManualGeo ? 'Cancel' : 'Manual'}
+                                        </button>
+                                        {!showManualGeo && (
+                                            <button onClick={handleSetLocation} className="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 active:scale-95 transition-all">
+                                                {factoryLocation ? 'Update GPS' : 'Set GPS'}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {showManualGeo && (
+                                    <div className="flex gap-2 items-center bg-gray-50 p-2 rounded-lg animate-in slide-in-from-top-2">
+                                        <input
+                                            type="number"
+                                            placeholder="Lat"
+                                            value={manualLat}
+                                            onChange={e => setManualLat(e.target.value)}
+                                            className="w-24 p-2 text-xs border rounded"
+                                        />
+                                        <input
+                                            type="number"
+                                            placeholder="Lng"
+                                            value={manualLng}
+                                            onChange={e => setManualLng(e.target.value)}
+                                            className="w-24 p-2 text-xs border rounded"
+                                        />
+                                        <button onClick={handleManualLocationSubmit} className="bg-green-600 text-white px-3 py-2 rounded text-xs font-bold hover:bg-green-700">
+                                            Save
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         </div>
-
-                        {showManualGeo && (
-                            <div className="flex gap-2 items-center bg-gray-50 p-2 rounded-lg animate-in slide-in-from-top-2">
-                                <input
-                                    type="number"
-                                    placeholder="Lat"
-                                    value={manualLat}
-                                    onChange={e => setManualLat(e.target.value)}
-                                    className="w-24 p-2 text-xs border rounded"
-                                />
-                                <input
-                                    type="number"
-                                    placeholder="Lng"
-                                    value={manualLng}
-                                    onChange={e => setManualLng(e.target.value)}
-                                    className="w-24 p-2 text-xs border rounded"
-                                />
-                                <button onClick={handleManualLocationSubmit} className="bg-green-600 text-white px-3 py-2 rounded text-xs font-bold hover:bg-green-700">
-                                    Save
-                                </button>
-                            </div>
-                        )}
                     </div>
-                </div>
-        )}
+                )}
 
                 {/* Add Worker Modal */}
                 {showAddWorker && (
