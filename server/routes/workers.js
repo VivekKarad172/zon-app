@@ -340,6 +340,97 @@ router.post('/complete', async (req, res) => {
 
         res.json({ message: 'Task Completed', flags: updateData });
     } catch (error) {
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /workers/history - Get tasks completed TODAY by this worker
+router.get('/history', async (req, res) => {
+    try {
+        const workerId = req.headers['x-worker-id'];
+        if (!workerId) return res.status(401).json({ error: 'Worker ID required' });
+
+        const worker = await Worker.findByPk(workerId);
+        if (!worker) return res.status(404).json({ error: 'Worker not found' });
+
+        // Get ProcessRecords for today
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const history = await sequelize.models.ProcessRecord.findAll({
+            where: {
+                workerId: worker.id,
+                timestamp: { [Op.gte]: startOfDay }
+            },
+            include: [{
+                model: ProductionUnit,
+                include: [{
+                    model: OrderItem,
+                    include: [
+                        { model: Design, attributes: ['designNumber'] },
+                        { model: Color, attributes: ['name'] },
+                        { model: Order, attributes: ['id', 'referenceNumber'] } // Added Order Ref
+                    ]
+                }]
+            }],
+            order: [['timestamp', 'DESC']]
+        });
+
+        res.json(history);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /workers/undo - Revert a completion
+router.post('/undo', async (req, res) => {
+    try {
+        const { workerId, recordId } = req.body; // ProcessRecord ID is safer than Unit ID for history
+
+        const record = await sequelize.models.ProcessRecord.findByPk(recordId);
+        if (!record) return res.status(404).json({ error: 'Record not found' });
+        if (record.workerId != workerId) return res.status(403).json({ error: 'Unauthorized' });
+
+        const unit = await ProductionUnit.findByPk(record.productionUnitId);
+        if (!unit) return res.status(404).json({ error: 'Unit not found' });
+
+        const worker = await Worker.findByPk(workerId);
+        const ROLE_MAP = {
+            'PVC_CUT': { flag: 'isPvcDone' },
+            'FOIL_PASTING': { flag: 'isFoilDone' },
+            'EMBOSS': { flag: 'isEmbossDone' },
+            'DOOR_MAKING': { flag: 'isDoorMade' },
+            'PACKING': { flag: 'isPacked' }
+        };
+        const rule = ROLE_MAP[worker.role];
+
+        // 1. Revert Flag
+        const updateData = {};
+        updateData[rule.flag] = false;
+        await unit.update(updateData);
+
+        // 2. Delete Record
+        await record.destroy();
+
+        // 3. Revert Order Status if PACKING was undone
+        if (worker.role === 'PACKING') {
+            const orderItem = await OrderItem.findByPk(unit.orderItemId);
+            if (orderItem) {
+                const order = await Order.findByPk(orderItem.orderId);
+                // If it was READY, revert to PRODUCTION
+                // (Safest assumption: if we are undoing a pack, it's definitely not ready anymore, 
+                // unless there are somehow 0 items? No, assume PRODUCTION.)
+                if (order.status === 'READY') {
+                    await order.update({ status: 'PRODUCTION' });
+                    console.log(`Order ${order.id} reverted to PRODUCTION`);
+                }
+            }
+        }
+
+        res.json({ message: 'Undone successfully' });
+
+    } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });

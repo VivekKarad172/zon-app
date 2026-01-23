@@ -97,6 +97,7 @@ export default function WorkerDashboard() {
     };
 
     const handleComplete = (unitId) => {
+        if (!window.confirm('Are you sure you want to mark this process as DONE?')) return;
         if (!navigator.geolocation) return toast.error('GPS not supported');
 
         const toastId = toast.loading('Verifying Location...');

@@ -1169,49 +1169,7 @@ export default function AdminDashboard() {
                                             ))
                                         )}
 
-                                        <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                                            <td className="p-3 font-mono font-bold text-indigo-900">#{order.id}</td>
-                                            <td className="p-3 font-medium text-gray-700">{order.distributor}</td>
-                                            <td className="p-3 text-center font-bold">{order.total}</td>
-                                            <td className="p-3 text-center">
-                                                <span className={`px-2 py-1 rounded text-xs font-bold ${order.progress.pvc >= order.total ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400'}`}>
-                                                    {order.progress.pvc}/{order.total}
-                                                </span>
-                                            </td>
-                                            <td className="p-3 text-center">
-                                                <span className={`px-2 py-1 rounded text-xs font-bold ${order.progress.foil >= order.total ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-400'}`}>
-                                                    {order.progress.foil}/{order.total}
-                                                </span>
-                                            </td>
-                                            <td className="p-3 text-center">
-                                                <span className={`px-2 py-1 rounded text-xs font-bold ${order.progress.emboss >= order.total ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-400'}`}>
-                                                    {order.progress.emboss}/{order.total}
-                                                </span>
-                                            </td>
-                                            <td className="p-3 text-center">
-                                                <span className={`px-2 py-1 rounded text-xs font-bold ${order.progress.door >= order.total ? 'bg-cyan-100 text-cyan-700' : 'bg-gray-100 text-gray-400'}`}>
-                                                    {order.progress.door}/{order.total}
-                                                </span>
-                                            </td>
-                                            <td className="p-3 text-center">
-                                                <span className={`px-2 py-1 rounded text-xs font-bold ${order.progress.packed >= order.total ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
-                                                    {order.progress.packed}/{order.total}
-                                                </span>
-                                            </td>
-                                            <td className="p-3 text-right">
-                                                {order.progress.packed >= order.total ? (
-                                                    <span className="text-green-600 font-bold text-xs uppercase bg-green-50 px-2 py-1 rounded">Done</span>
-                                                ) : (
-                                                    <span className="text-amber-500 font-bold text-xs uppercase bg-amber-50 px-2 py-1 rounded animate-pulse">Active</span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                        ))}
-                                        {factoryTracking.length === 0 && (
-                                            <tr>
-                                                <td colSpan="9" className="py-8 text-center text-gray-400 italic">No Orders in Production</td>
-                                            </tr>
-                                        )}
+
                                     </tbody>
                                 </table>
                             </div>

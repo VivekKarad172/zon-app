@@ -175,6 +175,7 @@ export default function DealerDashboard() {
         sizeRows, addRow, removeRow, updateRow, addAllToCart,
         cart, setCart, placeOrder,
         myOrders, cancelOrder,
+        groupBy, setGroupBy, groupedOrders, // New Props
         posts,
         getImageUrl
     };
