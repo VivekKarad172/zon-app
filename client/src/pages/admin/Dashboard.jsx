@@ -63,6 +63,7 @@ export default function AdminDashboard() {
     const [workers, setWorkers] = useState([]);
     const [factoryStats, setFactoryStats] = useState({});
     const [factoryTracking, setFactoryTracking] = useState([]);
+    const [factoryGroupBy, setFactoryGroupBy] = useState('ORDER');
     const [factoryLocation, setFactoryLocation] = useState(null);
     const [showAddWorker, setShowAddWorker] = useState(false);
     const [newWorker, setNewWorker] = useState({ name: '', pinCode: '', role: 'PVC_CUT' });
@@ -104,8 +105,37 @@ export default function AdminDashboard() {
     // FETCHERS
     const fetchAnalytics = async () => { try { const res = await api.get('/orders/analytics'); setAnalytics(res.data); } catch (e) { } };
 
+    // Helper to group factory data for visualization
+    const groupFactoryData = (data, groupBy) => {
+        const groups = {};
+        data.forEach(item => {
+            let key = 'Other';
+            if (groupBy === 'ORDER') key = `Order #${item.orderId}`;
+            else if (groupBy === 'DESIGN') key = item.designName || 'Unknown Design';
+            else if (groupBy === 'COLOR') key = item.colorName || 'Unknown Color';
+            else if (groupBy === 'DISTRIBUTOR') key = item.distributorName || 'Direct Sale';
+
+            if (!groups[key]) {
+                groups[key] = { total: 0, completed: 0, items: [], stats: {} };
+            }
+            groups[key].items.push(item);
+            groups[key].total += 1;
+            if (item.status === 'DONE') groups[key].completed += 1;
+
+            // Count per station
+            if (!groups[key].stats[item.station]) groups[key].stats[item.station] = 0;
+            if (item.status === 'DONE') groups[key].stats[item.station] += 1;
+        });
+        return groups;
+    };
+
     const fetchFactoryStats = async () => { try { const res = await api.get('/workers/stats'); setFactoryStats(res.data); } catch (e) { } };
-    const fetchFactoryTracking = async () => { try { const res = await api.get('/workers/tracking'); setFactoryTracking(res.data); } catch (e) { } };
+    const fetchFactoryTracking = async () => {
+        try {
+            const res = await api.get('/workers/production-tracking'); // This endpoint needs to exist on backend
+            setFactoryTracking(res.data);
+        } catch (e) { console.error("Tracking Error", e); }
+    };
     const fetchFactoryLocation = async () => { try { const res = await api.get('/workers/settings/location'); setFactoryLocation(res.data); } catch (e) { } };
     const fetchWorkers = async () => { try { const res = await api.get('/workers'); setWorkers(res.data); } catch (e) { } };
 
