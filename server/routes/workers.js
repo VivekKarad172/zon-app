@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const { Worker, ProductionUnit, OrderItem, Design, Color, Order, User, sequelize, SystemSetting } = require('../models');
+const { Worker, ProductionUnit, OrderItem, Design, Color, Order, User, sequelize, SystemSetting, ProcessRecord } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
@@ -358,7 +358,7 @@ router.get('/history', async (req, res) => {
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
 
-        const history = await sequelize.models.ProcessRecord.findAll({
+        const history = await ProcessRecord.findAll({
             where: {
                 workerId: worker.id,
                 timestamp: { [Op.gte]: startOfDay }
@@ -379,6 +379,7 @@ router.get('/history', async (req, res) => {
 
         res.json(history);
     } catch (error) {
+        console.error('History Error:', error);
         res.status(500).json({ error: error.message });
     }
 });
