@@ -10,6 +10,43 @@ export default function WorkerDashboard() {
     const [loading, setLoading] = useState(true);
     const worker = JSON.parse(localStorage.getItem('workerToken'));
 
+    // NEW STATE
+    const [activeTab, setActiveTab] = useState('tasks'); // 'tasks' or 'history'
+    const [history, setHistory] = useState([]);
+
+    const fetchHistory = async () => {
+        try {
+            setLoading(true);
+            const res = await api.get('/workers/history', {
+                headers: { 'x-worker-id': worker.id }
+            });
+            setHistory(res.data);
+            setLoading(false);
+        } catch (error) {
+            toast.error('Failed to load history');
+            setLoading(false);
+        }
+    };
+
+    const handleUndo = async (recordId) => {
+        if (!window.confirm('Undo this completion?')) return;
+        try {
+            await api.post('/workers/undo', { workerId: worker.id, recordId });
+            toast.success('Undone!');
+            fetchHistory(); // Refresh history
+        } catch (error) {
+            toast.error('Undo Failed');
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'history') {
+            fetchHistory();
+        } else {
+            fetchTasks();
+        }
+    }, [activeTab]);
+
     // ROLE CONFIGURATION
     const ROLE_MAP = {
         'PVC_CUT': { flag: 'isPvcDone', deps: [], label: 'PVC Cut' },
@@ -146,10 +183,10 @@ export default function WorkerDashboard() {
                     <div className="text-[10px] font-bold uppercase text-indigo-600 bg-indigo-50 px-1 rounded inline-block mt-1">{myRole.label}</div>
                 </div>
                 <div className="flex gap-2">
-                    <button onClick={fetchTasks} className="p-2 bg-indigo-50 text-indigo-600 rounded-lg active:scale-95 border border-indigo-100">
-                        <RefreshCw size={18} />
+                    <button onClick={() => setActiveTab(activeTab === 'tasks' ? 'history' : 'tasks')} className={`px-3 py-2 rounded-lg text-sm font-bold ${activeTab === 'history' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                        {activeTab === 'tasks' ? 'History' : 'Tasks'}
                     </button>
-                    <button onClick={handleLogout} className="p-2 bg-red-50 text-red-500 rounded-lg active:scale-95 border border-red-100">
+                    <button onClick={handleLogout} className="p-2 bg-red-50 text-red-600 rounded-lg">
                         <LogOut size={18} />
                     </button>
                 </div>
