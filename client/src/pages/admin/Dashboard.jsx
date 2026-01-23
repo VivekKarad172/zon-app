@@ -901,6 +901,100 @@ export default function AdminDashboard() {
                                 </select>
                                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-400 pointer-events-none" size={14} />
                             </div>
+
+                        </div>
+
+                        {/* 1. Live Floor Stats (MOVED) */}
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                            {['PVC_CUT', 'FOIL_PASTING', 'EMBOSS', 'DOOR_MAKING', 'PACKING'].map((code, idx) => {
+                                const colors = [
+                                    'bg-blue-50 text-blue-700 border-blue-100',
+                                    'bg-purple-50 text-purple-700 border-purple-100',
+                                    'bg-pink-50 text-pink-700 border-pink-100',
+                                    'bg-orange-50 text-orange-700 border-orange-100',
+                                    'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                ];
+                                const count = factoryStats?.pendingByStation?.find(s => s.station === code)?._count?.id || 0;
+                                return (
+                                    <div key={code} className={`p-4 rounded-3xl border ${colors[idx]} flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md transition-all`}>
+                                        <span className="text-3xl font-black mb-1">{count}</span>
+                                        <span className="text-[10px] font-bold uppercase tracking-widest opacity-80">{code.replace('_', ' ')}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
+                            <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
+                                <div>
+                                    <h2 className="text-xl font-black text-gray-900 tracking-tight">Live Production Tracking</h2>
+                                    <p className="text-xs text-gray-400 font-bold mt-1">Real-time status of every door on the floor.</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <select
+                                        value={factoryGroupBy}
+                                        onChange={e => setFactoryGroupBy(e.target.value)}
+                                        className="bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl px-3 py-2 outline-none focus:ring-2 ring-indigo-100"
+                                    >
+                                        <option value="ORDER">Group by Order</option>
+                                        <option value="DESIGN">Group by Design</option>
+                                        <option value="COLOR">Group by Color</option>
+                                        <option value="DISTRIBUTOR">Group by Distributor</option>
+                                    </select>
+                                    <button onClick={fetchFactoryTracking} className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-gray-500">
+                                        <RefreshCw size={14} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full text-left">
+                                    <thead className="bg-gray-50/50 text-gray-400 font-black uppercase text-[10px] tracking-widest border-b border-gray-100">
+                                        <tr>
+                                            <th className="px-8 py-5">Group Name</th>
+                                            <th className="px-6 py-5 text-center">Total Doors</th>
+                                            <th className="px-6 py-5 text-center">PVC Cut</th>
+                                            <th className="px-6 py-5 text-center">Foil</th>
+                                            <th className="px-6 py-5 text-center">Emboss</th>
+                                            <th className="px-6 py-5 text-center">Make</th>
+                                            <th className="px-6 py-5 text-center">Pack</th>
+                                            <th className="px-6 py-5 text-center">Completion</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {
+                                            Object.entries(groupFactoryData(factoryTracking, factoryGroupBy)).map(([groupKey, group]) => (
+                                                <tr key={groupKey} className="hover:bg-indigo-50/30 transition-colors">
+                                                    <td className="px-8 py-5">
+                                                        <div className="font-black text-gray-900 text-sm">{groupKey}</div>
+                                                        <div className="text-[10px] text-gray-400 font-bold">{group.items.length} items</div>
+                                                    </td>
+                                                    <td className="px-6 py-5 text-center font-black text-gray-700">{group.total}</td>
+                                                    {['PVC_CUT', 'FOIL_PASTING', 'EMBOSS', 'DOOR_MAKING', 'PACKING'].map((stage, idx) => {
+                                                        const count = group.stats[stage] || 0;
+                                                        const isDone = count === group.total && group.total > 0;
+                                                        return (
+                                                            <td key={stage} className="px-6 py-5 text-center">
+                                                                <span className={`text-xs font-bold px-2 py-1 rounded-lg ${isDone ? 'bg-green-100 text-green-700' : count > 0 ? 'bg-indigo-50 text-indigo-600' : 'text-gray-300'}`}>
+                                                                    {count}/{group.total}
+                                                                </span>
+                                                            </td>
+                                                        );
+                                                    })}
+                                                    <td className="px-6 py-5 text-center">
+                                                        <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden mx-auto">
+                                                            <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${(group.completed / group.total) * 100}%` }}></div>
+                                                        </div>
+                                                        <div className="text-[10px] font-bold text-gray-400 mt-1">{Math.round((group.completed / group.total) * 100)}%</div>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        }
+                                        {factoryTracking.length === 0 && (
+                                            <tr><td colSpan="8" className="px-6 py-12 text-center text-gray-300 font-bold italic">No active production data</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
 
                         <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
