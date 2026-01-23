@@ -155,9 +155,31 @@ export default function WorkerDashboard() {
                 </div>
             </div>
 
-            {/* Grouped List */}
+            {/* Grouped List or History */}
             <div className="flex-1 p-3 max-w-xl mx-auto w-full space-y-6">
-                {loading ? (
+                {activeTab === 'history' ? (
+                    <div className="space-y-4">
+                        <h2 className="font-black text-gray-900 text-xl px-2">Today's Work</h2>
+                        {history.length === 0 ? (
+                            <div className="text-center py-10 text-gray-400">No work recorded today</div>
+                        ) : (
+                            history.map(record => (
+                                <div key={record.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+                                    <div>
+                                        <div className="text-[10px] font-bold text-gray-400 uppercase">{new Date(record.timestamp).toLocaleTimeString()}</div>
+                                        <div className="font-bold text-gray-800">
+                                            {record.ProductionUnit?.OrderItem?.Design?.designNumber} - {record.ProductionUnit?.OrderItem?.Color?.name}
+                                        </div>
+                                        <div className="text-xs text-gray-500">Order #{record.ProductionUnit?.OrderItem?.Order?.id}</div>
+                                    </div>
+                                    <button onClick={() => handleUndo(record.id)} className="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-red-100 active:scale-95">
+                                        Undo
+                                    </button>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                ) : loading ? (
                     <div className="text-center py-20 text-gray-400 font-bold animate-pulse">Loading Tasks...</div>
                 ) : groupedTasks.length === 0 ? (
                     <div className="text-center py-20 opacity-50">

@@ -340,7 +340,7 @@ router.post('/complete', async (req, res) => {
 
         res.json({ message: 'Task Completed', flags: updateData });
     } catch (error) {
-    } catch (error) {
+
         res.status(500).json({ error: error.message });
     }
 });
