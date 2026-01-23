@@ -7,7 +7,6 @@ import { Bell, ShoppingBag, Users, Clock, CheckCircle, Upload, X, FileSpreadshee
 export default function DesktopDistributorDashboard({
     user, logout, navigate,
     activeTab, setActiveTab,
-    activeTab, setActiveTab,
     orders, filteredOrders, orderFilter, setOrderFilter,
     groupBy, setGroupBy, groupedOrders, // New props
     dealers, posts,
