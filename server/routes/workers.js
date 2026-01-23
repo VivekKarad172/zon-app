@@ -296,9 +296,34 @@ router.post('/complete', async (req, res) => {
             timestamp: new Date()
         });
 
-        // Auto-mark Status COMPLETED if Packed?
         if (rule.flag === 'isPacked') {
-            // Logic to check Order status...
+            // Check if ALL units in this Order are now PACKED
+            // 1. Get Order Item to find Order ID
+            const orderItem = await OrderItem.findByPk(unit.orderItemId);
+            if (orderItem) {
+                const orderId = orderItem.orderId;
+
+                // 2. Count Total vs Packed for this Order
+                // We need to check all units associated with all items of this order
+                // Actually, easier: Count OrderItems -> ProductionUnits
+
+                const allUnits = await ProductionUnit.findAll({
+                    include: [{
+                        model: OrderItem,
+                        where: { orderId: orderId }
+                    }]
+                });
+
+                const totalUnits = allUnits.length;
+                const packedUnits = allUnits.filter(u => u.isPacked).length;
+
+                console.log(`Order ${orderId}: ${packedUnits}/${totalUnits} packed`);
+
+                if (totalUnits > 0 && totalUnits === packedUnits) {
+                    await Order.update({ status: 'READY' }, { where: { id: orderId } });
+                    console.log(`Order ${orderId} marked as READY`);
+                }
+            }
         }
 
         res.json({ message: 'Task Completed', flags: updateData });

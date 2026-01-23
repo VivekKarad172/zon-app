@@ -66,6 +66,9 @@ export default function AdminDashboard() {
     const [factoryLocation, setFactoryLocation] = useState(null);
     const [showAddWorker, setShowAddWorker] = useState(false);
     const [newWorker, setNewWorker] = useState({ name: '', pinCode: '', role: 'PVC_CUT' });
+    const [showManualGeo, setShowManualGeo] = useState(false);
+    const [manualLat, setManualLat] = useState('');
+    const [manualLng, setManualLng] = useState('');
 
     // Stage Management (Manual Move)
     const [selectedStage, setSelectedStage] = useState(null);
@@ -108,7 +111,7 @@ export default function AdminDashboard() {
 
     const handleSetLocation = () => {
         if (!navigator.geolocation) return toast.error('Browser does not support GPS');
-        const tId = toast.loading('Getting Admin GPS...');
+        const tId = toast.loading('Getting Admin GPS (High Accuracy)...');
         navigator.geolocation.getCurrentPosition(async (pos) => {
             try {
                 const { latitude, longitude } = pos.coords;
@@ -124,7 +127,23 @@ export default function AdminDashboard() {
             console.error(err);
             toast.error('Location Access Denied');
             toast.dismiss(tId);
-        });
+        }, { enableHighAccuracy: true });
+    };
+
+    const handleManualLocationSubmit = async () => {
+        if (!manualLat || !manualLng) return toast.error('Enter both Lat and Lng');
+        const lat = parseFloat(manualLat);
+        const lng = parseFloat(manualLng);
+        if (isNaN(lat) || isNaN(lng)) return toast.error('Invalid coordinates');
+
+        try {
+            await api.post('/workers/settings/location', { lat, lng });
+            toast.success('Manual Location Saved!');
+            fetchFactoryLocation();
+            setShowManualGeo(false);
+        } catch (error) {
+            toast.error('Failed to save manual location');
+        }
     };
 
     const handleAddWorker = async (e) => {
@@ -1080,17 +1099,48 @@ export default function AdminDashboard() {
 
                         {/* FACTORY SETTINGS */}
                         <div className="mt-6 flex justify-end">
-                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
-                                <div>
-                                    <h3 className="text-xs font-black uppercase text-gray-400">Factory Geofence</h3>
-                                    <div className="font-bold text-gray-700 text-sm flex items-center gap-1">
-                                        <MapPin size={14} className={factoryLocation ? 'text-green-500' : 'text-red-400'} />
-                                        {factoryLocation ? `Set: ${factoryLocation.lat.toFixed(4)}, ${factoryLocation.lng.toFixed(4)}` : 'Not Set'}
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3">
+                                <div className="flex items-center justify-between gap-4">
+                                    <div>
+                                        <h3 className="text-xs font-black uppercase text-gray-400">Factory Geofence</h3>
+                                        <div className="font-bold text-gray-700 text-sm flex items-center gap-1">
+                                            <MapPin size={14} className={factoryLocation ? 'text-green-500' : 'text-red-400'} />
+                                            {factoryLocation ? `Set: ${factoryLocation.lat.toFixed(4)}, ${factoryLocation.lng.toFixed(4)}` : 'Not Set'}
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setShowManualGeo(!showManualGeo)} className="bg-gray-100 text-gray-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-gray-200">
+                                            {showManualGeo ? 'Cancel' : 'Manual'}
+                                        </button>
+                                        {!showManualGeo && (
+                                            <button onClick={handleSetLocation} className="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 active:scale-95 transition-all">
+                                                {factoryLocation ? 'Update GPS' : 'Set GPS'}
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
-                                <button onClick={handleSetLocation} className="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 active:scale-95 transition-all">
-                                    {factoryLocation ? 'Update Location' : 'Set Factory Here'}
-                                </button>
+
+                                {showManualGeo && (
+                                    <div className="flex gap-2 items-center bg-gray-50 p-2 rounded-lg animate-in slide-in-from-top-2">
+                                        <input
+                                            type="number"
+                                            placeholder="Lat"
+                                            value={manualLat}
+                                            onChange={e => setManualLat(e.target.value)}
+                                            className="w-24 p-2 text-xs border rounded"
+                                        />
+                                        <input
+                                            type="number"
+                                            placeholder="Lng"
+                                            value={manualLng}
+                                            onChange={e => setManualLng(e.target.value)}
+                                            className="w-24 p-2 text-xs border rounded"
+                                        />
+                                        <button onClick={handleManualLocationSubmit} className="bg-green-600 text-white px-3 py-2 rounded text-xs font-bold hover:bg-green-700">
+                                            Save
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
