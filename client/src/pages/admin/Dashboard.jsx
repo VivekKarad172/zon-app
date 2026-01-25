@@ -869,15 +869,13 @@ export default function AdminDashboard() {
                                     </div>
                                 </div>
                                 <div className="mt-4 flex items-center gap-3 relative z-10">
-                                    {analytics.kpi.overdueOrders > 0 ? (
+                                    {analytics.kpi.overdueOrders > 0 && (
                                         <div className="flex items-center gap-2 px-3 py-1 bg-red-100 rounded-full border border-red-200 animate-pulse">
                                             <div className="w-1.5 h-1.5 bg-red-600 rounded-full"></div>
                                             <span className="text-[10px] font-black text-red-700 uppercase tracking-wide">
                                                 {analytics.kpi.overdueOrders} CRITICAL
                                             </span>
                                         </div>
-                                    ) : (
-                                        <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black px-2 py-0.5 rounded-full">ON TRACK</span>
                                     )}
                                     <span className="text-[10px] text-orange-400 font-bold uppercase tracking-tight">
                                         {analytics.kpi.pendingOrders - (analytics.kpi.overdueOrders || 0)} Normal
