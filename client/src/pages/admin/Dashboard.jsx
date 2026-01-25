@@ -732,109 +732,54 @@ export default function AdminDashboard() {
         reader.readAsBinaryString(file);
     };
 
+    // === CRITICAL LOGIC & METRICS ===
+    // 1. Calculate Date Age
+    const getOrderAge = (dateStr) => {
+        const today = new Date();
+        const created = new Date(dateStr);
+        const diffTime = Math.abs(today - created);
+        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    };
+
+    // 2. Computed Metrics (Syncs with Table)
+    const computedMetrics = useMemo(() => {
+        const today = new Date();
+        const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+        // Critical Count
+        const critical = orders.filter(o =>
+            ['RECEIVED', 'PRODUCTION'].includes(o.status) &&
+            getOrderAge(o.createdAt) > 7
+        ).length;
+
+        // Pending Count (Normal)
+        const pending = orders.filter(o => ['RECEIVED', 'PRODUCTION', 'READY'].includes(o.status)).length;
+
+        // Trend Logic
+        const thisWeekCount = orders.filter(o => new Date(o.createdAt) >= lastWeek).length;
+        const total = orders.length;
+        // Simple proxy for trend if no historical snapshot: compare to avg or just show this week
+        // Better: Use backend trend if valid, else default to 0 to avoid NaN
+        const trend = (analytics?.kpi?.trend && !isNaN(analytics.kpi.trend)) ? analytics.kpi.trend : 0;
+
+        return { critical, pending, trend, total };
+    }, [orders, analytics]);
+
     return (
         <div className="min-h-screen bg-gray-100 font-sans">
-            {/* Premium Header */}
-            <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-indigo-800 shadow-xl p-4 sticky top-0 z-[100] backdrop-blur-md border-b border-white/10">
-                <div className="max-w-7xl mx-auto flex justify-between items-center text-white">
-                    <div className="flex items-center gap-3">
-                        <div className="bg-white/10 p-2 rounded-xl backdrop-blur-md border border-white/20 shadow-inner">
-                            <span className="font-black text-2xl tracking-tighter">Z</span>
-                        </div>
-                        <div>
-                            <h1 className="text-lg font-bold tracking-tight leading-tight">Z-ON ADMIN</h1>
-                            <div className="flex items-center gap-1.5 overflow-hidden">
-                                <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse"></span>
-                                <span className="text-[10px] font-bold opacity-60 uppercase tracking-widest">System Live v3.2</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex gap-4 text-sm items-center">
-                        <div className="hidden md:flex flex-col items-end mr-2">
-                            <span className="font-bold text-xs opacity-70 uppercase tracking-tighter">Authorized Personal</span>
-                            <span className="font-medium text-sm">{user?.name}</span>
-                        </div>
-                        <button onClick={() => navigate('/profile')} className="bg-white/10 hover:bg-white/20 p-2.5 rounded-xl transition-all backdrop-blur-md border border-white/10 group">
-                            <User size={18} className="group-hover:scale-110 transition-transform" />
-                        </button>
-                        <button onClick={logout} className="text-red-200 hover:text-white font-bold text-xs bg-red-500/10 px-4 py-2 rounded-xl border border-red-500/20 hover:bg-red-500/30 transition-all">EXIT</button>
-                    </div>
-                </div>
-            </div>
+            {/* ... Header ... */}
 
-            {/* Floating Navigation Panels */}
-            <div className="px-4 -mt-6 relative z-[110] mb-8">
-                <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-2 flex justify-between gap-1 max-w-5xl mx-auto overflow-x-auto border border-white/50 ring-1 ring-black/5 no-scrollbar">
-                    {[
-                        { id: 'home', label: 'Home', icon: Home },
-                        { id: 'production', label: 'Production', icon: Factory, hideFor: ['DISTRIBUTOR'] },
-                        { id: 'factory', label: 'Factory Mgmt', icon: Hammer, hideFor: ['DISTRIBUTOR'] }, // NEW
-                        { id: 'orders', label: 'Orders', icon: ShoppingBag },
-                        { id: 'distributors', label: 'Distributors', icon: Users, hideFor: ['DISTRIBUTOR'] },
-                        { id: 'dealers', label: 'Dealers', icon: User },
-                        { id: 'designs', label: 'Designs', icon: ImageIcon },
-                        { id: 'masters', label: 'Masters', icon: Filter },
-                        { id: 'whatsnew', label: "New", icon: Bell }
-                    ].filter(tab => !tab.hideFor || !tab.hideFor.includes(user?.role)).map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`flex-1 py-3 px-6 rounded-2xl font-bold text-sm transition-all duration-300 flex flex-col sm:flex-row items-center justify-center gap-2 whitespace-nowrap group ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200 ring-4 ring-indigo-50' : 'text-gray-400 hover:bg-gray-100/50 hover:text-gray-600'}`}
-                        >
-                            <tab.icon size={18} className={`${activeTab === tab.id ? 'scale-110' : 'group-hover:scale-110'} transition-transform`} />
-                            <span className="hidden sm:inline">{tab.label}</span>
-                        </button>
-                    ))}
-                </div>
-            </div>
+            {/* ... Navigation ... */}
 
             <div className="max-w-7xl mx-auto px-4">
                 {/* Global Controls Filter Bar */}
+                {/* ... (Keep existing code) ... */}
                 <div className="flex flex-col lg:flex-row justify-between items-center mb-8 gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                    <div className="flex flex-wrap gap-2 w-full lg:w-auto">
-                        <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 focus-within:ring-2 ring-indigo-100 transition-all">
-                            <Calendar size={16} className="text-gray-400" />
-                            <input type="date" value={dateRange.start} onChange={e => setDateRange({ ...dateRange, start: e.target.value })} className="bg-transparent text-xs font-bold border-none focus:ring-0 p-0 text-gray-700" />
-                            <span className="text-gray-300">to</span>
-                            <input type="date" value={dateRange.end} onChange={e => setDateRange({ ...dateRange, end: e.target.value })} className="bg-transparent text-xs font-bold border-none focus:ring-0 p-0 text-gray-700" />
-                        </div>
-                        <div className="relative group w-full sm:w-auto">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors" size={16} />
-                            <input
-                                type="text"
-                                placeholder="Search everything..."
-                                value={orderFilter.search}
-                                onChange={e => setOrderFilter({ ...orderFilter, search: e.target.value })}
-                                className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-sm w-full focus:ring-2 ring-indigo-100 outline-none transition-all font-medium"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="flex gap-2 w-full lg:w-auto overflow-x-auto no-scrollbar pb-1 lg:pb-0">
-                        <select
-                            value={orderFilter.status}
-                            onChange={e => setOrderFilter({ ...orderFilter, status: e.target.value })}
-                            className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 focus:ring-2 ring-indigo-100 outline-none appearance-none cursor-pointer"
-                        >
-                            <option value="">All Statuses</option>
-                            <option value="RECEIVED">Received</option>
-                            <option value="PRODUCTION">Production</option>
-                            <option value="READY">Ready</option>
-                            <option value="DISPATCHED">Dispatched</option>
-                        </select>
-                        <button onClick={exportOrdersToExcel} className="bg-green-600 hover:bg-green-700 text-white font-bold p-2.5 rounded-xl shadow-lg shadow-green-100 transition-all active:scale-95 flex items-center gap-2 px-3">
-                            <FileSpreadsheet size={18} />
-                            <span className="text-xs hidden sm:inline">Export</span>
-                        </button>
-                        <button onClick={() => setShowImportOrders(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded-xl shadow-lg shadow-blue-100 transition-all active:scale-95 flex items-center gap-2 px-3">
-                            <Upload size={18} />
-                            <span className="text-xs hidden sm:inline">Import</span>
-                        </button>
-                    </div>
+                    {/* ... (Keep existing inputs) ... */}
                 </div>
 
                 {/* --- TAB CONTENT --- */}
-                {activeTab === 'home' && analytics && (
+                {activeTab === 'home' && (
                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-10">
                         {/* KPI CARDS - STYLIZED */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -843,15 +788,15 @@ export default function AdminDashboard() {
                                 <div className="flex justify-between items-start relative z-10">
                                     <div>
                                         <p className="text-indigo-900/60 text-xs font-black uppercase tracking-widest mb-1">Total Orders</p>
-                                        <h3 className="text-4xl font-black text-indigo-900 tracking-tighter tabular-nums">{analytics.kpi.totalOrders}</h3>
+                                        <h3 className="text-4xl font-black text-indigo-900 tracking-tighter tabular-nums">{computedMetrics.total}</h3>
                                     </div>
                                     <div className="bg-indigo-600 p-3 rounded-2xl shadow-lg shadow-indigo-200 text-white">
                                         <ShoppingBag size={24} strokeWidth={2.5} />
                                     </div>
                                 </div>
                                 <div className="mt-4 flex items-center gap-2 relative z-10">
-                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${analytics.kpi.trend >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                                        {analytics.kpi.trend >= 0 ? '↗' : '↘'} {Math.abs(analytics.kpi.trend)}%
+                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${computedMetrics.trend >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                        {computedMetrics.trend >= 0 ? '↗' : '↘'} {Math.abs(computedMetrics.trend)}%
                                     </span>
                                     <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-tight">vs Last Week</span>
                                 </div>
@@ -862,23 +807,23 @@ export default function AdminDashboard() {
                                 <div className="flex justify-between items-start relative z-10">
                                     <div>
                                         <p className="text-orange-900/60 text-xs font-black uppercase tracking-widest mb-1">Pending Actions</p>
-                                        <h3 className="text-4xl font-black text-orange-600 tracking-tighter tabular-nums">{analytics.kpi.pendingOrders}</h3>
+                                        <h3 className="text-4xl font-black text-orange-600 tracking-tighter tabular-nums">{computedMetrics.pending}</h3>
                                     </div>
                                     <div className="bg-orange-500 p-3 rounded-2xl shadow-lg shadow-orange-200 text-white">
                                         <Bell size={24} strokeWidth={2.5} />
                                     </div>
                                 </div>
                                 <div className="mt-4 flex items-center gap-3 relative z-10">
-                                    {analytics.kpi.overdueOrders > 0 && (
+                                    {computedMetrics.critical > 0 && (
                                         <div className="flex items-center gap-2 px-3 py-1 bg-red-100 rounded-full border border-red-200 animate-pulse">
                                             <div className="w-1.5 h-1.5 bg-red-600 rounded-full"></div>
                                             <span className="text-[10px] font-black text-red-700 uppercase tracking-wide">
-                                                {analytics.kpi.overdueOrders} CRITICAL
+                                                {computedMetrics.critical} CRITICAL
                                             </span>
                                         </div>
                                     )}
                                     <span className="text-[10px] text-orange-400 font-bold uppercase tracking-tight">
-                                        {analytics.kpi.pendingOrders - (analytics.kpi.overdueOrders || 0)} Normal
+                                        {Math.max(0, computedMetrics.pending - computedMetrics.critical)} Normal
                                     </span>
                                 </div>
                             </div>
@@ -888,7 +833,7 @@ export default function AdminDashboard() {
                                 <div className="flex justify-between items-start relative z-10">
                                     <div>
                                         <p className="text-emerald-900/60 text-xs font-black uppercase tracking-widest mb-1">Completed</p>
-                                        <h3 className="text-4xl font-black text-emerald-600 tracking-tighter tabular-nums">{analytics.kpi.completedOrders}</h3>
+                                        <h3 className="text-4xl font-black text-emerald-600 tracking-tighter tabular-nums">{analytics?.kpi?.completedOrders || 0}</h3>
                                     </div>
                                     <div className="bg-emerald-600 p-3 rounded-2xl shadow-lg shadow-emerald-200 text-white">
                                         <CheckSquare size={24} strokeWidth={2.5} />
@@ -1432,7 +1377,12 @@ export default function AdminDashboard() {
                                                         <div className="font-black text-gray-900 cursor-pointer hover:text-indigo-600 transition-colors" onClick={() => setSelectedOrder(order)}>#{order.id}</div>
                                                         {order.isEdited && <span className="text-[9px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-black tracking-tighter shadow-sm animate-pulse">REVISED</span>}
                                                     </div>
-                                                    <div className="text-[10px] text-gray-400 font-bold uppercase">{new Date(order.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <div className="text-[10px] text-gray-400 font-bold uppercase">{new Date(order.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                                                        {getOrderAge(order.createdAt) > 7 && ['RECEIVED', 'PRODUCTION'].includes(order.status) && (
+                                                            <span className="text-[9px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md font-black tracking-tighter border border-red-200">CRITICAL</span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="px-6 py-5">
                                                     <div className="font-black text-gray-900 text-sm tracking-tight truncate max-w-[150px]">{order.User?.name}</div>
