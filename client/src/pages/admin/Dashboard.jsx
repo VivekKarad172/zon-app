@@ -850,8 +850,10 @@ export default function AdminDashboard() {
                                     </div>
                                 </div>
                                 <div className="mt-4 flex items-center gap-2 relative z-10">
-                                    <span className="bg-indigo-100 text-indigo-700 text-[10px] font-black px-2 py-0.5 rounded-full">LIFETIME</span>
-                                    <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-tight">System Volume</span>
+                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${analytics.kpi.trend >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                        {analytics.kpi.trend >= 0 ? '↗' : '↘'} {Math.abs(analytics.kpi.trend)}%
+                                    </span>
+                                    <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-tight">vs Last Week</span>
                                 </div>
                             </div>
 
@@ -866,9 +868,20 @@ export default function AdminDashboard() {
                                         <Bell size={24} strokeWidth={2.5} />
                                     </div>
                                 </div>
-                                <div className="mt-4 flex items-center gap-2 relative z-10">
-                                    <span className="bg-orange-100 text-orange-700 text-[10px] font-black px-2 py-0.5 rounded-full">URGENT</span>
-                                    <span className="text-[10px] text-orange-400 font-bold uppercase tracking-tight">Requires Attention</span>
+                                <div className="mt-4 flex items-center gap-3 relative z-10">
+                                    {analytics.kpi.overdueOrders > 0 ? (
+                                        <div className="flex items-center gap-2 px-3 py-1 bg-red-100 rounded-full border border-red-200 animate-pulse">
+                                            <div className="w-1.5 h-1.5 bg-red-600 rounded-full"></div>
+                                            <span className="text-[10px] font-black text-red-700 uppercase tracking-wide">
+                                                {analytics.kpi.overdueOrders} CRITICAL
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black px-2 py-0.5 rounded-full">ON TRACK</span>
+                                    )}
+                                    <span className="text-[10px] text-orange-400 font-bold uppercase tracking-tight">
+                                        {analytics.kpi.pendingOrders - (analytics.kpi.overdueOrders || 0)} Normal
+                                    </span>
                                 </div>
                             </div>
 

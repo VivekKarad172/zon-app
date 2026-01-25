@@ -234,11 +234,36 @@ router.put('/:id/status', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR'
 // ANALYTICS ENDPOINT (Manufacturer Only)
 router.get('/analytics', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
     try {
+        const today = new Date();
+        const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const twoWeeksAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
+
         // 1. KPIs
         const totalOrders = await Order.count();
+
+        // Trend Calculation (Orders this week vs last week)
+        const ordersThisWeek = await Order.count({
+            where: { createdAt: { [Op.gte]: lastWeek } }
+        });
+        const ordersLastWeek = await Order.count({
+            where: { createdAt: { [Op.between]: [twoWeeksAgo, lastWeek] } }
+        });
+        const trendPercent = ordersLastWeek === 0 ? 100 : Math.round(((ordersThisWeek - ordersLastWeek) / ordersLastWeek) * 100);
+
+        // Pending & Overdue
         const pendingOrders = await Order.count({
             where: { status: { [Op.notIn]: ['DISPATCHED', 'CANCELLED'] } }
         });
+
+        const overdueDate = new Date();
+        overdueDate.setDate(overdueDate.getDate() - 7); // 7 Days SLA
+        const overdueOrders = await Order.count({
+            where: {
+                status: { [Op.notIn]: ['DISPATCHED', 'CANCELLED'] },
+                createdAt: { [Op.lt]: overdueDate }
+            }
+        });
+
         const completedOrders = await Order.count({
             where: { status: 'DISPATCHED' }
         });
@@ -264,7 +289,13 @@ router.get('/analytics', authenticate, authorize(['MANUFACTURER']), async (req, 
         });
 
         res.json({
-            kpi: { totalOrders, pendingOrders, completedOrders },
+            kpi: {
+                totalOrders,
+                pendingOrders,
+                overdueOrders,
+                completedOrders,
+                trend: trendPercent
+            },
             chartData: distData.map(d => ({
                 name: d.Distributor?.name || 'Unknown',
                 count: parseInt(d.getDataValue('count'))
