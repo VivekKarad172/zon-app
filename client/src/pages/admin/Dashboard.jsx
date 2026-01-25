@@ -422,6 +422,8 @@ export default function AdminDashboard() {
         XLSX.writeFile(wb, `Orders_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
     };
 
+    const [importStatus, setImportStatus] = useState({ active: false, total: 0, text: '' });
+
     // === BULK UPLOAD FOR ORDERS ===
     // Generate Sample Order Import Excel
     const downloadOrderImportSample = () => {
@@ -452,9 +454,18 @@ export default function AdminDashboard() {
         const file = e.target.files[0];
         if (!file) return;
 
+        // Reset input immediately so same file can be selected again if failed
+        e.target.value = '';
+
         const reader = new FileReader();
         reader.onload = async (evt) => {
             try {
+                // START ANIMATION
+                setImportStatus({ active: true, total: 0, text: 'Parsing Data Stream...' });
+
+                // Allow UI to update before heavy parsing
+                await new Promise(r => setTimeout(r, 500));
+
                 const bstr = evt.target.result;
                 const wb = XLSX.read(bstr, { type: 'binary' });
                 const ws = wb.Sheets[wb.SheetNames[0]];
@@ -467,10 +478,22 @@ export default function AdminDashboard() {
                     return newRow;
                 });
 
-                if (cleanData.length === 0) return toast.error('No data found in file');
+                if (cleanData.length === 0) {
+                    setImportStatus({ active: false, total: 0, text: '' });
+                    return toast.error('No data found in file');
+                }
+
+                // UPDATE ANIMATION
+                setImportStatus({ active: true, total: cleanData.length, text: `Injecting ${cleanData.length} Orders into Core...` });
+                await new Promise(r => setTimeout(r, 1500)); // Fake delay for UX "wow" factor
 
                 // Send to backend
                 const res = await api.post('/orders/import', { orders: cleanData });
+
+                // SUCCESS ANIMATION
+                setImportStatus({ active: true, total: cleanData.length, text: 'Synchronization Complete!' });
+                await new Promise(r => setTimeout(r, 800));
+
                 toast.success(`${res.data.created} orders imported successfully!`);
                 if (res.data.failed > 0) {
                     toast.error(`${res.data.failed} rows failed - see console`);
@@ -481,6 +504,8 @@ export default function AdminDashboard() {
             } catch (err) {
                 toast.error(err.response?.data?.error || 'Import failed');
                 console.error('Import Error:', err);
+            } finally {
+                setImportStatus({ active: false, total: 0, text: '' });
             }
         };
         reader.readAsBinaryString(file);
@@ -1866,6 +1891,32 @@ export default function AdminDashboard() {
                                         </div>
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+                    )
+                }
+
+                {/* IMPORT PROGRESS OVERLAY */}
+                {
+                    importStatus.active && (
+                        <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-xl flex items-center justify-center p-8 animate-in fade-in duration-500">
+                            <div className="text-center max-w-md w-full">
+                                <div className="relative w-32 h-32 mx-auto mb-12">
+                                    <div className="absolute inset-0 bg-indigo-500/30 rounded-full animate-ping"></div>
+                                    <div className="absolute inset-0 bg-indigo-500/20 rounded-full animate-pulse-slow"></div>
+                                    <div className="relative bg-white rounded-full w-full h-full flex items-center justify-center shadow-2xl shadow-indigo-500/50">
+                                        <FileSpreadsheet size={48} className="text-indigo-600 animate-bounce" />
+                                    </div>
+                                    {/* Rotating Ring */}
+                                    <div className="absolute -inset-4 border-4 border-t-indigo-500 border-r-transparent border-b-indigo-500 border-l-transparent rounded-full animate-spin-slow opacity-60"></div>
+                                </div>
+
+                                <h2 className="text-4xl font-black text-white tracking-tight mb-4 animate-in slide-in-from-bottom-4 duration-700">{importStatus.text}</h2>
+                                {importStatus.total > 0 && <p className="text-indigo-200 font-bold uppercase tracking-[0.3em] animate-pulse">Processing {importStatus.total} Rows</p>}
+
+                                <div className="mt-12 w-full bg-white/10 h-2 rounded-full overflow-hidden backdrop-blur-sm">
+                                    <div className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 w-full animate-progress-indeterminate"></div>
+                                </div>
                             </div>
                         </div>
                     )
