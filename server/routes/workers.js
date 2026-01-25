@@ -548,11 +548,22 @@ router.post('/repair', authenticate, authorize(['MANUFACTURER']), async (req, re
     }
 });
 
-// ADMIN: Get units at a specific stage
+// ADMIN: Get units at a specific stage (MATCHING STATS LOGIC)
 router.get('/stage/:stage', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
     try {
+        const stage = req.params.stage;
+        let whereClause = {};
+
+        // Match logic with /stats endpoint to ensure numbers match
+        if (stage === 'PVC_CUT') whereClause = { isPvcDone: false, isPacked: false };
+        else if (stage === 'FOIL_PASTING') whereClause = { isFoilDone: false, isPacked: false };
+        else if (stage === 'EMBOSS') whereClause = { isEmbossDone: false, isPacked: false };
+        else if (stage === 'DOOR_MAKING') whereClause = { isDoorMade: false, isPacked: false };
+        else if (stage === 'PACKING') whereClause = { isPacked: false };
+        else whereClause = { currentStage: stage }; // Fallback
+
         const units = await ProductionUnit.findAll({
-            where: { currentStage: req.params.stage },
+            where: whereClause,
             include: [{
                 model: OrderItem,
                 include: [

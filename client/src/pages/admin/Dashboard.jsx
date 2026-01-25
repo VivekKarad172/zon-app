@@ -136,6 +136,14 @@ export default function AdminDashboard() {
             setFactoryTracking(res.data);
         } catch (e) { console.error("Tracking Error", e); }
     };
+
+    const fetchStageDetails = async (stage) => {
+        try {
+            const res = await api.get(`/workers/stage/${stage}`);
+            setStageUnits(res.data);
+            setSelectedStage(stage);
+        } catch (e) { toast.error('Failed to load stage details'); }
+    };
     const fetchFactoryLocation = async () => { try { const res = await api.get('/workers/settings/location'); setFactoryLocation(res.data); } catch (e) { } };
     const fetchWorkers = async () => { try { const res = await api.get('/workers'); setWorkers(res.data); } catch (e) { } };
 
@@ -946,10 +954,14 @@ export default function AdminDashboard() {
                                 ];
                                 const count = factoryStats ? (factoryStats[code] || 0) : 0;
                                 return (
-                                    <div key={code} className={`p-4 rounded-3xl border ${colors[idx]} flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md transition-all`}>
+                                    <button
+                                        key={code}
+                                        onClick={() => fetchStageDetails(code)}
+                                        className={`p-4 rounded-3xl border ${colors[idx]} flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer`}
+                                    >
                                         <span className="text-3xl font-black mb-1">{count}</span>
                                         <span className="text-[10px] font-bold uppercase tracking-widest opacity-80">{code.replace('_', ' ')}</span>
-                                    </div>
+                                    </button>
                                 );
                             })}
                         </div>
@@ -2369,6 +2381,51 @@ export default function AdminDashboard() {
                         </div>
                     )
                 }
+                {/* Stage Details Modal */}
+                {selectedStage && (
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-200">
+                            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                                <div>
+                                    <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">{selectedStage.replace('_', ' ')} LIST</h2>
+                                    <p className="text-xs text-gray-400 font-bold mt-1">{stageUnits.length} Doors Pending</p>
+                                </div>
+                                <button onClick={() => setSelectedStage(null)} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X size={24} /></button>
+                            </div>
+
+                            <div className="overflow-y-auto flex-1 p-6">
+                                <table className="min-w-full text-left">
+                                    <thead className="bg-gray-50 text-gray-400 font-black uppercase text-[10px] tracking-widest border-b border-gray-100 sticky top-0">
+                                        <tr>
+                                            <th className="px-6 py-4">Unit Code</th>
+                                            <th className="px-6 py-4">Design</th>
+                                            <th className="px-6 py-4">Color</th>
+                                            <th className="px-6 py-4">Order Ref</th>
+                                            {/* <th className="px-6 py-4">Actions</th> */}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {stageUnits.length > 0 ? stageUnits.map(unit => (
+                                            <tr key={unit.id} className="hover:bg-indigo-50/30 transition-colors">
+                                                <td className="px-6 py-4 font-mono text-xs font-bold text-gray-600">{unit.uniqueCode}</td>
+                                                <td className="px-6 py-4 font-bold text-gray-900 text-sm">{unit.OrderItem?.Design?.designNumber || 'N/A'}</td>
+                                                <td className="px-6 py-4 font-bold text-gray-700 text-xs">{unit.OrderItem?.Color?.name || 'N/A'}</td>
+                                                <td className="px-6 py-4">
+                                                    <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-[10px] font-black uppercase">Order #{unit.OrderItem?.orderId}</span>
+                                                </td>
+                                                {/* <td className="px-6 py-4">
+                                                <button className="text-[10px] font-bold text-indigo-600 border border-indigo-200 px-3 py-1 rounded-lg hover:bg-indigo-50">Override</button>
+                                            </td> */}
+                                            </tr>
+                                        )) : (
+                                            <tr><td colSpan="5" className="px-6 py-20 text-center text-gray-300 font-black uppercase tracking-widest italic">No Items in this stage</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div >
         </div >
     );
