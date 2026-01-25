@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
-import { Plus, X, Image as ImageIcon, Filter, Search, Edit2, Eye, EyeOff, Save, Trash2, User, Users, ShoppingBag, Bell, Upload, Download, FileSpreadsheet, Home, CheckSquare, Calendar, ChevronDown, Factory, Hammer, RefreshCw, MapPin } from 'lucide-react';
+import { Plus, X, Image as ImageIcon, Filter, Search, Edit2, Eye, EyeOff, Save, Trash2, User, Users, ShoppingBag, Bell, Upload, Download, FileSpreadsheet, Home, CheckSquare, Calendar, ChevronDown, Factory, Hammer, RefreshCw, MapPin, Printer } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
