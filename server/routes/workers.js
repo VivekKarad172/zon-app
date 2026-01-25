@@ -70,8 +70,8 @@ router.get('/stats', authenticate, authorize(['MANUFACTURER']), async (req, res)
     }
 });
 
-// GET /workers/tracking - Detailed Order Progress
-router.get('/tracking', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+// GET /workers/production-tracking - Detailed Order Progress
+router.get('/production-tracking', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
     try {
         const orders = await Order.findAll({
             where: { status: 'PRODUCTION' },

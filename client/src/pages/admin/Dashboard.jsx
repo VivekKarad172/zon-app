@@ -944,7 +944,7 @@ export default function AdminDashboard() {
                                     'bg-orange-50 text-orange-700 border-orange-100',
                                     'bg-emerald-50 text-emerald-700 border-emerald-100'
                                 ];
-                                const count = factoryStats?.pendingByStation?.find(s => s.station === code)?._count?.id || 0;
+                                const count = factoryStats ? (factoryStats[code] || 0) : 0;
                                 return (
                                     <div key={code} className={`p-4 rounded-3xl border ${colors[idx]} flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md transition-all`}>
                                         <span className="text-3xl font-black mb-1">{count}</span>
