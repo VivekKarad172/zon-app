@@ -593,5 +593,31 @@ router.post('/move', authenticate, authorize(['MANUFACTURER']), async (req, res)
         res.status(500).json({ error: error.message });
     }
 });
+// ADMIN: Cleanup Orphaned Data
+router.post('/cleanup', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        console.log('Cleaning Orphans...');
+
+        // Find Units with no OrderItem
+        const units = await ProductionUnit.findAll({
+            include: [{
+                model: OrderItem,
+                required: false
+            }]
+        });
+
+        let deleted = 0;
+        for (const unit of units) {
+            if (!unit.OrderItem) {
+                await unit.destroy();
+                deleted++;
+            }
+        }
+
+        res.json({ message: `Cleanup Complete. Removed ${deleted} orphaned units.` });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
 module.exports = router;

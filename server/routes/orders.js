@@ -302,10 +302,19 @@ router.delete('/:id', authenticate, authorize(['MANUFACTURER']), async (req, res
     try {
         const { id } = req.params;
 
-        // First delete all order items
+        // 1. Find Items
+        const items = await OrderItem.findAll({ where: { orderId: id } });
+        const itemIds = items.map(i => i.id);
+
+        // 2. Delete Production Units (Factory Data)
+        if (itemIds.length > 0) {
+            await ProductionUnit.destroy({ where: { orderItemId: { [Op.in]: itemIds } } });
+        }
+
+        // 3. Delete Items
         await OrderItem.destroy({ where: { orderId: id } });
 
-        // Then delete the order
+        // 4. Delete Order
         const deleted = await Order.destroy({ where: { id } });
 
         if (deleted === 0) {
@@ -327,14 +336,23 @@ router.post('/bulk-delete', authenticate, authorize(['MANUFACTURER']), async (re
             return res.status(400).json({ error: 'Invalid order IDs' });
         }
 
-        // First delete all order items for these orders
+        // 1. Find Items to get IDs for Unit Deletion
+        const items = await OrderItem.findAll({ where: { orderId: { [Op.in]: orderIds } } });
+        const itemIds = items.map(i => i.id);
+
+        // 2. Delete Production Units
+        if (itemIds.length > 0) {
+            await ProductionUnit.destroy({ where: { orderItemId: { [Op.in]: itemIds } } });
+        }
+
+        // 3. Delete Items
         await OrderItem.destroy({
             where: {
                 orderId: { [Op.in]: orderIds }
             }
         });
 
-        // Then delete the orders
+        // 4. Delete Orders
         const deleted = await Order.destroy({
             where: {
                 id: { [Op.in]: orderIds }
