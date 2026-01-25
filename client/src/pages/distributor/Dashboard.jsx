@@ -34,9 +34,15 @@ export default function DistributorDashboard() {
 
     // === DATA FETCHERS ===
     useEffect(() => {
-        if (activeTab === 'orders') fetchOrders();
+        let interval;
+        if (activeTab === 'orders') {
+            fetchOrders();
+            interval = setInterval(fetchOrders, 5000);
+        }
         if (activeTab === 'dealers') fetchDealers();
         if (activeTab === 'whatsnew') fetchPosts();
+
+        return () => interval && clearInterval(interval);
     }, [activeTab]);
 
     const fetchOrders = async () => {

@@ -40,8 +40,15 @@ export default function DealerDashboard() {
         fetchDoors();
         fetchDesigns();
         fetchColors();
-        if (activeTab === 'my-orders') fetchMyOrders();
+
+        let interval;
+        if (activeTab === 'my-orders') {
+            fetchMyOrders();
+            interval = setInterval(fetchMyOrders, 5000);
+        }
         if (activeTab === 'whatsnew') fetchPosts();
+
+        return () => interval && clearInterval(interval);
     }, [activeTab]);
 
     useEffect(() => {

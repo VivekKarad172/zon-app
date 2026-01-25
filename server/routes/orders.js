@@ -514,7 +514,9 @@ router.post('/import', authenticate, authorize(['MANUFACTURER']), async (req, re
                             }
                         }
 
-                        await OrderItem.create({
+
+                        // Let's optimize: capture the returned instance
+                        const newItem = await OrderItem.create({
                             orderId: order.id,
                             designId: design?.id || null,
                             colorId: color?.id || null,
@@ -527,6 +529,17 @@ router.post('/import', authenticate, authorize(['MANUFACTURER']), async (req, re
                             designImageSnapshot: design?.imageUrl || null,
                             colorImageSnapshot: color?.imageUrl || null
                         });
+
+                        if (order.status === 'PRODUCTION') {
+                            for (let i = 1; i <= quantity; i++) {
+                                await ProductionUnit.create({
+                                    orderItemId: newItem.id,
+                                    unitNumber: i,
+                                    uniqueCode: `OD${order.id}-IT${newItem.id}-QN${i}`,
+                                    currentStage: 'PVC_CUT'
+                                });
+                            }
+                        }
                         created++;
                     } catch (itemErr) {
                         console.error('Item creation error:', itemErr.message);

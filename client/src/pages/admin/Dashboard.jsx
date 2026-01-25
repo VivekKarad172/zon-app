@@ -91,12 +91,13 @@ export default function AdminDashboard() {
     // Live Factory Stats Polling
     useEffect(() => {
         let interval;
-        if (activeTab === 'factory' || activeTab === 'production') {
-            fetchFactoryStats();
-            fetchFactoryTracking();
+        if (activeTab === 'factory' || activeTab === 'production' || activeTab === 'orders') {
+            if (activeTab === 'orders') fetchOrders();
+            else { fetchFactoryStats(); fetchFactoryTracking(); }
+
             interval = setInterval(() => {
-                fetchFactoryStats();
-                fetchFactoryTracking();
+                if (activeTab === 'orders') fetchOrders();
+                else { fetchFactoryStats(); fetchFactoryTracking(); }
             }, 5000);
         }
         return () => clearInterval(interval);
