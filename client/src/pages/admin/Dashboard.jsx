@@ -5,7 +5,27 @@ import api from '../../utils/api';
 import toast from 'react-hot-toast';
 import { Plus, X, Image as ImageIcon, Filter, Search, Edit2, Eye, EyeOff, Save, Trash2, User, Users, ShoppingBag, Bell, Upload, Download, FileSpreadsheet, Home, CheckSquare, Calendar, ChevronDown, Factory, Hammer, RefreshCw, MapPin, Printer } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import React from 'react'; // Required for Class Component
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+// === GLOBAL ERROR BOUNDARY ===
+class DashboardErrorBoundary extends React.Component {
+    constructor(props) { super(props); this.state = { hasError: false }; }
+    static getDerivedStateFromError(error) { return { hasError: true }; }
+    componentDidCatch(error, errorInfo) { console.error("Dashboard Crash:", error, errorInfo); }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="p-8 text-center bg-red-50 rounded-3xl border border-red-100 m-4">
+                    <h2 className="text-xl font-black text-red-600 mb-2">Something went wrong.</h2>
+                    <p className="text-red-400 text-sm mb-4">The dashboard encountered an error but your data is safe.</p>
+                    <button onClick={() => window.location.reload()} className="bg-red-600 text-white px-6 py-2 rounded-xl font-bold shadow-lg hover:bg-red-700 transition-all">Reload Dashboard</button>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
 
 export default function AdminDashboard() {
     const { logout, user, isAuthenticated } = useAuth();
@@ -741,12 +761,22 @@ export default function AdminDashboard() {
         return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     };
 
+    // === SAFETY LAYER ===
+    // Ensure analytics object is NEVER null to prevent crashes
+    const safeAnalytics = useMemo(() => {
+        return analytics || {
+            kpi: { totalOrders: 0, pendingOrders: 0, completedOrders: 0, overdueOrders: 0, trend: 0 },
+            recentOrders: [],
+            chartData: []
+        };
+    }, [analytics]);
+
     // 2. Computed Metrics (Syncs with Table)
     const computedMetrics = useMemo(() => {
         const today = new Date();
         const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-        // Critical Count
+        // Critical CountMetrics
         const critical = orders.filter(o =>
             ['RECEIVED', 'PRODUCTION'].includes(o.status) &&
             getOrderAge(o.createdAt) > 7
@@ -756,14 +786,12 @@ export default function AdminDashboard() {
         const pending = orders.filter(o => ['RECEIVED', 'PRODUCTION', 'READY'].includes(o.status)).length;
 
         // Trend Logic
-        const thisWeekCount = orders.filter(o => new Date(o.createdAt) >= lastWeek).length;
         const total = orders.length;
-        // Simple proxy for trend if no historical snapshot: compare to avg or just show this week
-        // Better: Use backend trend if valid, else default to 0 to avoid NaN
-        const trend = (analytics?.kpi?.trend && !isNaN(analytics.kpi.trend)) ? analytics.kpi.trend : 0;
+        // Use safeAnalytics to avoid access errors
+        const trend = (safeAnalytics.kpi.trend && !isNaN(safeAnalytics.kpi.trend)) ? safeAnalytics.kpi.trend : 0;
 
         return { critical, pending, trend, total };
-    }, [orders, analytics]);
+    }, [orders, safeAnalytics]);
 
     return (
         <div className="min-h-screen bg-gray-100 font-sans">
@@ -833,7 +861,7 @@ export default function AdminDashboard() {
                                 <div className="flex justify-between items-start relative z-10">
                                     <div>
                                         <p className="text-emerald-900/60 text-xs font-black uppercase tracking-widest mb-1">Completed</p>
-                                        <h3 className="text-4xl font-black text-emerald-600 tracking-tighter tabular-nums">{analytics?.kpi?.completedOrders || 0}</h3>
+                                        <h3 className="text-4xl font-black text-emerald-600 tracking-tighter tabular-nums">{safeAnalytics.kpi.completedOrders}</h3>
                                     </div>
                                     <div className="bg-emerald-600 p-3 rounded-2xl shadow-lg shadow-emerald-200 text-white">
                                         <CheckSquare size={24} strokeWidth={2.5} />
@@ -860,7 +888,7 @@ export default function AdminDashboard() {
                                 </div>
                                 <div className="h-80 w-full">
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={analytics.chartData}>
+                                        <BarChart data={safeAnalytics.chartData}>
                                             <defs>
                                                 <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
                                                     <stop offset="0%" stopColor="#4f46e5" stopOpacity={1} />
@@ -890,7 +918,7 @@ export default function AdminDashboard() {
                                     <button onClick={() => setActiveTab('orders')} className="text-indigo-600 hover:text-indigo-700 font-black text-[10px] uppercase tracking-tighter bg-indigo-50 px-3 py-1.5 rounded-full transition-colors">View All</button>
                                 </div>
                                 <div className="space-y-4 flex-1 overflow-y-auto max-h-[320px] pr-2 no-scrollbar">
-                                    {analytics.recentOrders.length > 0 ? analytics.recentOrders.map(o => (
+                                    {safeAnalytics.recentOrders.length > 0 ? safeAnalytics.recentOrders.map(o => (
                                         <div
                                             key={o.id}
                                             className="flex gap-4 items-center p-4 bg-gray-50/50 hover:bg-white rounded-2xl transition-all duration-300 border border-transparent hover:border-indigo-100 hover:shadow-lg hover:shadow-indigo-50 group/item cursor-pointer"
