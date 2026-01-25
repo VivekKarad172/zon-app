@@ -422,17 +422,30 @@ export default function AdminDashboard() {
         XLSX.writeFile(wb, `Orders_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
     };
 
-    // === ORDER IMPORT FROM EXCEL ===
+    // === BULK UPLOAD FOR ORDERS ===
+    // Generate Sample Order Import Excel
     const downloadOrderImportSample = () => {
         const wb = XLSX.utils.book_new();
-        const sampleData = [
-            { dealerEmail: 'dealer@example.com', designNumber: 'D-001', colorName: 'Teak Wood', width: 30, height: 78, thickness: '30mm', quantity: 2, status: 'RECEIVED', orderDate: '2024-01-15' },
-            { dealerEmail: 'dealer@example.com', designNumber: 'D-002', colorName: 'Charcoal Grey', width: 32, height: 80, thickness: '32mm', quantity: 1, status: 'PRODUCTION', orderDate: '2024-01-16' }
+        const data = [
+            { orderId: '1001', dealerEmail: 'partner@gmail.com', designNumber: 'D-001', colorName: 'Teak Wood', width: '3', height: '7', quantity: '5', status: 'PRODUCTION', orderDate: '2024-02-28', remarks: 'Urgent' },
+            { orderId: '1001', dealerEmail: 'partner@gmail.com', designNumber: 'D-002', colorName: 'White Matt', width: '3', height: '7', quantity: '2', status: 'PRODUCTION', orderDate: '2024-02-28' },
+            { orderId: '1002', dealerEmail: 'partner@gmail.com', designNumber: 'D-005', colorName: 'Walnut', width: '2.5', height: '6.5', quantity: '10', status: 'RECEIVED', orderDate: '2024-02-29' }
         ];
-        const ws = XLSX.utils.json_to_sheet(sampleData);
-        ws['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 8 }, { wch: 12 }, { wch: 12 }];
+        const ws = XLSX.utils.json_to_sheet(data);
+        ws['!cols'] = [
+            { wch: 10 }, // orderId
+            { wch: 25 }, // email
+            { wch: 15 }, // design
+            { wch: 15 }, // color
+            { wch: 8 },  // w
+            { wch: 8 },  // h
+            { wch: 8 },  // qty
+            { wch: 15 }, // status
+            { wch: 15 }, // date
+            { wch: 20 }  // remarks
+        ];
         XLSX.utils.book_append_sheet(wb, ws, "Orders");
-        XLSX.writeFile(wb, 'order_import_sample.xlsx');
+        XLSX.writeFile(wb, 'order_import_sample_v2.xlsx');
     };
 
     const handleOrderImportFile = (e) => {
@@ -2307,14 +2320,14 @@ export default function AdminDashboard() {
 
                                     {/* Required Columns Info */}
                                     <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
-                                        <p className="text-xs font-bold text-amber-700 uppercase tracking-widest mb-2">Required Columns:</p>
+                                        <p className="text-xs font-bold text-amber-700 uppercase tracking-widest mb-2">Column Inventory:</p>
                                         <div className="grid grid-cols-3 gap-2 text-[10px] font-bold text-amber-800">
+                                            <span>orderId (Optional)</span>
                                             <span>dealerEmail</span>
                                             <span>designNumber</span>
                                             <span>colorName</span>
                                             <span>width</span>
                                             <span>height</span>
-                                            <span>thickness</span>
                                             <span>quantity</span>
                                             <span>status</span>
                                             <span>orderDate</span>

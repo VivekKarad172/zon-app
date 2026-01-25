@@ -425,19 +425,31 @@ router.post('/import', authenticate, authorize(['MANUFACTURER']), async (req, re
             return null;
         };
 
-        // Group items by dealerEmail and orderDate to create orders
+        // Group items by dealerEmail, orderDate AND orderId to create orders
         const groupedOrders = {};
         for (const row of orderData) {
             const dealerEmail = getValue(row, 'dealerEmail', 'dealer_email', 'email', 'Dealer Email');
             const orderDateStr = getValue(row, 'orderDate', 'order_date', 'date', 'Order Date');
             const status = getValue(row, 'status', 'Status') || 'RECEIVED';
+            // NEW: Support for Custom Order ID
+            let customOrderId = getValue(row, 'orderId', 'order_id', 'id', 'Order ID', 'ID');
 
-            const key = `${dealerEmail}_${orderDateStr || 'today'}`;
+            // Clean customOrderId
+            if (customOrderId !== null && typeof customOrderId === 'number') {
+                customOrderId = parseInt(customOrderId);
+            } else if (customOrderId !== null) {
+                customOrderId = parseInt(String(customOrderId).trim());
+            }
+
+            // Key must now include customOrderId to split orders correctly
+            const key = `${dealerEmail}_${orderDateStr || 'today'}_${customOrderId || 'auto'}`;
+
             if (!groupedOrders[key]) {
                 groupedOrders[key] = {
                     dealerEmail,
                     orderDate: parseDate(orderDateStr),
                     status: status.toUpperCase(),
+                    customId: customOrderId, // Store for creation
                     items: []
                 };
             }
@@ -454,14 +466,31 @@ router.post('/import', authenticate, authorize(['MANUFACTURER']), async (req, re
                     continue;
                 }
 
+                // Check if Custom ID already exists
+                if (orderGroup.customId) {
+                    const existing = await Order.findByPk(orderGroup.customId);
+                    if (existing) {
+                        errors.push({ row: key, error: `Order ID ${orderGroup.customId} already exists. Skipping.` });
+                        failed += orderGroup.items.length;
+                        continue;
+                    }
+                }
+
                 // Create Order with explicit createdAt
-                const order = await Order.create({
+                const orderPayload = {
                     userId: dealer.id,
                     distributorId: dealer.distributorId,
                     status: orderGroup.status,
                     createdAt: orderGroup.orderDate,
                     updatedAt: orderGroup.orderDate
-                });
+                };
+
+                // FORCE ID if provided
+                if (orderGroup.customId) {
+                    orderPayload.id = orderGroup.customId;
+                }
+
+                const order = await Order.create(orderPayload);
 
                 // Create OrderItems
                 for (const item of orderGroup.items) {
