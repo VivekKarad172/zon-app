@@ -3,6 +3,7 @@ const router = express.Router();
 const { Order, OrderItem, Design, Color, User, DoorType, sequelize, ProductionUnit } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
 const { Op } = require('sequelize');
+const { getDesignType } = require('../utils/designLogic');
 
 // Create Order (Dealer)
 router.post('/', authenticate, authorize(['DEALER']), async (req, res) => {
@@ -555,12 +556,26 @@ router.post('/import', authenticate, authorize(['MANUFACTURER']), async (req, re
                         }
 
                         // Find design - try by designNumber first
+                        // Find design - or CREATE if missing (Auto-Learn)
                         let design = null;
                         if (designNumber) {
                             design = await Design.findOne({ where: { designNumber } });
-                            // If not found and it's numeric, try by ID
-                            if (!design && /^\d+$/.test(designNumber)) {
-                                design = await Design.findByPk(parseInt(designNumber));
+
+                            if (!design) {
+                                // AUTO-CREATE Logic using New Category Rules
+                                const detectedType = getDesignType(designNumber);
+                                try {
+                                    design = await Design.create({
+                                        designNumber,
+                                        category: detectedType, // 'EMBOSS', 'CNC', etc.
+                                        doorTypeId: 1, // Defaulting to 1 (General) for now, can be refined
+                                        isTrending: false,
+                                        isEnabled: true
+                                    });
+                                    console.log(`[AUTO-LEARN] Created Design ${designNumber} as ${detectedType}`);
+                                } catch (e) {
+                                    console.warn(`Failed to auto-create design ${designNumber}`);
+                                }
                             }
                         }
 
