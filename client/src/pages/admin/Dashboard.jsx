@@ -797,7 +797,7 @@ export default function AdminDashboard() {
     }, [orders, safeAnalytics]);
 
     return (
-        <div className="min-h-screen bg-gray-100 font-sans">
+        <div className="min-h-screen bg-gray-100 font-sans pt-20">
             {/* ... Header ... */}
 
             {/* Floating Navigation Panels */}
