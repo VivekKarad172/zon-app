@@ -771,33 +771,60 @@ export default function AdminDashboard() {
         };
     }, [analytics]);
 
-    // 2. Computed Metrics (Syncs with Table)
+    // 2. Computed Metrics (Syncs with Table + Backend)
     const computedMetrics = useMemo(() => {
-        const today = new Date();
-        const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-        // Critical CountMetrics
+        // Critical: Client-side calculation (requires Orders)
         const critical = orders.filter(o =>
             ['RECEIVED', 'PRODUCTION'].includes(o.status) &&
             getOrderAge(o.createdAt) > 7
         ).length;
 
-        // Pending Count (Normal)
-        const pending = orders.filter(o => ['RECEIVED', 'PRODUCTION', 'READY'].includes(o.status)).length;
+        // Pending: Prefer Backend -> Client Fallback
+        // safeAnalytics.kpi is guaranteed by safety layer, ensuring defaults.
+        // We use backend data (totalOrders/pendingOrders) as TRUTH to avoid "Zero Data" issue when orders array is empty.
+        const pendingBackend = safeAnalytics?.kpi?.pendingOrders ?? 0;
+        const totalBackend = safeAnalytics?.kpi?.totalOrders ?? 0;
 
         // Trend Logic
-        const total = orders.length;
-        // Use safeAnalytics to avoid access errors
-        const trend = (safeAnalytics.kpi.trend && !isNaN(safeAnalytics.kpi.trend)) ? safeAnalytics.kpi.trend : 0;
+        const trend = (safeAnalytics?.kpi?.trend && !isNaN(safeAnalytics.kpi.trend)) ? safeAnalytics.kpi.trend : 0;
 
-        return { critical, pending, trend, total };
+        return {
+            critical,
+            pending: pendingBackend,
+            total: totalBackend,
+            trend
+        };
     }, [orders, safeAnalytics]);
 
     return (
         <div className="min-h-screen bg-gray-100 font-sans">
             {/* ... Header ... */}
 
-            {/* ... Navigation ... */}
+            {/* Floating Navigation Panels */}
+            <div className="px-4 -mt-6 relative z-[110] mb-8">
+                <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-2 flex justify-between gap-1 max-w-5xl mx-auto overflow-x-auto border border-white/50 ring-1 ring-black/5 no-scrollbar">
+                    {[
+                        { id: 'home', label: 'Home', icon: Home },
+                        { id: 'production', label: 'Production', icon: Factory, hideFor: ['DISTRIBUTOR'] },
+                        { id: 'factory', label: 'Factory Mgmt', icon: Hammer, hideFor: ['DISTRIBUTOR'] },
+                        { id: 'orders', label: 'Orders', icon: ShoppingBag },
+                        { id: 'distributors', label: 'Distributors', icon: Users, hideFor: ['DISTRIBUTOR'] },
+                        { id: 'dealers', label: 'Dealers', icon: User },
+                        { id: 'designs', label: 'Designs', icon: ImageIcon },
+                        { id: 'masters', label: 'Masters', icon: Filter },
+                        { id: 'whatsnew', label: "New", icon: Bell }
+                    ].filter(tab => !tab.hideFor || !tab.hideFor.includes(user?.role)).map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`flex-1 py-3 px-6 rounded-2xl font-bold text-sm transition-all duration-300 flex flex-col sm:flex-row items-center justify-center gap-2 whitespace-nowrap group ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200 ring-4 ring-indigo-50' : 'text-gray-400 hover:bg-gray-100/50 hover:text-gray-600'}`}
+                        >
+                            <tab.icon size={18} className={`${activeTab === tab.id ? 'scale-110' : 'group-hover:scale-110'} transition-transform`} />
+                            <span className="hidden sm:inline">{tab.label}</span>
+                        </button>
+                    ))}
+                </div>
+            </div>
 
             <div className="max-w-7xl mx-auto px-4">
                 {/* Global Controls Filter Bar */}
