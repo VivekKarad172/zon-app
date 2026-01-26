@@ -801,7 +801,7 @@ export default function AdminDashboard() {
             {/* ... Header ... */}
 
             {/* Floating Navigation Panels */}
-            <div className="px-4 -mt-6 relative z-[110] mb-8">
+            <div className="px-4 relative z-[110] mb-8">
                 <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-2 flex justify-between gap-1 max-w-5xl mx-auto overflow-x-auto border border-white/50 ring-1 ring-black/5 no-scrollbar">
                     {[
                         { id: 'home', label: 'Home', icon: Home },
