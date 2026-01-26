@@ -225,7 +225,10 @@ router.get('/tasks', async (req, res) => {
                     { model: Color, attributes: ['name', 'imageUrl'] },
                     {
                         model: Order,
-                        attributes: ['id'],
+                        attributes: ['id', 'status'], // Added status
+                        where: {
+                            status: { [Op.notIn]: ['READY', 'DISPATCHED', 'CANCELLED'] } // KEY FIX: Hide finished orders
+                        },
                         include: [
                             { model: User, as: 'Distributor', attributes: ['name', 'shopName'] },
                             { model: User, attributes: ['name', 'shopName'] } // Dealer
