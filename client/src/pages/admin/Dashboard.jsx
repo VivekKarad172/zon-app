@@ -75,6 +75,10 @@ export default function AdminDashboard() {
     const [showBulkDesigns, setShowBulkDesigns] = useState(false);
     const [showBulkColors, setShowBulkColors] = useState(false);
 
+    // PRODUCTION INTELLIGENCE STATE
+    const [workerLeaderboard, setWorkerLeaderboard] = useState([]);
+    const [materialEstimates, setMaterialEstimates] = useState(null);
+
     // --- INTELLIGENT FEATURES ---
     const [searchTerm, setSearchTerm] = useState(''); // Smart Search State
     const [activeStatusTab, setActiveStatusTab] = useState('ALL'); // Workflow Tab State
@@ -212,7 +216,7 @@ export default function AdminDashboard() {
     useEffect(() => {
         if (activeTab === 'home') fetchAnalytics();
         if (activeTab === 'orders') fetchOrders();
-        if (activeTab === 'production') { fetchProductionOrders(); fetchDistributors(); fetchFactoryTracking(); fetchFactoryStats(); }
+        if (activeTab === 'production') { fetchProductionOrders(); fetchDistributors(); fetchFactoryTracking(); fetchFactoryStats(); fetchProductionIntelligence(); }
         if (activeTab === 'factory') { fetchWorkers(); fetchFactoryStats(); fetchFactoryLocation(); }
         if (activeTab === 'designs' || activeTab === 'masters') { fetchDesigns(); fetchDoors(); fetchColors(); }
         if (activeTab === 'distributors') fetchDistributors();
@@ -225,7 +229,7 @@ export default function AdminDashboard() {
         let interval;
         if (activeTab === 'factory' || activeTab === 'production' || activeTab === 'orders') {
             if (activeTab === 'orders') fetchOrders();
-            else { fetchFactoryStats(); fetchFactoryTracking(); }
+            else { fetchFactoryStats(); fetchFactoryTracking(); fetchProductionIntelligence(); }
 
             interval = setInterval(() => {
                 if (activeTab === 'orders') fetchOrders();
@@ -435,6 +439,17 @@ export default function AdminDashboard() {
     const fetchDistributors = async () => { try { const res = await api.get('/users?role=DISTRIBUTOR'); setDistributors(res.data); } catch (e) { } };
     const fetchDealers = async () => { try { const res = await api.get('/users?role=DEALER'); setDealers(res.data); } catch (e) { } };
     const fetchPosts = async () => { try { const res = await api.get('/posts'); setPosts(res.data); } catch (e) { } };
+
+    const fetchProductionIntelligence = async () => {
+        try {
+            const [perfRes, matRes] = await Promise.all([
+                api.get('/workers/analytics/performance'),
+                api.get('/workers/analytics/materials')
+            ]);
+            setWorkerLeaderboard(perfRes.data);
+            setMaterialEstimates(matRes.data);
+        } catch (e) { console.error("Intel Fetch Failed", e); }
+    };
 
     const updateStatus = async (id, status) => { try { await api.put(`/orders/${id}/status`, { status }); toast.success('Status updated'); fetchOrders(); } catch (e) { toast.error('Update failed'); } };
 
@@ -1177,6 +1192,80 @@ export default function AdminDashboard() {
                                     </button>
                                 );
                             })}
+                        </div>
+
+                        {/* 2. INTELLIGENCE WIDGETS (Worker & Materials) */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150">
+
+                            {/* TOP WORKERS */}
+                            <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col h-full">
+                                <div className="flex justify-between items-center mb-6">
+                                    <div>
+                                        <h3 className="font-black text-gray-900 text-lg">Top Performers</h3>
+                                        <p className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Today's Activity</p>
+                                    </div>
+                                    <div className="bg-yellow-50 text-yellow-600 p-2 rounded-xl">
+                                        <Trophy size={20} />
+                                    </div>
+                                </div>
+                                <div className="space-y-4 flex-1">
+                                    {workerLeaderboard.slice(0, 3).map((w, idx) => (
+                                        <div key={idx} className="flex items-center gap-4 group">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shadow-inner
+                                                ${idx === 0 ? 'bg-yellow-100 text-yellow-700 ring-4 ring-yellow-50' :
+                                                    idx === 1 ? 'bg-gray-100 text-gray-700' : 'bg-orange-50 text-orange-700'}`}>
+                                                {idx + 1}
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="font-bold text-gray-900 text-sm group-hover:text-indigo-600 transition-colors">{w.name}</div>
+                                                <div className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
+                                                    {w.role && <span className="bg-gray-100 px-1.5 py-0.5 rounded">{w.role.replace('_', ' ')}</span>}
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="font-black text-gray-900">{w.count}</div>
+                                                <div className="text-[9px] uppercase font-bold text-gray-400">Units</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {workerLeaderboard.length === 0 && <div className="text-center py-8 text-gray-300 italic font-bold text-xs">No activity today</div>}
+                                </div>
+                            </div>
+
+                            {/* MATERIAL FORECAST */}
+                            <div className="bg-gradient-to-br from-indigo-900 to-indigo-800 text-white p-6 rounded-[2rem] shadow-xl shadow-indigo-200 flex flex-col h-full relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-32 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                                <div className="flex justify-between items-center mb-6 relative z-10">
+                                    <div>
+                                        <h3 className="font-black text-white text-lg">Material Calc</h3>
+                                        <p className="text-[10px] uppercase font-bold text-indigo-300 tracking-widest">Based on {materialEstimates?.pendingOrders || 0} Pending Orders</p>
+                                    </div>
+                                    <div className="bg-white/10 p-2 rounded-xl backdrop-blur-md">
+                                        <Calculator size={20} />
+                                    </div>
+                                </div>
+
+                                {materialEstimates ? (
+                                    <div className="grid grid-cols-2 gap-4 relative z-10">
+                                        <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm border border-white/5">
+                                            <div className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest mb-1">PVC Rolls</div>
+                                            <div className="text-2xl font-black">{materialEstimates.estimates.pvcRolls}</div>
+                                            <div className="text-[9px] text-white/50">~3000 sqft/roll</div>
+                                        </div>
+                                        <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm border border-white/5">
+                                            <div className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest mb-1">Glue Needed</div>
+                                            <div className="text-2xl font-black">{materialEstimates.estimates.glueKg} <span className="text-sm opacity-50">kg</span></div>
+                                            <div className="text-[9px] text-white/50">~0.5kg/door</div>
+                                        </div>
+                                        <div className="col-span-2 bg-white/5 p-3 rounded-2xl flex justify-between items-center px-6">
+                                            <div className="text-xs font-bold text-indigo-200">Total Area</div>
+                                            <div className="font-black text-xl">{materialEstimates.totalSqFt} <span className="text-sm font-bold text-indigo-300">sq.ft</span></div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex-1 flex items-center justify-center text-indigo-300 font-bold text-xs animate-pulse">Calculating requirements...</div>
+                                )}
+                            </div>
                         </div>
                         <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
                             <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">

@@ -628,4 +628,80 @@ router.post('/cleanup', authenticate, authorize(['MANUFACTURER']), async (req, r
     }
 });
 
+// ADMIN: Worker Performance Analytics
+router.get('/analytics/performance', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
+        const start = startDate ? new Date(startDate) : new Date(new Date().setHours(0, 0, 0, 0));
+        const end = endDate ? new Date(endDate) : new Date(new Date().setHours(23, 59, 59, 999));
+
+        const records = await ProcessRecord.findAll({
+            where: {
+                timestamp: { [Op.between]: [start, end] }
+            },
+            include: [{ model: Worker, attributes: ['name', 'role'] }]
+        });
+
+        // Aggregation
+        const stats = {};
+        records.forEach(r => {
+            const name = r.Worker?.name || 'Unknown';
+            if (!stats[name]) stats[name] = { name, role: r.Worker?.role, count: 0 };
+            stats[name].count++;
+        });
+
+        const leaderboard = Object.values(stats).sort((a, b) => b.count - a.count);
+        res.json(leaderboard);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ADMIN: Material Estimator (Based on Pending Orders)
+router.get('/analytics/materials', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        // Get all pending items (Received + Production)
+        const orders = await Order.findAll({
+            where: { status: { [Op.in]: ['RECEIVED', 'PRODUCTION'] } },
+            include: [OrderItem]
+        });
+
+        let totalSqFt = 0;
+        let totalDoors = 0;
+
+        orders.forEach(o => {
+            o.OrderItems.forEach(item => {
+                const w = parseFloat(item.width) || 0;
+                const h = parseFloat(item.height) || 0;
+                const q = parseInt(item.quantity) || 0;
+                // SqFt logic: (w * h * q) / 144 if inches? Usually door sizes are inches. 
+                // Assuming input is in inches:
+                const areaSqFt = (w * h) / 144;
+                totalSqFt += (areaSqFt * q);
+                totalDoors += q;
+            });
+        });
+
+        // Estimation Logic (Approximations)
+        // PVC Roll: ~3000 sqft per roll (Standard large roll)
+        // Glue: ~200g per sqft? Or per door? Let's say 0.5kg/door average.
+        // Primer: ~100ml/door.
+
+        // Return raw totals and calculated estimates
+        res.json({
+            pendingOrders: orders.length,
+            totalDoors,
+            totalSqFt: Math.round(totalSqFt),
+            estimates: {
+                pvcRolls: (totalSqFt / 3000).toFixed(1), // Hyp
+                glueKg: (totalDoors * 0.5).toFixed(1),
+                primerLiters: (totalDoors * 0.1).toFixed(1)
+            }
+        });
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 module.exports = router;
