@@ -75,6 +75,113 @@ export default function AdminDashboard() {
     const [showBulkDesigns, setShowBulkDesigns] = useState(false);
     const [showBulkColors, setShowBulkColors] = useState(false);
 
+    // --- INTELLIGENT FEATURES ---
+    const [searchTerm, setSearchTerm] = useState(''); // Smart Search State
+
+    // Intelligent Search Filtering
+    const filteredOrders = useMemo(() => {
+        if (!orders) return [];
+        let result = orders;
+
+        // 1. Text Search (ID, Name, Shop, Distributor)
+        if (searchTerm) {
+            const lowerTerm = searchTerm.toLowerCase();
+            result = result.filter(o =>
+                o.id.toString().includes(lowerTerm) ||
+                o.User?.name?.toLowerCase().includes(lowerTerm) ||
+                o.User?.shopName?.toLowerCase().includes(lowerTerm) ||
+                (distributors.find(d => d.id === o.distributorId)?.name || '').toLowerCase().includes(lowerTerm)
+            );
+        }
+
+        // 2. Status Filters
+        // (Existing filter logic if any, or just return result)
+        // If orderFilter is used for params, we might want to keep it or override.
+        // For now, let's assume 'orders' lists everything and we filter client side for speed.
+        return result;
+    }, [orders, searchTerm, distributors]);
+
+    const handlePrintOrder = (order) => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return toast.error('Popup blocked');
+
+        const html = `
+            <html>
+            <head>
+                <title>INVOICE #${order.id}</title>
+                <style>
+                    body { font-family: sans-serif; padding: 40px; }
+                    .header { display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
+                    .title { font-size: 24px; font-weight: 900; }
+                    .meta { text-align: right; font-size: 14px; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+                    th, td { border: 1px solid #ddd; padding: 12px; text-align: left; font-size: 12px; }
+                    th { background: #f8f9fa; font-weight: 900; text-transform: uppercase; }
+                    .footer { text-align: center; margin-top: 50px; font-size: 12px; color: #666; border-top: 1px solid #eee; padding-top: 20px; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div>
+                        <div class="title">Z-ON DOOR</div>
+                        <div>Production Invoice / Gate Pass</div>
+                    </div>
+                    <div class="meta">
+                        <div><strong>Order #${order.id}</strong></div>
+                        <div>Date: ${new Date(order.createdAt).toLocaleDateString()}</div>
+                        <div>Status: ${order.status}</div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 30px; display: flex; gap: 40px;">
+                    <div>
+                        <strong>Billed To:</strong><br>
+                        ${order.User?.name}<br>
+                        ${order.User?.shopName || ''}<br>
+                        ${order.User?.city || ''}
+                    </div>
+                    <div>
+                        <strong>Distributor:</strong><br>
+                        ${distributors.find(d => d.id === order.distributorId)?.name || 'Direct'}
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Design</th>
+                            <th>Color</th>
+                            <th>Dimensions</th>
+                            <th>Qty</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${order.OrderItems?.map((item, i) => `
+                            <tr>
+                                <td>${i + 1}</td>
+                                <td>${item.designNameSnapshot}</td>
+                                <td>${item.colorNameSnapshot}</td>
+                                <td>${item.width} x ${item.height}</td>
+                                <td>${item.quantity}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                <div class="footer">
+                    Authorized Signature - Z-ON DOOR<br>
+                    Generated on ${new Date().toLocaleString()}
+                </div>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.print();
+    };
+
     // NEW: Production View State
     const [productionOrders, setProductionOrders] = useState([]);
     const [productionDistributorId, setProductionDistributorId] = useState('');
@@ -1392,44 +1499,60 @@ export default function AdminDashboard() {
                     activeTab === 'orders' && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
                             {/* Bulk Action Alert Bar */}
-                            {selectedOrders.length > 0 && (
-                                <div className="bg-indigo-600 rounded-3xl p-4 flex justify-between items-center shadow-2xl shadow-indigo-200 animate-in slide-in-from-top-4">
-                                    <div className="flex items-center gap-4 px-4 text-white">
-                                        <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
-                                            <CheckSquare size={20} className="text-white" />
-                                        </div>
-                                        <span className="font-black text-sm tracking-tight">{selectedOrders.length} Orders Selected for Bulk Action</span>
+                            <div className="bg-indigo-600 rounded-3xl p-4 flex justify-between items-center shadow-2xl shadow-indigo-200 animate-in slide-in-from-top-4">
+                                <div className="flex items-center gap-4 px-4 text-white">
+                                    <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
+                                        <CheckSquare size={20} className="text-white" />
                                     </div>
-                                    <div className="flex gap-2 relative">
-                                        <button
-                                            onClick={() => setShowBulkAction(!showBulkAction)}
-                                            className="bg-white text-indigo-900 px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg flex items-center gap-2 hover:bg-indigo-50 transition-all"
-                                        >
-                                            Update Status <ChevronDown size={14} strokeWidth={3} />
-                                        </button>
-                                        {showBulkAction && (
-                                            <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden py-2 animate-in fade-in slide-in-from-top-2">
-                                                {['PRODUCTION', 'READY', 'DISPATCHED'].map(s => (
-                                                    <button
-                                                        key={s}
-                                                        onClick={() => handleBulkStatusUpdate(s)}
-                                                        className="w-full text-left px-6 py-3 text-xs font-black text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors uppercase tracking-widest"
-                                                    >
-                                                        Set to {s}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                        <button
-                                            onClick={handleBulkDeleteOrders}
-                                            className="bg-red-500 hover:bg-red-600 text-white px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg flex items-center gap-2 transition-all"
-                                        >
-                                            <Trash2 size={14} /> Delete
-                                        </button>
-                                        <button onClick={() => setSelectedOrders([])} className="bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-2xl transition-all"><X size={18} /></button>
-                                    </div>
+                                    <span className="font-black text-sm tracking-tight">{selectedOrders.length} Orders Selected for Bulk Action</span>
                                 </div>
-                            )}
+                                <div className="flex gap-2 relative">
+                                    <button
+                                        onClick={() => setShowBulkAction(!showBulkAction)}
+                                        className="bg-white text-indigo-900 px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg flex items-center gap-2 hover:bg-indigo-50 transition-all"
+                                    >
+                                        Update Status <ChevronDown size={14} strokeWidth={3} />
+                                    </button>
+                                    {showBulkAction && (
+                                        <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden py-2 animate-in fade-in slide-in-from-top-2">
+                                            {['PRODUCTION', 'READY', 'DISPATCHED'].map(s => (
+                                                <button
+                                                    key={s}
+                                                    onClick={() => handleBulkStatusUpdate(s)}
+                                                    className="w-full text-left px-6 py-3 text-xs font-black text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors uppercase tracking-widest"
+                                                >
+                                                    Set to {s}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <button
+                                        onClick={handleBulkDeleteOrders}
+                                        className="bg-red-500 hover:bg-red-600 text-white px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg flex items-center gap-2 transition-all"
+                                    >
+                                        <Trash2 size={14} /> Delete
+                                    </button>
+                                    <button onClick={() => setSelectedOrders([])} className="bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-2xl transition-all"><X size={18} /></button>
+                                </div>
+                            </div>
+                        )}
+
+                            {/* --- SMART SEARCH BAR --- */}
+                            <div className="bg-white p-4 rounded-[2rem] shadow-sm border border-gray-100 flex items-center gap-4">
+                                <Search className="text-gray-400 ml-2" size={20} />
+                                <input
+                                    type="text"
+                                    placeholder="Smart Search: Type Order ID, Dealer Name, Shop, or Distributor..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="flex-1 bg-transparent border-none outline-none font-bold text-gray-700 placeholder-gray-300 h-full py-2"
+                                />
+                                {searchTerm && (
+                                    <button onClick={() => setSearchTerm('')} className="bg-gray-100 hover:bg-gray-200 p-2 rounded-full text-gray-500 transition-all">
+                                        <X size={14} />
+                                    </button>
+                                )}
+                            </div>
 
                             <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
                                 <table className="min-w-full text-left">
@@ -1454,7 +1577,7 @@ export default function AdminDashboard() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
-                                        {orders.length > 0 ? orders.map(order => (
+                                        {filteredOrders.length > 0 ? filteredOrders.map(order => (
                                             <tr key={order.id} className={`hover:bg-indigo-50/30 transition-colors group ${order.isEdited ? 'bg-orange-50/50' : ''} ${selectedOrders.includes(order.id) ? 'bg-indigo-50' : ''}`}>
                                                 <td className="px-8 py-5 align-middle">
                                                     <div className="flex items-center justify-center">
@@ -1516,6 +1639,15 @@ export default function AdminDashboard() {
                                                         ) : (
                                                             <span className="text-red-500 font-black text-[10px] uppercase tracking-widest bg-red-50 px-3 py-1 rounded-xl opacity-60 italic">Voided</span>
                                                         )}
+
+                                                        <button
+                                                            onClick={() => handlePrintOrder(order)}
+                                                            className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                                            title="Print Invoice / Gate Pass"
+                                                        >
+                                                            <Printer size={16} />
+                                                        </button>
+
                                                         <button
                                                             onClick={() => handleDeleteOrder(order.id)}
                                                             className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
