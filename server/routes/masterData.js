@@ -6,6 +6,7 @@ const fs = require('fs');
 const { DoorType, Design, Color, DesignColor } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
 const { Op } = require('sequelize');
+const { getDesignType } = require('../utils/designLogic');
 
 // Ensure uploads directory exists
 const uploadDir = path.join(__dirname, '../uploads');
@@ -311,6 +312,28 @@ router.post('/designs/bulk', authenticate, authorize(['MANUFACTURER']), async (r
         });
     } catch (error) {
         console.error('Bulk design upload error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Auto-Categorize All Designs (Migration Tool)
+router.post('/designs/auto-categorize', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        const designs = await Design.findAll();
+        let updated = 0;
+
+        for (const design of designs) {
+            const newType = getDesignType(design.designNumber);
+
+            // Update if different
+            if (design.category !== newType) {
+                await design.update({ category: newType });
+                updated++;
+            }
+        }
+
+        res.json({ message: `Scanned ${designs.length} designs. Updated ${updated} categories to new standard.` });
+    } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });

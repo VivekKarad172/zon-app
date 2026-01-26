@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
-import { Plus, X, Image as ImageIcon, Filter, Search, Edit2, Eye, EyeOff, Save, Trash2, User, Users, ShoppingBag, Bell, Upload, Download, FileSpreadsheet, Home, CheckSquare, Calendar, ChevronDown, Factory, Hammer, RefreshCw, MapPin, Printer, LogOut, Trophy, Calculator } from 'lucide-react';
+import { Plus, X, Image as ImageIcon, Filter, Search, Edit2, Eye, EyeOff, Save, Trash2, User, Users, ShoppingBag, Bell, Upload, Download, FileSpreadsheet, Home, CheckSquare, Calendar, ChevronDown, Factory, Hammer, RefreshCw, MapPin, Printer, LogOut, Trophy, Calculator, Wand2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import React from 'react'; // Required for Class Component
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -835,6 +835,20 @@ export default function AdminDashboard() {
             }
         };
         reader.readAsBinaryString(file);
+    };
+
+    const handleAutoCategorize = async () => {
+        if (!confirm('This will scan ALL designs and auto-update their category/type based on the Design Number (e.g. ZN-*, PVC-*, WPC-*). Continue?')) return;
+        const tId = toast.loading('Auto-Categorizing Designs...');
+        try {
+            const res = await api.post('/designs/auto-categorize');
+            toast.success(res.data.message, { duration: 5000 });
+            fetchDesigns();
+        } catch (e) {
+            toast.error(e.response?.data?.error || 'Auto-categorize failed');
+        } finally {
+            toast.dismiss(tId);
+        }
     };
 
     // === BULK UPLOAD FOR FOIL COLORS ===
@@ -1964,6 +1978,9 @@ export default function AdminDashboard() {
                                     <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Digital catalog and product inventory</p>
                                 </div>
                                 <div className="flex gap-2 w-full sm:w-auto">
+                                    <button onClick={handleAutoCategorize} className="flex-1 sm:flex-none bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-5 py-3 rounded-2xl font-black shadow-sm flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-widest border border-indigo-200">
+                                        <Wand2 size={16} /> Auto-Fix
+                                    </button>
                                     <button onClick={() => setShowBulkDesigns(true)} className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-2xl font-black shadow-lg shadow-emerald-100 flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-widest">
                                         <Upload size={16} /> Bulk
                                     </button>
