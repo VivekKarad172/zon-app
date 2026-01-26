@@ -70,20 +70,28 @@ export default function AdminDashboard() {
     const [analytics, setAnalytics] = useState(null);
     const [selectedOrders, setSelectedOrders] = useState([]);
     const [dateRange, setDateRange] = useState({ start: '', end: '' });
-    const [showBulkAction, setShowBulkAction] = useState(false);
     const [showImportOrders, setShowImportOrders] = useState(false);
     const [showBulkDesigns, setShowBulkDesigns] = useState(false);
     const [showBulkColors, setShowBulkColors] = useState(false);
 
     // --- INTELLIGENT FEATURES ---
     const [searchTerm, setSearchTerm] = useState(''); // Smart Search State
+    const [activeStatusTab, setActiveStatusTab] = useState('ALL'); // Workflow Tab State
 
     // Intelligent Search Filtering
     const filteredOrders = useMemo(() => {
         if (!orders) return [];
         let result = orders;
 
-        // 1. Text Search (ID, Name, Shop, Distributor)
+        // 1. Status Tab Filter
+        if (activeStatusTab !== 'ALL') {
+            if (activeStatusTab === 'PENDING') result = result.filter(o => ['RECEIVED'].includes(o.status));
+            else if (activeStatusTab === 'PRODUCTION') result = result.filter(o => ['PRODUCTION'].includes(o.status));
+            else if (activeStatusTab === 'READY') result = result.filter(o => ['READY'].includes(o.status));
+            else if (activeStatusTab === 'HISTORY') result = result.filter(o => ['DISPATCHED', 'CANCELLED'].includes(o.status));
+        }
+
+        // 2. Text Search (ID, Name, Shop, Distributor)
         if (searchTerm) {
             const lowerTerm = searchTerm.toLowerCase();
             result = result.filter(o =>
@@ -94,12 +102,8 @@ export default function AdminDashboard() {
             );
         }
 
-        // 2. Status Filters
-        // (Existing filter logic if any, or just return result)
-        // If orderFilter is used for params, we might want to keep it or override.
-        // For now, let's assume 'orders' lists everything and we filter client side for speed.
-        return result;
-    }, [orders, searchTerm, distributors]);
+        return result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }, [orders, searchTerm, activeStatusTab, distributors]);
 
     const handlePrintOrder = (order) => {
         const printWindow = window.open('', '_blank');
@@ -1498,6 +1502,24 @@ export default function AdminDashboard() {
                 {
                     activeTab === 'orders' && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
+                            {/* --- WORKFLOW TABS --- */}
+                            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                                {['ALL', 'PENDING', 'PRODUCTION', 'READY', 'HISTORY'].map(tab => (
+                                    <button
+                                        key={tab}
+                                        onClick={() => setActiveStatusTab(tab)}
+                                        className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all whitespace-nowrap ${activeStatusTab === tab
+                                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 scale-105'
+                                            : 'bg-white text-gray-400 hover:bg-gray-50 hover:text-indigo-600 border border-gray-100'
+                                            }`}
+                                    >
+                                        {tab === 'PENDING' ? '🔴 New Orders' :
+                                            tab === 'PRODUCTION' ? '🔵 In Production' :
+                                                tab === 'READY' ? '🟢 Ready' :
+                                                    tab === 'HISTORY' ? '⚪ Dispatched' : 'All Orders'}
+                                    </button>
+                                ))}
+                            </div>
                             {/* Bulk Action Alert Bar */}
                             <div className="bg-indigo-600 rounded-3xl p-4 flex justify-between items-center shadow-2xl shadow-indigo-200 animate-in slide-in-from-top-4">
                                 <div className="flex items-center gap-4 px-4 text-white">
@@ -1535,7 +1557,7 @@ export default function AdminDashboard() {
                                     <button onClick={() => setSelectedOrders([])} className="bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-2xl transition-all"><X size={18} /></button>
                                 </div>
                             </div>
-                        )}
+
 
                             {/* --- SMART SEARCH BAR --- */}
                             <div className="bg-white p-4 rounded-[2rem] shadow-sm border border-gray-100 flex items-center gap-4">
@@ -1622,24 +1644,42 @@ export default function AdminDashboard() {
                                                 <td className="px-6 py-5">
                                                     <div className="flex items-center gap-2">
                                                         {order.status !== 'CANCELLED' ? (
-                                                            <div className="relative group/select">
-                                                                <select
-                                                                    value={order.status}
-                                                                    onChange={(e) => updateStatus(order.id, e.target.value)}
-                                                                    className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-[10px] font-black uppercase tracking-widest cursor-pointer group-hover/select:bg-white group-hover/select:shadow-lg transition-all outline-none text-gray-700 ring-1 ring-black/5"
-                                                                >
-                                                                    <option value="RECEIVED">📥 Received</option>
-                                                                    <option value="PRODUCTION">🔧 Production</option>
-                                                                    <option value="READY">✅ Ready</option>
-                                                                    <option value="DISPATCHED">🚚 Dispatched</option>
-                                                                    <option value="DELAYED">⏳ Delayed</option>
-                                                                    <option value="CANCELLED">❌ Cancel</option>
-                                                                </select>
+                                                            <div className="flex gap-1">
+                                                                {order.status === 'RECEIVED' && (
+                                                                    <button onClick={() => updateStatus(order.id, 'PRODUCTION')} className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md transition-all">
+                                                                        Start Production
+                                                                    </button>
+                                                                )}
+                                                                {order.status === 'PRODUCTION' && (
+                                                                    <button onClick={() => updateStatus(order.id, 'READY')} className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md transition-all">
+                                                                        Mark Ready
+                                                                    </button>
+                                                                )}
+                                                                {order.status === 'READY' && (
+                                                                    <button onClick={() => updateStatus(order.id, 'DISPATCHED')} className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md transition-all">
+                                                                        Dispatch
+                                                                    </button>
+                                                                )}
+                                                                {['DISPATCHED', 'DELAYED'].includes(order.status) && (
+                                                                    <div className="relative group/select">
+                                                                        <select
+                                                                            value={order.status}
+                                                                            onChange={(e) => updateStatus(order.id, e.target.value)}
+                                                                            className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-[10px] font-black uppercase tracking-widest cursor-pointer group-hover/select:bg-white group-hover/select:shadow-lg transition-all outline-none text-gray-700 ring-1 ring-black/5"
+                                                                        >
+                                                                            <option value="RECEIVED">📥 Received</option>
+                                                                            <option value="PRODUCTION">🔧 Production</option>
+                                                                            <option value="READY">✅ Ready</option>
+                                                                            <option value="DISPATCHED">🚚 Dispatched</option>
+                                                                            <option value="DELAYED">⏳ Delayed</option>
+                                                                            <option value="CANCELLED">❌ Cancel</option>
+                                                                        </select>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         ) : (
                                                             <span className="text-red-500 font-black text-[10px] uppercase tracking-widest bg-red-50 px-3 py-1 rounded-xl opacity-60 italic">Voided</span>
                                                         )}
-
                                                         <button
                                                             onClick={() => handlePrintOrder(order)}
                                                             className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
@@ -2812,9 +2852,7 @@ export default function AdminDashboard() {
                         </div>
                     )
                 }
-            </div >
-        </div >
+            </div>
+        </div>
     );
-}
-
-
+};

@@ -332,8 +332,13 @@ router.post('/complete', async (req, res) => {
                 console.log(`Order ${orderId}: ${packedUnits}/${totalUnits} packed`);
 
                 if (totalUnits > 0 && totalUnits === packedUnits) {
-                    await Order.update({ status: 'READY' }, { where: { id: orderId } });
-                    console.log(`Order ${orderId} marked as READY`);
+                    // Safety Check: Only move to READY if currently in PRODUCTION or RECEIVED.
+                    // Do NOT revert DISPATCHED or override CANCELLED orders.
+                    const currentOrder = await Order.findByPk(orderId);
+                    if (currentOrder && ['RECEIVED', 'PRODUCTION'].includes(currentOrder.status)) {
+                        await Order.update({ status: 'READY' }, { where: { id: orderId } });
+                        console.log(`[AUTO-UPDATE] Order ${orderId} marked as READY (All Items Packed)`);
+                    }
                 }
             }
         }
