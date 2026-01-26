@@ -216,12 +216,23 @@ router.get('/tasks', async (req, res) => {
 
         // VISIBILITY RULE: "Every process user can see all orders immediately"
         // Return all pending units (not yet packed).
+
+        // CUSTOM RULE: Emboss Workers should ONLY see EMBOSS category designs
+        let designInclude = {};
+        if (worker.role === 'EMBOSS') {
+            designInclude = { category: 'EMBOSS' };
+        }
+
         const tasks = await ProductionUnit.findAll({
             where: { isPacked: false },
             include: [{
                 model: OrderItem,
                 include: [
-                    { model: Design, attributes: ['designNumber', 'imageUrl'] },
+                    {
+                        model: Design,
+                        attributes: ['designNumber', 'imageUrl', 'category'],
+                        where: designInclude
+                    },
                     { model: Color, attributes: ['name', 'imageUrl'] },
                     {
                         model: Order,
