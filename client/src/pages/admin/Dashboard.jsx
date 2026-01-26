@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
-import { Plus, X, Image as ImageIcon, Filter, Search, Edit2, Eye, EyeOff, Save, Trash2, User, Users, ShoppingBag, Bell, Upload, Download, FileSpreadsheet, Home, CheckSquare, Calendar, ChevronDown, Factory, Hammer, RefreshCw, MapPin, Printer } from 'lucide-react';
+import { Plus, X, Image as ImageIcon, Filter, Search, Edit2, Eye, EyeOff, Save, Trash2, User, Users, ShoppingBag, Bell, Upload, Download, FileSpreadsheet, Home, CheckSquare, Calendar, ChevronDown, Factory, Hammer, RefreshCw, MapPin, Printer, LogOut } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import React from 'react'; // Required for Class Component
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -798,7 +798,46 @@ export default function AdminDashboard() {
 
     return (
         <div className="min-h-screen bg-gray-100 font-sans pt-20">
-            {/* ... Header ... */}
+            {/* === FUTURISTIC HEADER === */}
+            <div className="fixed top-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-md shadow-sm z-[100] flex items-center justify-between px-6 lg:px-8 border-b border-white/50 transition-all duration-300">
+                <div className="flex items-center gap-4">
+                    <div className="bg-indigo-600 p-2.5 rounded-xl shadow-lg shadow-indigo-200">
+                        <div className="text-white font-black text-xl tracking-tighter">Z</div>
+                    </div>
+                    <div>
+                        <h1 className="text-xl font-black text-gray-900 tracking-tight">Z-ON DOOR</h1>
+                        <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-[0.2em] bg-indigo-50 px-2 py-0.5 rounded-md">Admin Panel</span>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    <div className="hidden md:flex items-center gap-3 bg-gray-50/80 px-4 py-2 rounded-2xl border border-gray-100/50 hover:bg-white transition-all group cursor-default">
+                        <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center shadow-inner">
+                            <User size={16} strokeWidth={3} />
+                        </div>
+                        <div className="text-right">
+                            <div className="text-xs font-black text-gray-900 group-hover:text-indigo-700 transition-colors">{user?.name || 'Administrator'}</div>
+                            <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{user?.role || 'Super User'}</div>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={() => navigate('/profile')}
+                        className="p-3 bg-white hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 rounded-xl transition-all shadow-sm border border-gray-100 hover:border-indigo-100 group"
+                        title="Edit Profile"
+                    >
+                        <Edit2 size={18} className="group-hover:scale-110 transition-transform" />
+                    </button>
+
+                    <button
+                        onClick={logout}
+                        className="flex items-center gap-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-red-200 hover:shadow-red-300 transition-all active:scale-95 font-bold text-xs uppercase tracking-widest"
+                    >
+                        <LogOut size={16} strokeWidth={2.5} />
+                        <span className="hidden sm:inline">Exit</span>
+                    </button>
+                </div>
+            </div>
 
             {/* Floating Navigation Panels */}
             <div className="px-4 relative z-[110] mb-8">
