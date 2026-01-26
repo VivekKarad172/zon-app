@@ -71,6 +71,7 @@ export default function AdminDashboard() {
     const [selectedOrders, setSelectedOrders] = useState([]);
     const [dateRange, setDateRange] = useState({ start: '', end: '' });
     const [showImportOrders, setShowImportOrders] = useState(false);
+    const [showBulkAction, setShowBulkAction] = useState(false);
     const [showBulkDesigns, setShowBulkDesigns] = useState(false);
     const [showBulkColors, setShowBulkColors] = useState(false);
 
