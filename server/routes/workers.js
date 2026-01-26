@@ -279,7 +279,7 @@ router.post('/complete', async (req, res) => {
             'PVC_CUT': { flag: 'isPvcDone', deps: [] },
             'FOIL_PASTING': { flag: 'isFoilDone', deps: [] },
             'EMBOSS': { flag: 'isEmbossDone', deps: ['isFoilDone'] },
-            'DOOR_MAKING': { flag: 'isDoorMade', deps: ['isPvcDone', 'isFoilDone', 'isEmbossDone'] },
+            'DOOR_MAKING': { flag: 'isDoorMade', deps: ['isPvcDone', 'isFoilDone'] }, // Removed 'isEmbossDone' from hard dependency
             'PACKING': { flag: 'isPacked', deps: ['isDoorMade'] }
         };
 
@@ -292,7 +292,27 @@ router.post('/complete', async (req, res) => {
         }
 
         // CHECK 2: Dependencies
-        const missingDeps = rule.deps.filter(dep => !unit[dep]);
+        // CHECK 2: Dependencies
+        // Dynamic Dependency Check for EMBOSS
+        let requiredDeps = [...rule.deps];
+
+        if (worker.role === 'DOOR_MAKING') {
+            // Fetch Design Category
+            const orderItem = await OrderItem.findByPk(unit.orderItemId, { include: [Design] });
+            if (orderItem && orderItem.Design?.category === 'EMBOSS') {
+                requiredDeps.push('isEmbossDone');
+            }
+        }
+
+        // Also: Prevent Emboss worker from claiming non-Emboss units (Safety)
+        if (worker.role === 'EMBOSS') {
+            const orderItem = await OrderItem.findByPk(unit.orderItemId, { include: [Design] });
+            if (orderItem && orderItem.Design?.category !== 'EMBOSS') {
+                return res.status(400).json({ error: 'This design skips Emboss stage.' });
+            }
+        }
+
+        const missingDeps = requiredDeps.filter(dep => !unit[dep]);
         if (missingDeps.length > 0) {
             return res.status(400).json({ error: `Start failed. Waiting for: ${missingDeps.join(', ')}` });
         }
@@ -570,12 +590,22 @@ router.get('/stage/:stage', authenticate, authorize(['MANUFACTURER']), async (re
         else if (stage === 'PACKING') whereClause = { isPacked: false };
         else whereClause = { currentStage: stage }; // Fallback
 
+        // CONDITIONAL LOGIC: If checking EMBOSS stage, only show EMBOSS designs
+        let designInclude = {};
+        if (stage === 'EMBOSS') {
+            designInclude = { category: 'EMBOSS' };
+        }
+
         const units = await ProductionUnit.findAll({
             where: whereClause,
             include: [{
                 model: OrderItem,
                 include: [
-                    { model: Design, attributes: ['designNumber'] },
+                    {
+                        model: Design,
+                        attributes: ['designNumber', 'category'],
+                        where: designInclude
+                    },
                     { model: Color, attributes: ['name'] }
                 ]
             }]
