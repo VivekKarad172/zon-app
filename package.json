@@ -6,7 +6,7 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "build": "npm install --prefix client && npm run build --prefix client && npm install --prefix server",
+    "build": "npm ci --prefix client --prefer-offline --no-audit && npm run build --prefix client && npm ci --prefix server --prefer-offline --no-audit",
     "start": "npm start --prefix server",
     "dev": "concurrently \"npm run dev --prefix client\" \"npm run server --prefix server\""
   },
