@@ -25,6 +25,27 @@ export default function WorkerLogin() {
         fetchWorkers();
     }, []);
 
+    // KEYBOARD SUPPORT FOR PIN ENTRY
+    useEffect(() => {
+        if (!selectedWorker) return;
+
+        const handleKeyPress = (e) => {
+            // Number keys (0-9)
+            if (e.key >= '0' && e.key <= '9') {
+                e.preventDefault();
+                handleNumClick(parseInt(e.key));
+            }
+            // Backspace
+            else if (e.key === 'Backspace') {
+                e.preventDefault();
+                handleBackspace();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyPress);
+        return () => window.removeEventListener('keydown', handleKeyPress);
+    }, [selectedWorker, pin]); // Re-attach when pin changes
+
     const handleNumClick = (num) => {
         if (pin.length < 4) {
             const newPin = pin + num;

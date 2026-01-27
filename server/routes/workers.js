@@ -218,13 +218,19 @@ router.get('/tasks', async (req, res) => {
         // Return all pending units (not yet packed).
 
         // CUSTOM RULE: Emboss Workers should ONLY see EMBOSS category designs
+        // AND only tasks that have completed Foil (their dependency)
         let designInclude = {};
+        let unitWhere = { isPacked: false };
+
         if (worker.role === 'EMBOSS') {
             designInclude = { category: 'EMBOSS' };
+            // Emboss workers should only see tasks where Foil is done
+            unitWhere.isFoilDone = true;
+            unitWhere.isEmbossDone = false; // Not yet embossed
         }
 
         const tasks = await ProductionUnit.findAll({
-            where: { isPacked: false },
+            where: unitWhere,
             include: [{
                 model: OrderItem,
                 include: [
@@ -427,6 +433,128 @@ router.post('/complete', async (req, res) => {
         res.json({ message: 'Task Completed', flags: updateData });
     } catch (error) {
 
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /workers/complete-batch - Complete multiple tasks at once (for PVC_CUT, PACKING)
+router.post('/complete-batch', async (req, res) => {
+    try {
+        const { workerId, unitIds, lat, lng } = req.body;
+
+        if (!Array.isArray(unitIds) || unitIds.length === 0) {
+            return res.status(400).json({ error: 'No units selected' });
+        }
+
+        const worker = await Worker.findByPk(workerId);
+        if (!worker) return res.status(404).json({ error: 'Worker not found' });
+
+        // Only allow batch for simple roles
+        if (!['PVC_CUT', 'PACKING'].includes(worker.role)) {
+            return res.status(400).json({ error: 'Batch completion not allowed for this role' });
+        }
+
+        // CHECK GEOFENCE (once for entire batch)
+        await SystemSetting.sync();
+        const setting = await SystemSetting.findByPk('FACTORY_COORDS');
+        if (setting) {
+            const factory = JSON.parse(setting.value);
+            if (lat && lng) {
+                const dist = getDistanceFromLatLonInMeters(lat, lng, factory.lat, factory.lng);
+                if (dist > 500) {
+                    return res.status(403).json({ error: `You are ${Math.round(dist)}m away from Factory!` });
+                }
+            } else {
+                return res.status(403).json({ error: 'GPS Location Required' });
+            }
+        }
+
+        const ROLE_MAP = {
+            'PVC_CUT': { flag: 'isPvcDone', deps: [] },
+            'PACKING': { flag: 'isPacked', deps: ['isDoorMade'] }
+        };
+
+        const rule = ROLE_MAP[worker.role];
+        const results = { success: [], failed: [] };
+
+        // Process each unit
+        for (const unitId of unitIds) {
+            try {
+                const unit = await ProductionUnit.findByPk(unitId);
+
+                if (!unit) {
+                    results.failed.push({ unitId, reason: 'Unit not found' });
+                    continue;
+                }
+
+                // Check if already done
+                if (unit[rule.flag]) {
+                    results.failed.push({ unitId, reason: 'Already completed' });
+                    continue;
+                }
+
+                // Check dependencies
+                let requiredDeps = [...rule.deps];
+
+                // For DOOR_MAKING, fetch design category
+                if (worker.role === 'DOOR_MAKING') {
+                    const orderItem = await OrderItem.findByPk(unit.orderItemId, { include: [Design] });
+                    if (orderItem && orderItem.Design?.category === 'EMBOSS') {
+                        requiredDeps.push('isEmbossDone');
+                    }
+                }
+
+                const missingDeps = requiredDeps.filter(dep => !unit[dep]);
+                if (missingDeps.length > 0) {
+                    results.failed.push({ unitId, reason: `Missing: ${missingDeps.join(', ')}` });
+                    continue;
+                }
+
+                // Execute update
+                const updateData = {};
+                updateData[rule.flag] = true;
+                await unit.update(updateData);
+
+                // Create history record
+                await sequelize.models.ProcessRecord.create({
+                    productionUnitId: unit.id,
+                    workerId: worker.id,
+                    stage: worker.role,
+                    timestamp: new Date()
+                });
+
+                // Auto-update order to READY if all packed
+                if (rule.flag === 'isPacked') {
+                    const orderItem = await OrderItem.findByPk(unit.orderItemId);
+                    if (orderItem) {
+                        const orderId = orderItem.orderId;
+                        const allUnits = await ProductionUnit.findAll({
+                            include: [{ model: OrderItem, where: { orderId } }]
+                        });
+                        const totalUnits = allUnits.length;
+                        const packedUnits = allUnits.filter(u => u.isPacked).length;
+
+                        if (totalUnits > 0 && totalUnits === packedUnits) {
+                            const currentOrder = await Order.findByPk(orderId);
+                            if (currentOrder && ['RECEIVED', 'PRODUCTION'].includes(currentOrder.status)) {
+                                await Order.update({ status: 'READY' }, { where: { id: orderId } });
+                            }
+                        }
+                    }
+                }
+
+                results.success.push(unitId);
+            } catch (error) {
+                results.failed.push({ unitId, reason: error.message });
+            }
+        }
+
+        res.json({
+            message: `Completed ${results.success.length} of ${unitIds.length} tasks`,
+            results
+        });
+
+    } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });

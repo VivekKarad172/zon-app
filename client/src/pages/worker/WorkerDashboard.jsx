@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
-import { LogOut, RefreshCw, Check, Lock, AlertOctagon, Box, Ruler, User, Layers } from 'lucide-react';
+import { LogOut, RefreshCw, Check, Lock, AlertOctagon, Box, Ruler, User, Layers, Search, Filter, X } from 'lucide-react';
 
 import { getDesignType, getOptimalBlankSize } from '../../utils/designLogicClient';
 
@@ -17,6 +17,23 @@ export default function WorkerDashboard() {
     const [history, setHistory] = useState([]);
     const [todayCompleted, setTodayCompleted] = useState(0); // Today's completion count
     const [isRefreshing, setIsRefreshing] = useState(false); // Auto-refresh indicator
+
+    // SEARCH & FILTER STATE
+    const [searchText, setSearchText] = useState(''); // Search by order/design/dealer
+    const [showUrgentOnly, setShowUrgentOnly] = useState(false); // Urgent filter toggle
+
+    // BATCH ACTIONS STATE
+    const [selectedUnits, setSelectedUnits] = useState(new Set()); // Selected task IDs for batch completion
+
+    // DAILY TARGET STATE
+    const dailyTargets = {
+        'PVC_CUT': 80,
+        'FOIL_PASTING': 50,
+        'EMBOSS': 40,
+        'DOOR_MAKING': 60,
+        'PACKING': 70
+    };
+    const myTarget = dailyTargets[worker?.role] || 50;
 
     const fetchHistory = async () => {
         try {
@@ -223,6 +240,109 @@ export default function WorkerDashboard() {
         navigate('/worker/login');
     };
 
+    // FILTER LOGIC
+    const filterTasks = (groups) => {
+        if (!searchText && !showUrgentOnly) return groups;
+
+        return groups.map(group => {
+            let filteredItems = group.items;
+
+            // Filter by search text (order number, design, dealer)
+            if (searchText) {
+                const search = searchText.toLowerCase();
+                filteredItems = filteredItems.filter(unit => {
+                    const item = unit.OrderItem;
+                    const design = item?.Design;
+                    const dealer = item?.Order?.User;
+                    const orderNum = `#${group.id}`;
+
+                    return (
+                        orderNum.includes(search) ||
+                        design?.designNumber?.toLowerCase().includes(search) ||
+                        dealer?.name?.toLowerCase().includes(search) ||
+                        dealer?.shopName?.toLowerCase().includes(search)
+                    );
+                });
+            }
+
+            // Filter by urgent only
+            if (showUrgentOnly) {
+                filteredItems = filteredItems.filter(unit => checkPriority(unit));
+            }
+
+            return { ...group, items: filteredItems };
+        }).filter(group => group.items.length > 0); // Remove empty groups
+    };
+
+    // BATCH ACTIONS
+    const toggleSelectUnit = (unitId) => {
+        const newSet = new Set(selectedUnits);
+        if (newSet.has(unitId)) {
+            newSet.delete(unitId);
+        } else {
+            newSet.add(unitId);
+        }
+        setSelectedUnits(newSet);
+    };
+
+    const toggleSelectOrder = (group) => {
+        // Get all incomplete task IDs in this order
+        const orderUnitIds = group.items
+            .filter(unit => !unit[myRole.flag]) // Only incomplete tasks
+            .map(unit => unit.id);
+
+        // Check if all are already selected
+        const allSelected = orderUnitIds.every(id => selectedUnits.has(id));
+
+        const newSet = new Set(selectedUnits);
+        if (allSelected) {
+            // Deselect all
+            orderUnitIds.forEach(id => newSet.delete(id));
+        } else {
+            // Select all
+            orderUnitIds.forEach(id => newSet.add(id));
+        }
+        setSelectedUnits(newSet);
+    };
+
+    const handleBatchComplete = async () => {
+        if (selectedUnits.size === 0) return;
+
+        if (!confirm(`Complete ${selectedUnits.size} selected tasks?`)) return;
+
+        const toastId = toast.loading(`Completing ${selectedUnits.size} tasks...`);
+
+        if (!navigator.geolocation) {
+            toast.dismiss(toastId);
+            return toast.error('GPS not supported');
+        }
+
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            try {
+                const { latitude, longitude } = pos.coords;
+
+                await api.post('/workers/complete-batch', {
+                    workerId: worker.id,
+                    unitIds: Array.from(selectedUnits),
+                    lat: latitude,
+                    lng: longitude
+                });
+
+                toast.dismiss(toastId);
+                toast.success(`${selectedUnits.size} tasks completed!`);
+                setSelectedUnits(new Set()); // Clear selection
+                fetchTasks(); // Refresh
+            } catch (error) {
+                toast.dismiss(toastId);
+                const msg = error.response?.data?.error || 'Batch completion failed';
+                toast.error(msg);
+            }
+        }, (err) => {
+            toast.dismiss(toastId);
+            toast.error('Location Access Denied');
+        }, { enableHighAccuracy: true, timeout: 10000 });
+    };
+
     if (!worker || !myRole) return null;
 
     const BASE_URL = api.defaults.baseURL.replace('/api', '');
@@ -269,6 +389,14 @@ export default function WorkerDashboard() {
                                         <span className="text-[10px] font-bold uppercase tracking-wider">Syncing...</span>
                                     </div>
                                 )}
+
+                                {/* TARGET REACHED CELEBRATION */}
+                                {todayCompleted >= myTarget && (
+                                    <div className="flex items-center gap-2 bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 px-3 py-1.5 rounded-lg shadow-lg animate-pulse">
+                                        <span className="text-lg">🏆</span>
+                                        <span className="text-[10px] font-black uppercase tracking-wider">Target Reached!</span>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Stats Grid */}
@@ -277,7 +405,20 @@ export default function WorkerDashboard() {
                                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
                                     <div className="text-[9px] uppercase tracking-wider font-bold text-slate-300 mb-1">Completed</div>
                                     <div className="text-3xl font-black">{todayCompleted}</div>
-                                    <div className="text-[8px] text-slate-400 mt-0.5">Today</div>
+                                    <div className="text-[8px] text-slate-400 mt-0.5">
+                                        of {myTarget} target
+                                    </div>
+
+                                    {/* Progress Bar */}
+                                    <div className="mt-2 bg-white/20 rounded-full h-2 overflow-hidden">
+                                        <div
+                                            className={`h-full transition-all duration-500 ${todayCompleted >= myTarget * 0.9 ? 'bg-green-400' :
+                                                todayCompleted >= myTarget * 0.5 ? 'bg-yellow-400' :
+                                                    'bg-red-400'
+                                                }`}
+                                            style={{ width: `${Math.min((todayCompleted / myTarget) * 100, 100)}%` }}
+                                        ></div>
+                                    </div>
                                 </div>
 
                                 {/* Pending Count */}
@@ -298,6 +439,54 @@ export default function WorkerDashboard() {
                                     <div className="text-[8px] text-slate-400 mt-0.5">Done</div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* SEARCH & FILTER BAR */}
+            {activeTab === 'tasks' && (
+                <div className="px-3 pb-3 max-w-xl mx-auto w-full">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 space-y-3">
+                        {/* Search Input */}
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <input
+                                type="text"
+                                placeholder="Search order #, design, or dealer name..."
+                                value={searchText}
+                                onChange={(e) => setSearchText(e.target.value)}
+                                className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            />
+                            {searchText && (
+                                <button
+                                    onClick={() => setSearchText('')}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                >
+                                    <X size={18} />
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Filter Toggles */}
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setShowUrgentOnly(!showUrgentOnly)}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${showUrgentOnly
+                                    ? 'bg-red-500 text-white'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    }`}
+                            >
+                                <Filter size={14} />
+                                Urgent Only
+                            </button>
+
+                            {/* Active Filter Count */}
+                            {(searchText || showUrgentOnly) && (
+                                <div className="ml-auto text-xs text-gray-500 font-semibold">
+                                    {filterTasks(groupedTasks).reduce((sum, g) => sum + g.items.length, 0)} results
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -341,14 +530,29 @@ export default function WorkerDashboard() {
                 ) : (
                     <>
                         <div className="px-1 text-[10px] font-black text-gray-400 uppercase tracking-widest flex justify-between">
-                            <span>Pending Orders: {groupedTasks.length}</span>
+                            <span>Pending Orders: {filterTasks(groupedTasks).length}</span>
                         </div>
 
-                        {groupedTasks.map(group => (
+                        {filterTasks(groupedTasks).map(group => (
                             <div key={group.id} className="mb-6">
                                 {/* ORDER HEADER */}
                                 <div className="flex items-center justify-between px-1 mb-2">
                                     <div className="flex items-center gap-3">
+                                        {/* ORDER-LEVEL SELECT ALL CHECKBOX */}
+                                        {['PVC_CUT', 'PACKING'].includes(worker.role) && (() => {
+                                            const incompleteUnits = group.items.filter(u => !u[myRole.flag]);
+                                            const allSelected = incompleteUnits.length > 0 && incompleteUnits.every(u => selectedUnits.has(u.id));
+                                            return (
+                                                <input
+                                                    type="checkbox"
+                                                    checked={allSelected}
+                                                    onChange={() => toggleSelectOrder(group)}
+                                                    className="w-5 h-5 rounded border-2 border-gray-400 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                                    title="Select all tasks in this order"
+                                                />
+                                            );
+                                        })()}
+
                                         <div className="bg-slate-900 text-white font-black text-xs uppercase px-3 py-1.5 rounded-lg shadow-sm tracking-widest">
                                             Order #{group.id}
                                         </div>
@@ -532,6 +736,18 @@ export default function WorkerDashboard() {
                                             return (
                                                 <div key={unit.id} className={`p-0 flex relative ${isHighPriority ? 'bg-red-50/30' : ''} ${isCompleted ? 'opacity-50' : ''}`}>
 
+                                                    {/* BATCH SELECTION CHECKBOX (PVC_CUT & PACKING only) */}
+                                                    {!isCompleted && ['PVC_CUT', 'PACKING'].includes(worker.role) && (
+                                                        <div className="absolute top-2 left-2 z-30">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedUnits.has(unit.id)}
+                                                                onChange={() => toggleSelectUnit(unit.id)}
+                                                                className="w-5 h-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                                            />
+                                                        </div>
+                                                    )}
+
                                                     {isHighPriority && !isCompleted && (
                                                         <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-bl-lg z-20 shadow-md">
                                                             Urgent
@@ -568,7 +784,7 @@ export default function WorkerDashboard() {
                                                     )}
 
                                                     {/* LEFT VISUALS */}
-                                                    <div className="w-24 bg-gray-100 relative shrink-0 border-r border-gray-100">
+                                                    <div className="w-20 h-16 bg-gray-100 relative shrink-0 border-r border-gray-100">
                                                         {/* Design Image */}
                                                         {showDesign && design?.imageUrl ? (
                                                             <img
@@ -576,42 +792,42 @@ export default function WorkerDashboard() {
                                                                 className={`w-full h-full object-cover ${locked ? 'grayscale opacity-60' : ''}`}
                                                             />
                                                         ) : (
-                                                            <div className="w-full h-full flex items-center justify-center text-gray-300"><Box size={20} /></div>
+                                                            <div className="w-full h-full flex items-center justify-center text-gray-300"><Box size={16} /></div>
                                                         )}
 
                                                         {/* Color Overlay */}
                                                         {showColor && color?.imageUrl && (
-                                                            <div className={`absolute bottom-0 right-0 overflow-hidden shadow-sm border border-white ${bigColor ? 'w-full h-1/2' : 'w-8 h-8 rounded-tl-lg'}`}>
+                                                            <div className={`absolute bottom-0 right-0 overflow-hidden shadow-sm border border-white ${bigColor ? 'w-full h-1/2' : 'w-6 h-6 rounded-tl-lg'}`}>
                                                                 <img src={`${BASE_URL}${color.imageUrl}`} className="w-full h-full object-cover" />
                                                             </div>
                                                         )}
 
                                                         {/* Unit Badge */}
-                                                        <div className="absolute top-1 left-1 bg-black/50 text-white text-[9px] font-mono px-1 rounded backdrop-blur-sm">
+                                                        <div className="absolute top-0.5 left-0.5 bg-black/50 text-white text-[8px] font-mono px-1 rounded backdrop-blur-sm">
                                                             #{unit.unitNumber}
                                                         </div>
                                                     </div>
 
                                                     {/* RIGHT DETAILS */}
-                                                    <div className="flex-1 p-3 flex flex-col justify-between min-h-[100px]">
+                                                    <div className="flex-1 p-2 flex flex-col justify-center">
                                                         <div>
                                                             {/* Dimensions & Blank Size */}
                                                             {showSize && (
-                                                                <div className="flex flex-col">
-                                                                    <div className={`font-black text-gray-800 flex items-center gap-1 ${bigSize ? 'text-xl' : 'text-sm'}`}>
-                                                                        <Ruler size={bigSize ? 16 : 12} className="text-gray-400" />
+                                                                <div className="flex flex-col gap-1">
+                                                                    <div className={`font-black text-gray-800 flex items-center gap-1.5 ${bigSize ? 'text-xl' : 'text-base'}`}>
+                                                                        <Ruler size={bigSize ? 18 : 14} className="text-gray-400" />
                                                                         {item?.width}" × {item?.height}"
                                                                     </div>
                                                                     {/* BLANK SIZE DISPLAY */}
                                                                     {blankSize && (
-                                                                        <div className="text-xs font-bold text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded w-fit mt-1 border border-indigo-100">
+                                                                        <div className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded w-fit border border-indigo-100">
                                                                             Blank: {blankSize}
                                                                         </div>
                                                                     )}
                                                                 </div>
                                                             )}
 
-                                                            <div className="text-xs text-gray-500 font-medium truncate mt-0.5">
+                                                            <div className="text-xs text-gray-500 font-medium truncate mt-1">
                                                                 {design?.designNumber} • {color?.name}
                                                             </div>
                                                         </div>
@@ -686,6 +902,19 @@ export default function WorkerDashboard() {
                     </>
                 )}
             </div>
+
+            {/* FLOATING BATCH COMPLETE BUTTON */}
+            {selectedUnits.size > 0 && ['PVC_CUT', 'PACKING'].includes(worker.role) && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-bounce-in">
+                    <button
+                        onClick={handleBatchComplete}
+                        className="bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-3 font-black text-lg hover:scale-105 active:scale-95 transition-transform"
+                    >
+                        <Check size={24} strokeWidth={3} />
+                        Complete {selectedUnits.size} Selected
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
