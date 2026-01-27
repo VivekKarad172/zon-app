@@ -203,6 +203,14 @@ export default function WorkerDashboard() {
 
     const fetchTasks = async () => {
         try {
+            // DEFENSIVE CHECK: Ensure worker exists and has ID
+            if (!worker || !worker.id) {
+                console.error('Worker object missing or invalid:', worker);
+                toast.error('Session expired. Please login again.');
+                navigate('/worker/login');
+                return;
+            }
+
             // OFFLINE MODE FETCH
             if (!navigator.onLine) {
                 const cached = getCachedTasks();
@@ -214,23 +222,28 @@ export default function WorkerDashboard() {
                 }
             }
 
+            console.log('Fetching tasks for worker:', worker.id, worker.name);
+
             const res = await api.get('/workers/tasks', {
-                params: { workerId: worker.id }
+                headers: { 'x-worker-id': worker.id }
             });
 
             const tasks = res.data;
+            console.log('Tasks received:', tasks.length);
             saveTasksToCache(tasks); // Cache new data
             processTasks(tasks);
 
         } catch (error) {
-            console.error('Fetch error', error);
+            console.error('Fetch error:', error);
+            console.error('Error details:', error.response?.data || error.message);
+            playError(); // Audio feedback
             // If fetch fails but we have cache, use it
             const cached = getCachedTasks();
             if (cached) {
                 processTasks(cached);
                 toast('Network error, using cached data', { icon: '📂' });
             } else {
-                toast.error('Failed to load tasks');
+                toast.error(error.response?.data?.error || 'Failed to load tasks');
             }
         } finally {
             setLoading(false);
