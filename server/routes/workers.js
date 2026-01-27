@@ -331,13 +331,12 @@ router.post('/complete', async (req, res) => {
             // only create history record for full completion or major steps?
             // User likely wants history for payroll/tracking. 
             // Let's create record for Front/Back actions too, maybe with stage detail?
-            // Existing schema 'stage' is string. We can store 'FOIL_PASTING_FRONT'.
-            // But standardizing:
+            // Fixed: Use 'FOIL_PASTING' for all foil records (enum constraint)
             if (partialType === 'FRONT' || partialType === 'BACK') {
                 await sequelize.models.ProcessRecord.create({
                     productionUnitId: unit.id,
                     workerId: worker.id,
-                    stage: `FOIL_${partialType}`, // FOIL_FRONT or FOIL_BACK
+                    stage: 'FOIL_PASTING', // Fixed: Use valid enum value
                     timestamp: new Date()
                 });
             }
