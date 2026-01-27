@@ -180,3 +180,13 @@
 [2026-01-09T17:29:59.029Z] User Token Payload: {"id":1,"role":"MANUFACTURER","name":"Z-on Door Admin","iat":1767979475,"exp":1768584275}
 [2026-01-09T17:29:59.030Z] Final Where: {"role":"DISTRIBUTOR"}
 [2026-01-09T17:29:59.031Z] Found 3 users.
+[2026-01-27T14:33:51.671Z] --- GET /users REQUEST ---
+[2026-01-27T14:33:51.775Z] --- GET /users REQUEST ---
+[2026-01-27T14:33:51.792Z] Found 3 users.
+[2026-01-27T14:33:51.793Z] Found 9 users.
+[2026-01-27T14:33:53.229Z] --- GET /users REQUEST ---
+[2026-01-27T14:33:53.234Z] Found 3 users.
+[2026-01-27T14:33:59.633Z] --- GET /users REQUEST ---
+[2026-01-27T14:33:59.668Z] Found 3 users.
+[2026-01-27T15:03:11.129Z] --- GET /users REQUEST ---
+[2026-01-27T15:03:11.182Z] Found 3 users.

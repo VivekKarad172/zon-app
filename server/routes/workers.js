@@ -247,7 +247,7 @@ router.get('/tasks', async (req, res) => {
                     }
                 ]
             }],
-            order: [['updatedAt', 'ASC']]
+            order: [['id', 'ASC']]
         });
 
         res.json(tasks);
@@ -302,10 +302,14 @@ router.post('/complete', async (req, res) => {
             const changes = {};
             let isFullComplete = false;
 
-            if (partialType === 'PICK') {
-                changes.isFoilSheetPicked = true;
-            } else if (partialType === 'PICK_UNDO') {
-                changes.isFoilSheetPicked = false;
+            if (partialType === 'FRONT_PICK') {
+                changes.isFoilFrontSheetPicked = true;
+            } else if (partialType === 'FRONT_PICK_UNDO') {
+                changes.isFoilFrontSheetPicked = false;
+            } else if (partialType === 'BACK_PICK') {
+                changes.isFoilBackSheetPicked = true;
+            } else if (partialType === 'BACK_PICK_UNDO') {
+                changes.isFoilBackSheetPicked = false;
             } else if (partialType === 'FRONT') {
                 changes.isFoilFrontDone = true;
             } else if (partialType === 'BACK') {

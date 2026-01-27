@@ -107,7 +107,10 @@ export default function WorkerDashboard() {
                 g.items.sort((a, b) => {
                     const aPrio = checkPriority(a) ? 1 : 0;
                     const bPrio = checkPriority(b) ? 1 : 0;
-                    return bPrio - aPrio;
+                    // Primary: Priority (high first)
+                    if (bPrio !== aPrio) return bPrio - aPrio;
+                    // Secondary: Unit number (stable order)
+                    return a.unitNumber - b.unitNumber;
                 });
             });
 
@@ -339,34 +342,45 @@ export default function WorkerDashboard() {
                                                                 <Lock size={10} /> {reason}
                                                             </button>
                                                         ) : worker.role === 'FOIL_PASTING' ? (
-                                                            // CUSTOM FOIL UI
-                                                            <div className="flex gap-2 items-center">
-                                                                {/* 1. PICK */}
-                                                                <button
-                                                                    onClick={() => handleComplete(unit.id, unit.isFoilSheetPicked ? 'PICK_UNDO' : 'PICK')}
-                                                                    className={`p-2 rounded-lg border ${unit.isFoilSheetPicked ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-400 border-gray-200'}`}
-                                                                >
-                                                                    <div className="text-[9px] font-bold uppercase mb-[2px]">Pick</div>
-                                                                    {unit.isFoilSheetPicked ? <Check size={16} /> : <div className="w-4 h-4 rounded-sm border border-gray-300 mx-auto" />}
-                                                                </button>
+                                                            // CUSTOM FOIL UI - INTEGRATED PICK + DONE
+                                                            <div className="flex gap-2 items-stretch">
+                                                                {/* FRONT (Pick + Done Combined) */}
+                                                                <div className="flex-1 flex flex-col gap-1">
+                                                                    {/* Front Pick */}
+                                                                    <button
+                                                                        onClick={() => handleComplete(unit.id, unit.isFoilFrontSheetPicked ? 'FRONT_PICK_UNDO' : 'FRONT_PICK')}
+                                                                        className={`px-2 py-1 rounded-md border text-[9px] font-bold uppercase transition-all ${unit.isFoilFrontSheetPicked ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'}`}
+                                                                    >
+                                                                        {unit.isFoilFrontSheetPicked ? '✓ Picked' : 'Pick Front'}
+                                                                    </button>
+                                                                    {/* Front Done */}
+                                                                    <button
+                                                                        onClick={() => !unit.isFoilFrontDone && handleComplete(unit.id, 'FRONT')}
+                                                                        disabled={unit.isFoilFrontDone}
+                                                                        className={`flex-1 py-2 rounded-lg font-bold text-[10px] uppercase border transition-all ${unit.isFoilFrontDone ? 'bg-green-100 text-green-700 border-green-200 opacity-50' : 'bg-white text-gray-700 border-gray-300 active:scale-95'}`}
+                                                                    >
+                                                                        {unit.isFoilFrontDone ? 'Front Done' : 'Front'}
+                                                                    </button>
+                                                                </div>
 
-                                                                {/* 2. FRONT */}
-                                                                <button
-                                                                    onClick={() => !unit.isFoilFrontDone && handleComplete(unit.id, 'FRONT')}
-                                                                    disabled={unit.isFoilFrontDone}
-                                                                    className={`flex-1 py-2 rounded-lg font-bold text-[10px] uppercase border transition-all ${unit.isFoilFrontDone ? 'bg-green-100 text-green-700 border-green-200 opacity-50' : 'bg-white text-gray-700 border-gray-300 active:scale-95'}`}
-                                                                >
-                                                                    {unit.isFoilFrontDone ? 'Front Done' : 'Front'}
-                                                                </button>
-
-                                                                {/* 3. BACK */}
-                                                                <button
-                                                                    onClick={() => !unit.isFoilBackDone && handleComplete(unit.id, 'BACK')}
-                                                                    disabled={unit.isFoilBackDone}
-                                                                    className={`flex-1 py-2 rounded-lg font-bold text-[10px] uppercase border transition-all ${unit.isFoilBackDone ? 'bg-green-100 text-green-700 border-green-200 opacity-50' : 'bg-white text-gray-700 border-gray-300 active:scale-95'}`}
-                                                                >
-                                                                    {unit.isFoilBackDone ? 'Back Done' : 'Back'}
-                                                                </button>
+                                                                {/* BACK (Pick + Done Combined) */}
+                                                                <div className="flex-1 flex flex-col gap-1">
+                                                                    {/* Back Pick */}
+                                                                    <button
+                                                                        onClick={() => handleComplete(unit.id, unit.isFoilBackSheetPicked ? 'BACK_PICK_UNDO' : 'BACK_PICK')}
+                                                                        className={`px-2 py-1 rounded-md border text-[9px] font-bold uppercase transition-all ${unit.isFoilBackSheetPicked ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'}`}
+                                                                    >
+                                                                        {unit.isFoilBackSheetPicked ? '✓ Picked' : 'Pick Back'}
+                                                                    </button>
+                                                                    {/* Back Done */}
+                                                                    <button
+                                                                        onClick={() => !unit.isFoilBackDone && handleComplete(unit.id, 'BACK')}
+                                                                        disabled={unit.isFoilBackDone}
+                                                                        className={`flex-1 py-2 rounded-lg font-bold text-[10px] uppercase border transition-all ${unit.isFoilBackDone ? 'bg-green-100 text-green-700 border-green-200 opacity-50' : 'bg-white text-gray-700 border-gray-300 active:scale-95'}`}
+                                                                    >
+                                                                        {unit.isFoilBackDone ? 'Back Done' : 'Back'}
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                         ) : (
                                                             // STANDARD BUTTON (Non-Foil)

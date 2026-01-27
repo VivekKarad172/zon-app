@@ -35,11 +35,15 @@ const ProductionUnit = sequelize.define('ProductionUnit', {
         type: DataTypes.BOOLEAN,
         defaultValue: false
     },
+    isFoilFrontSheetPicked: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
     isFoilBackDone: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
     },
-    isFoilSheetPicked: {
+    isFoilBackSheetPicked: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
     },

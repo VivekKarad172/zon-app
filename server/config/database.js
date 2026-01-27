@@ -21,4 +21,10 @@ const sequelize = isPostgres
     logging: false
   });
 
+// DIAGNOSTIC: Show which database is being used
+const dbPath = isPostgres ? 'PostgreSQL (from DATABASE_URL)' : path.join(__dirname, '..', 'database.sqlite');
+console.log('==============================================');
+console.log('DATABASE CONNECTION:', dbPath);
+console.log('==============================================');
+
 module.exports = sequelize;

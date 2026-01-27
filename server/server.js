@@ -64,7 +64,8 @@ app.get(/(.*)/, (req, res) => {
 
 // Sync Database and Start Server
 // Reverted to standard sync to prevent FK constraint errors
-sequelize.sync().then(() => {
+// ENABLE ALTER for Schema Update (Foil Pasting Columns)
+sequelize.sync({ alter: true }).then(() => {
     console.log('Database connected and schema updated.');
     app.listen(PORT, '0.0.0.0', () => {
         console.log(`Server is running on port ${PORT}`);
