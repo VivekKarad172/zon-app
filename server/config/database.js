@@ -1,7 +1,9 @@
 const { Sequelize } = require('sequelize');
 const path = require('path');
 
-const sequelize = process.env.DATABASE_URL
+const isPostgres = process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('postgres');
+
+const sequelize = isPostgres
   ? new Sequelize(process.env.DATABASE_URL, {
     dialect: 'postgres',
     protocol: 'postgres',
