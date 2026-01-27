@@ -15,17 +15,24 @@ export default function WorkerDashboard() {
     // NEW STATE
     const [activeTab, setActiveTab] = useState('tasks'); // 'tasks' or 'history'
     const [history, setHistory] = useState([]);
+    const [todayCompleted, setTodayCompleted] = useState(0); // Today's completion count
+    const [isRefreshing, setIsRefreshing] = useState(false); // Auto-refresh indicator
 
     const fetchHistory = async () => {
         try {
             setLoading(true);
+            console.log('[HISTORY] Fetching history for worker:', worker.id);
             const res = await api.get('/workers/history', {
                 headers: { 'x-worker-id': worker.id }
             });
+            console.log('[HISTORY] Received data:', res.data);
             setHistory(res.data);
             setLoading(false);
         } catch (error) {
-            toast.error('Failed to load history');
+            console.error('[HISTORY] Error fetching history:', error);
+            console.error('[HISTORY] Error response:', error.response?.data);
+            console.error('[HISTORY] Error status:', error.response?.status);
+            toast.error(error.response?.data?.error || 'Failed to load history');
             setLoading(false);
         }
     };
@@ -39,6 +46,22 @@ export default function WorkerDashboard() {
             fetchTasks();   // Refresh tasks too
         } catch (error) {
             toast.error('Undo Failed');
+        }
+    };
+
+    // UTILITY: Calculate waiting time
+    const getWaitingTime = (createdAt) => {
+        if (!createdAt) return null;
+        const now = new Date();
+        const created = new Date(createdAt);
+        const diffMs = now - created;
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+        if (diffHours > 0) {
+            return { text: `${diffHours}h ${diffMinutes}m`, hours: diffHours };
+        } else {
+            return { text: `${diffMinutes}m`, hours: 0 };
         }
     };
 
@@ -67,7 +90,10 @@ export default function WorkerDashboard() {
             return;
         }
         fetchTasks();
-        const interval = setInterval(fetchTasks, 15000); // Poll every 15s
+        const interval = setInterval(() => {
+            setIsRefreshing(true);
+            fetchTasks();
+        }, 60000); // Auto-refresh every 60 seconds
         return () => clearInterval(interval);
     }, []);
 
@@ -116,11 +142,27 @@ export default function WorkerDashboard() {
 
             setGroupedTasks(groupArray);
             setLoading(false);
+            setIsRefreshing(false);
+
+            // Fetch today's stats
+            fetchTodayStats();
         } catch (error) {
             console.error(error);
             const msg = error.response?.data?.error || error.message;
             toast.error(`Error: ${msg}`);
             setLoading(false);
+            setIsRefreshing(false);
+        }
+    };
+
+    const fetchTodayStats = async () => {
+        try {
+            const res = await api.get('/workers/history', {
+                headers: { 'x-worker-id': worker.id }
+            });
+            setTodayCompleted(res.data.length);
+        } catch (error) {
+            // Silently fail stats fetch
         }
     };
 
@@ -203,6 +245,64 @@ export default function WorkerDashboard() {
                 </div>
             </div>
 
+            {/* STATS WIDGET */}
+            {activeTab === 'tasks' && (
+                <div className="px-3 pb-2 max-w-xl mx-auto w-full">
+                    <div className="bg-gradient-to-br from-slate-900 to-slate-700 rounded-2xl p-4 shadow-lg text-white relative overflow-hidden">
+                        {/* Background Pattern */}
+                        <div className="absolute inset-0 opacity-10">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full -translate-y-16 translate-x-16"></div>
+                            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white rounded-full translate-y-12 -translate-x-12"></div>
+                        </div>
+
+                        <div className="relative z-10">
+                            {/* Worker Info */}
+                            <div className="flex items-center justify-between mb-3">
+                                <div>
+                                    <div className="text-[10px] uppercase tracking-widest font-bold text-slate-300">Worker Dashboard</div>
+                                    <div className="text-xl font-black">{worker.name}</div>
+                                    <div className="text-xs text-slate-300 font-semibold">{myRole?.label || worker.role}</div>
+                                </div>
+                                {isRefreshing && (
+                                    <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-lg backdrop-blur-sm">
+                                        <RefreshCw size={14} className="animate-spin" />
+                                        <span className="text-[10px] font-bold uppercase tracking-wider">Syncing...</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Stats Grid */}
+                            <div className="grid grid-cols-3 gap-3">
+                                {/* Today's Completed */}
+                                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                                    <div className="text-[9px] uppercase tracking-wider font-bold text-slate-300 mb-1">Completed</div>
+                                    <div className="text-3xl font-black">{todayCompleted}</div>
+                                    <div className="text-[8px] text-slate-400 mt-0.5">Today</div>
+                                </div>
+
+                                {/* Pending Count */}
+                                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                                    <div className="text-[9px] uppercase tracking-wider font-bold text-slate-300 mb-1">Pending</div>
+                                    <div className="text-3xl font-black">
+                                        {groupedTasks.reduce((sum, g) => sum + g.items.filter(u => !u[myRole.flag]).length, 0)}
+                                    </div>
+                                    <div className="text-[8px] text-slate-400 mt-0.5">Tasks</div>
+                                </div>
+
+                                {/* Completion Rate */}
+                                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                                    <div className="text-[9px] uppercase tracking-wider font-bold text-slate-300 mb-1">Rate</div>
+                                    <div className="text-3xl font-black">
+                                        {todayCompleted > 0 ? Math.round(todayCompleted / (todayCompleted + groupedTasks.reduce((sum, g) => sum + g.items.filter(u => !u[myRole.flag]).length, 0)) * 100) : 0}%
+                                    </div>
+                                    <div className="text-[8px] text-slate-400 mt-0.5">Done</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Grouped List or History */}
             <div className="flex-1 p-3 max-w-xl mx-auto w-full space-y-6">
                 {activeTab === 'history' ? (
@@ -245,159 +345,341 @@ export default function WorkerDashboard() {
                         </div>
 
                         {groupedTasks.map(group => (
-                            <div key={group.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div key={group.id} className="mb-6">
+                                {/* ORDER HEADER */}
+                                <div className="flex items-center justify-between px-1 mb-2">
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-slate-900 text-white font-black text-xs uppercase px-3 py-1.5 rounded-lg shadow-sm tracking-widest">
+                                            Order #{group.id}
+                                        </div>
+                                        <div className="text-gray-600 font-bold text-sm">
+                                            {group.items[0]?.OrderItem?.Order?.User?.name || 'Dealer'}
+                                        </div>
+                                    </div>
+                                    <div className="text-[10px] font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                                        {group.items.length} Units
+                                    </div>
+                                </div>
                                 {/* UNIT LIST */}
-                                <div className="divide-y divide-gray-100">
-                                    {group.items.map(unit => {
-                                        const item = unit.OrderItem;
-                                        const design = item?.Design;
-                                        const color = item?.Color;
-                                        const dealer = item?.Order?.User;
+                                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                                    <div className="divide-y divide-gray-100">
+                                        {group.items.map(unit => {
+                                            const item = unit.OrderItem;
+                                            const design = item?.Design;
+                                            const color = item?.Color;
+                                            const dealer = item?.Order?.User;
 
-                                        const { locked, reason } = checkDependencies(unit);
-                                        const isHighPriority = checkPriority(unit);
-                                        const isCompleted = unit[myRole.flag]; // Main Completion Flag
+                                            const { locked, reason } = checkDependencies(unit);
+                                            const isHighPriority = checkPriority(unit);
+                                            const isCompleted = unit[myRole.flag]; // Main Completion Flag
 
-                                        // CUSTOM RENDERING PER ROLE
-                                        const showSize = ['PVC_CUT', 'FOIL_PASTING', 'DOOR_MAKING', 'PACKING'].includes(worker.role);
-                                        const bigSize = ['PVC_CUT', 'DOOR_MAKING'].includes(worker.role);
-                                        const showColor = ['FOIL_PASTING', 'EMBOSS', 'PACKING'].includes(worker.role);
-                                        const bigColor = ['FOIL_PASTING'].includes(worker.role);
-                                        const showDesign = ['EMBOSS', 'PACKING', 'PVC_CUT', 'DOOR_MAKING'].includes(worker.role);
+                                            // CUSTOM RENDERING PER ROLE
+                                            const showSize = ['PVC_CUT', 'FOIL_PASTING', 'DOOR_MAKING', 'PACKING'].includes(worker.role);
+                                            const bigSize = ['PVC_CUT', 'DOOR_MAKING'].includes(worker.role);
+                                            const showColor = ['FOIL_PASTING', 'EMBOSS', 'PACKING'].includes(worker.role);
+                                            const bigColor = ['FOIL_PASTING'].includes(worker.role);
+                                            const showDesign = ['EMBOSS', 'PACKING', 'PVC_CUT', 'DOOR_MAKING'].includes(worker.role);
 
-                                        // BLANK SIZE CALCULATION
-                                        const blankSize = worker.role === 'FOIL_PASTING' ? getOptimalBlankSize(item?.width, item?.height, design?.category || getDesignType(design?.designNumber)) : null;
+                                            // BLANK SIZE CALCULATION
+                                            const blankSize = worker.role === 'FOIL_PASTING' ? getOptimalBlankSize(item?.width, item?.height, design?.category || getDesignType(design?.designNumber)) : null;
 
-                                        return (
-                                            <div key={unit.id} className={`p-0 flex relative ${isHighPriority ? 'bg-red-50/30' : ''} ${isCompleted ? 'opacity-50' : ''}`}>
 
-                                                {isHighPriority && !isCompleted && (
-                                                    <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-bl-lg z-20 shadow-md">
-                                                        Urgent
-                                                    </div>
-                                                )}
+                                            // CUSTOM FOIL LAYOUT
+                                            // CUSTOM FOIL LAYOUT (FINAL VISUAL)
+                                            if (worker.role === 'FOIL_PASTING') {
+                                                return (
+                                                    <div key={unit.id} className={`p-4 bg-white border-b border-gray-100 relative ${isHighPriority ? 'bg-red-50/50' : ''} ${isCompleted ? 'opacity-50' : ''}`}>
 
-                                                {/* COMPLETED OVELAY / STRUCK */}
-                                                {isCompleted && (
-                                                    <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center">
-                                                        <div className="bg-green-100 text-green-700 font-black uppercase text-xs px-3 py-1 rounded-full border border-green-300 shadow-sm rotate-12 backdrop-blur-sm">
-                                                            COMPLETED
-                                                        </div>
-                                                    </div>
-                                                )}
+                                                        {/* HANGING BADGES */}
+                                                        {isHighPriority && !isCompleted && (
+                                                            <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-black uppercase px-2 py-1 rounded-bl-lg z-20 shadow-sm">Urgent</div>
+                                                        )}
+                                                        {unit.unitNumber && (
+                                                            <div className="absolute top-0 left-0 bg-gray-100 text-gray-500 text-[9px] font-bold uppercase px-2 py-1 rounded-br-lg z-10">
+                                                                #{unit.unitNumber}
+                                                            </div>
+                                                        )}
 
-                                                {/* LEFT VISUALS */}
-                                                <div className="w-24 bg-gray-100 relative shrink-0 border-r border-gray-100">
-                                                    {/* Design Image */}
-                                                    {showDesign && design?.imageUrl ? (
-                                                        <img
-                                                            src={`${BASE_URL}${design.imageUrl}`}
-                                                            className={`w-full h-full object-cover ${locked ? 'grayscale opacity-60' : ''}`}
-                                                        />
-                                                    ) : (
-                                                        <div className="w-full h-full flex items-center justify-center text-gray-300"><Box size={20} /></div>
-                                                    )}
+                                                        {/* WAITING TIME BADGE */}
+                                                        {!isCompleted && unit.createdAt && (() => {
+                                                            const waitTime = getWaitingTime(unit.createdAt);
+                                                            if (!waitTime) return null;
 
-                                                    {/* Color Overlay */}
-                                                    {showColor && color?.imageUrl && (
-                                                        <div className={`absolute bottom-0 right-0 overflow-hidden shadow-sm border border-white ${bigColor ? 'w-full h-1/2' : 'w-8 h-8 rounded-tl-lg'}`}>
-                                                            <img src={`${BASE_URL}${color.imageUrl}`} className="w-full h-full object-cover" />
-                                                        </div>
-                                                    )}
+                                                            // Color-coded urgency
+                                                            let badgeColor = 'bg-gray-100 text-gray-600'; // <2 hours
+                                                            if (waitTime.hours >= 4) {
+                                                                badgeColor = 'bg-red-100 text-red-700 border border-red-200'; // >4 hours
+                                                            } else if (waitTime.hours >= 2) {
+                                                                badgeColor = 'bg-yellow-100 text-yellow-700 border border-yellow-200'; // 2-4 hours
+                                                            }
 
-                                                    {/* Unit Badge */}
-                                                    <div className="absolute top-1 left-1 bg-black/50 text-white text-[9px] font-mono px-1 rounded backdrop-blur-sm">
-                                                        #{unit.unitNumber}
-                                                    </div>
-                                                </div>
-
-                                                {/* RIGHT DETAILS */}
-                                                <div className="flex-1 p-3 flex flex-col justify-between min-h-[100px]">
-                                                    <div>
-                                                        {/* Dimensions & Blank Size */}
-                                                        {showSize && (
-                                                            <div className="flex flex-col">
-                                                                <div className={`font-black text-gray-800 flex items-center gap-1 ${bigSize ? 'text-xl' : 'text-sm'}`}>
-                                                                    <Ruler size={bigSize ? 16 : 12} className="text-gray-400" />
-                                                                    {item?.width}" × {item?.height}"
+                                                            return (
+                                                                <div className={`absolute top-8 left-0 ${badgeColor} text-[8px] font-bold uppercase px-2 py-0.5 rounded-br-lg z-10 tracking-wider`}>
+                                                                    ⏱ {waitTime.text}
                                                                 </div>
-                                                                {/* BLANK SIZE DISPLAY */}
-                                                                {blankSize && (
-                                                                    <div className="text-xs font-bold text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded w-fit mt-1 border border-indigo-100">
-                                                                        Blank: {blankSize}
+                                                            );
+                                                        })()}
+
+                                                        {/* COMPLETED OVERLAY */}
+                                                        {isCompleted && (
+                                                            <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center">
+                                                                <div className="bg-green-100 text-green-700 font-black uppercase text-sm px-4 py-2 rounded-full border border-green-300 shadow-md -rotate-12 backdrop-blur-sm opacity-90">
+                                                                    COMPLETED
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        <div className="flex gap-6">
+                                                            {/* LEFT: DOOR VISUAL (IMAGE) */}
+                                                            <div className="shrink-0 flex items-center justify-center py-2">
+                                                                <div className="w-24 h-40 bg-white rounded-xl shadow-[0_8px_16px_rgba(0,0,0,0.08)] ring-1 ring-black/5 overflow-hidden relative">
+                                                                    {design?.imageUrl ? (
+                                                                        <img src={`${BASE_URL}${design.imageUrl}`} className="w-full h-full object-cover" alt="Door Design" />
+                                                                    ) : (
+                                                                        <div className="w-full h-full flex items-center justify-center text-gray-300 text-[10px]">No Img</div>
+                                                                    )}
+                                                                    {/* Gloss Effect Overlay */}
+                                                                    <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-tr from-transparent via-white/10 to-white/30 pointer-events-none"></div>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* RIGHT: CONTENT */}
+                                                            <div className="flex-1 flex flex-col justify-between">
+
+                                                                {/* TOP ROW: INFO */}
+                                                                <div className="flex justify-between items-start">
+                                                                    <div className="flex flex-col gap-3 pt-1">
+                                                                        {/* Actual Size */}
+                                                                        <div className="flex items-center gap-2 text-gray-500 font-bold text-xs bg-gray-100 px-2 py-1 rounded w-fit">
+                                                                            <Ruler size={12} />
+                                                                            <span className="text-gray-900">{item?.width}" × {item?.height}"</span>
+                                                                            <span className="text-[10px] uppercase text-gray-400 tracking-wide font-normal">(Actual Size)</span>
+                                                                        </div>
+
+                                                                        {/* Details (Aligned Horizontal) */}
+                                                                        <div className="text-gray-900 font-bold text-base space-y-1">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className="text-gray-400 font-medium text-sm">Design no:-</span>
+                                                                                <span className="text-xl font-black">{design?.designNumber}</span>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className="text-gray-400 font-medium text-sm">Colour no:-</span>
+                                                                                <span className="text-lg font-bold text-gray-800">{color?.name}</span>
+                                                                            </div>
+                                                                        </div>
                                                                     </div>
-                                                                )}
+
+                                                                    <div className="text-right">
+                                                                        <div className="text-[9px] uppercase font-bold text-slate-400 mb-0.5 tracking-widest">Blank Palla</div>
+                                                                        <div className="text-5xl font-black text-slate-800 leading-none tracking-tighter">
+                                                                            {blankSize ? blankSize.replace(' x ', 'x') : 'N/A'}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* BOTTOM ROW: ACTIONS */}
+                                                                <div className="mt-5">
+                                                                    {locked ? (
+                                                                        <button disabled className="w-full py-3 bg-gray-100 text-gray-400 rounded-lg text-xs font-bold uppercase flex items-center justify-center gap-2 cursor-not-allowed">
+                                                                            <Lock size={12} /> {reason}
+                                                                        </button>
+                                                                    ) : (
+                                                                        <div className="flex gap-4">
+                                                                            {/* FRONT COLUMN */}
+                                                                            <div className="flex-1 flex flex-col shadow-sm rounded-lg overflow-hidden">
+                                                                                <button
+                                                                                    onClick={() => handleComplete(unit.id, unit.isFoilFrontSheetPicked ? 'FRONT_PICK_UNDO' : 'FRONT_PICK')}
+                                                                                    className={`w-full py-2 text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${unit.isFoilFrontSheetPicked ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white active:bg-blue-700'}`}
+                                                                                >
+                                                                                    {unit.isFoilFrontSheetPicked ? <Check size={14} strokeWidth={4} /> : null}
+                                                                                    PICKED
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => !unit.isFoilFrontDone && handleComplete(unit.id, 'FRONT')}
+                                                                                    disabled={unit.isFoilFrontDone}
+                                                                                    className={`w-full py-2.5 bg-white border-x border-b border-gray-200 text-gray-800 text-sm font-black uppercase ${unit.isFoilFrontDone ? 'opacity-50 bg-gray-50' : 'hover:bg-gray-50 active:bg-gray-100'}`}
+                                                                                >
+                                                                                    FRONT
+                                                                                </button>
+                                                                            </div>
+
+                                                                            {/* BACK COLUMN */}
+                                                                            <div className="flex-1 flex flex-col shadow-sm rounded-lg overflow-hidden">
+                                                                                <button
+                                                                                    onClick={() => handleComplete(unit.id, unit.isFoilBackSheetPicked ? 'BACK_PICK_UNDO' : 'BACK_PICK')}
+                                                                                    className={`w-full py-2 text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${unit.isFoilBackSheetPicked ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white active:bg-blue-700'}`}
+                                                                                >
+                                                                                    {unit.isFoilBackSheetPicked ? <Check size={14} strokeWidth={4} /> : null}
+                                                                                    PICKED
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => !unit.isFoilBackDone && handleComplete(unit.id, 'BACK')}
+                                                                                    disabled={unit.isFoilBackDone}
+                                                                                    className={`w-full py-2.5 bg-white border-x border-b border-gray-200 text-gray-800 text-sm font-black uppercase ${unit.isFoilBackDone ? 'opacity-50 bg-gray-50' : 'hover:bg-gray-50 active:bg-gray-100'}`}
+                                                                                >
+                                                                                    BACK
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+
+                                            return (
+                                                <div key={unit.id} className={`p-0 flex relative ${isHighPriority ? 'bg-red-50/30' : ''} ${isCompleted ? 'opacity-50' : ''}`}>
+
+                                                    {isHighPriority && !isCompleted && (
+                                                        <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-bl-lg z-20 shadow-md">
+                                                            Urgent
+                                                        </div>
+                                                    )}
+
+                                                    {/* WAITING TIME BADGE */}
+                                                    {!isCompleted && unit.createdAt && (() => {
+                                                        const waitTime = getWaitingTime(unit.createdAt);
+                                                        if (!waitTime) return null;
+
+                                                        // Color-coded urgency
+                                                        let badgeColor = 'bg-gray-100 text-gray-600';
+                                                        if (waitTime.hours >= 4) {
+                                                            badgeColor = 'bg-red-100 text-red-700 border border-red-200';
+                                                        } else if (waitTime.hours >= 2) {
+                                                            badgeColor = 'bg-yellow-100 text-yellow-700 border border-yellow-200';
+                                                        }
+
+                                                        return (
+                                                            <div className={`absolute top-0 left-0 ${badgeColor} text-[8px] font-bold uppercase px-2 py-0.5 rounded-br-lg z-10 tracking-wider`}>
+                                                                ⏱ {waitTime.text}
+                                                            </div>
+                                                        );
+                                                    })()}
+
+                                                    {/* COMPLETED OVELAY / STRUCK */}
+                                                    {isCompleted && (
+                                                        <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center">
+                                                            <div className="bg-green-100 text-green-700 font-black uppercase text-xs px-3 py-1 rounded-full border border-green-300 shadow-sm rotate-12 backdrop-blur-sm">
+                                                                COMPLETED
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* LEFT VISUALS */}
+                                                    <div className="w-24 bg-gray-100 relative shrink-0 border-r border-gray-100">
+                                                        {/* Design Image */}
+                                                        {showDesign && design?.imageUrl ? (
+                                                            <img
+                                                                src={`${BASE_URL}${design.imageUrl}`}
+                                                                className={`w-full h-full object-cover ${locked ? 'grayscale opacity-60' : ''}`}
+                                                            />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-gray-300"><Box size={20} /></div>
+                                                        )}
+
+                                                        {/* Color Overlay */}
+                                                        {showColor && color?.imageUrl && (
+                                                            <div className={`absolute bottom-0 right-0 overflow-hidden shadow-sm border border-white ${bigColor ? 'w-full h-1/2' : 'w-8 h-8 rounded-tl-lg'}`}>
+                                                                <img src={`${BASE_URL}${color.imageUrl}`} className="w-full h-full object-cover" />
                                                             </div>
                                                         )}
 
-                                                        <div className="text-xs text-gray-500 font-medium truncate mt-0.5">
-                                                            {design?.designNumber} • {color?.name}
+                                                        {/* Unit Badge */}
+                                                        <div className="absolute top-1 left-1 bg-black/50 text-white text-[9px] font-mono px-1 rounded backdrop-blur-sm">
+                                                            #{unit.unitNumber}
                                                         </div>
                                                     </div>
 
-                                                    {/* ACTION BUTTONS */}
-                                                    <div className="mt-2">
-                                                        {locked ? (
-                                                            <button disabled className="w-full bg-gray-50 text-gray-300 font-bold py-2 rounded-lg flex items-center justify-center gap-2 cursor-not-allowed text-[10px] uppercase tracking-wide border border-gray-100">
-                                                                <Lock size={10} /> {reason}
-                                                            </button>
-                                                        ) : worker.role === 'FOIL_PASTING' ? (
-                                                            // CUSTOM FOIL UI - INTEGRATED PICK + DONE
-                                                            <div className="flex gap-2 items-stretch">
-                                                                {/* FRONT (Pick + Done Combined) */}
-                                                                <div className="flex-1 flex flex-col gap-1">
-                                                                    {/* Front Pick */}
-                                                                    <button
-                                                                        onClick={() => handleComplete(unit.id, unit.isFoilFrontSheetPicked ? 'FRONT_PICK_UNDO' : 'FRONT_PICK')}
-                                                                        className={`px-2 py-1 rounded-md border text-[9px] font-bold uppercase transition-all ${unit.isFoilFrontSheetPicked ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'}`}
-                                                                    >
-                                                                        {unit.isFoilFrontSheetPicked ? '✓ Picked' : 'Pick Front'}
-                                                                    </button>
-                                                                    {/* Front Done */}
-                                                                    <button
-                                                                        onClick={() => !unit.isFoilFrontDone && handleComplete(unit.id, 'FRONT')}
-                                                                        disabled={unit.isFoilFrontDone}
-                                                                        className={`flex-1 py-2 rounded-lg font-bold text-[10px] uppercase border transition-all ${unit.isFoilFrontDone ? 'bg-green-100 text-green-700 border-green-200 opacity-50' : 'bg-white text-gray-700 border-gray-300 active:scale-95'}`}
-                                                                    >
-                                                                        {unit.isFoilFrontDone ? 'Front Done' : 'Front'}
-                                                                    </button>
+                                                    {/* RIGHT DETAILS */}
+                                                    <div className="flex-1 p-3 flex flex-col justify-between min-h-[100px]">
+                                                        <div>
+                                                            {/* Dimensions & Blank Size */}
+                                                            {showSize && (
+                                                                <div className="flex flex-col">
+                                                                    <div className={`font-black text-gray-800 flex items-center gap-1 ${bigSize ? 'text-xl' : 'text-sm'}`}>
+                                                                        <Ruler size={bigSize ? 16 : 12} className="text-gray-400" />
+                                                                        {item?.width}" × {item?.height}"
+                                                                    </div>
+                                                                    {/* BLANK SIZE DISPLAY */}
+                                                                    {blankSize && (
+                                                                        <div className="text-xs font-bold text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded w-fit mt-1 border border-indigo-100">
+                                                                            Blank: {blankSize}
+                                                                        </div>
+                                                                    )}
                                                                 </div>
+                                                            )}
 
-                                                                {/* BACK (Pick + Done Combined) */}
-                                                                <div className="flex-1 flex flex-col gap-1">
-                                                                    {/* Back Pick */}
-                                                                    <button
-                                                                        onClick={() => handleComplete(unit.id, unit.isFoilBackSheetPicked ? 'BACK_PICK_UNDO' : 'BACK_PICK')}
-                                                                        className={`px-2 py-1 rounded-md border text-[9px] font-bold uppercase transition-all ${unit.isFoilBackSheetPicked ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'}`}
-                                                                    >
-                                                                        {unit.isFoilBackSheetPicked ? '✓ Picked' : 'Pick Back'}
-                                                                    </button>
-                                                                    {/* Back Done */}
-                                                                    <button
-                                                                        onClick={() => !unit.isFoilBackDone && handleComplete(unit.id, 'BACK')}
-                                                                        disabled={unit.isFoilBackDone}
-                                                                        className={`flex-1 py-2 rounded-lg font-bold text-[10px] uppercase border transition-all ${unit.isFoilBackDone ? 'bg-green-100 text-green-700 border-green-200 opacity-50' : 'bg-white text-gray-700 border-gray-300 active:scale-95'}`}
-                                                                    >
-                                                                        {unit.isFoilBackDone ? 'Back Done' : 'Back'}
-                                                                    </button>
-                                                                </div>
+                                                            <div className="text-xs text-gray-500 font-medium truncate mt-0.5">
+                                                                {design?.designNumber} • {color?.name}
                                                             </div>
-                                                        ) : (
-                                                            // STANDARD BUTTON (Non-Foil)
-                                                            !isCompleted && (
-                                                                <button
-                                                                    onClick={() => handleComplete(unit.id)}
-                                                                    className={`w-full py-2 rounded-lg font-black text-white shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-wide ${isHighPriority ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}
-                                                                >
-                                                                    <Check size={14} strokeWidth={4} /> DONE
+                                                        </div>
+
+                                                        {/* ACTION BUTTONS */}
+                                                        <div className="mt-2">
+                                                            {locked ? (
+                                                                <button disabled className="w-full bg-gray-50 text-gray-300 font-bold py-2 rounded-lg flex items-center justify-center gap-2 cursor-not-allowed text-[10px] uppercase tracking-wide border border-gray-100">
+                                                                    <Lock size={10} /> {reason}
                                                                 </button>
-                                                            )
-                                                        )}
+                                                            ) : worker.role === 'FOIL_PASTING' ? (
+                                                                // CUSTOM FOIL UI - INTEGRATED PICK + DONE
+                                                                <div className="flex gap-2 items-stretch">
+                                                                    {/* FRONT (Pick + Done Combined) */}
+                                                                    <div className="flex-1 flex flex-col gap-1">
+                                                                        {/* Front Pick */}
+                                                                        <button
+                                                                            onClick={() => handleComplete(unit.id, unit.isFoilFrontSheetPicked ? 'FRONT_PICK_UNDO' : 'FRONT_PICK')}
+                                                                            className={`px-2 py-1 rounded-md border text-[9px] font-bold uppercase transition-all ${unit.isFoilFrontSheetPicked ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'}`}
+                                                                        >
+                                                                            {unit.isFoilFrontSheetPicked ? '✓ Picked' : 'Pick Front'}
+                                                                        </button>
+                                                                        {/* Front Done */}
+                                                                        <button
+                                                                            onClick={() => !unit.isFoilFrontDone && handleComplete(unit.id, 'FRONT')}
+                                                                            disabled={unit.isFoilFrontDone}
+                                                                            className={`flex-1 py-2 rounded-lg font-bold text-[10px] uppercase border transition-all ${unit.isFoilFrontDone ? 'bg-green-100 text-green-700 border-green-200 opacity-50' : 'bg-white text-gray-700 border-gray-300 active:scale-95'}`}
+                                                                        >
+                                                                            {unit.isFoilFrontDone ? 'Front Done' : 'Front'}
+                                                                        </button>
+                                                                    </div>
+
+                                                                    {/* BACK (Pick + Done Combined) */}
+                                                                    <div className="flex-1 flex flex-col gap-1">
+                                                                        {/* Back Pick */}
+                                                                        <button
+                                                                            onClick={() => handleComplete(unit.id, unit.isFoilBackSheetPicked ? 'BACK_PICK_UNDO' : 'BACK_PICK')}
+                                                                            className={`px-2 py-1 rounded-md border text-[9px] font-bold uppercase transition-all ${unit.isFoilBackSheetPicked ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'}`}
+                                                                        >
+                                                                            {unit.isFoilBackSheetPicked ? '✓ Picked' : 'Pick Back'}
+                                                                        </button>
+                                                                        {/* Back Done */}
+                                                                        <button
+                                                                            onClick={() => !unit.isFoilBackDone && handleComplete(unit.id, 'BACK')}
+                                                                            disabled={unit.isFoilBackDone}
+                                                                            className={`flex-1 py-2 rounded-lg font-bold text-[10px] uppercase border transition-all ${unit.isFoilBackDone ? 'bg-green-100 text-green-700 border-green-200 opacity-50' : 'bg-white text-gray-700 border-gray-300 active:scale-95'}`}
+                                                                        >
+                                                                            {unit.isFoilBackDone ? 'Back Done' : 'Back'}
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                // STANDARD BUTTON (Non-Foil)
+                                                                !isCompleted && (
+                                                                    <button
+                                                                        onClick={() => handleComplete(unit.id)}
+                                                                        className={`w-full py-2 rounded-lg font-black text-white shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-wide ${isHighPriority ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}
+                                                                    >
+                                                                        <Check size={14} strokeWidth={4} /> DONE
+                                                                    </button>
+                                                                )
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             </div>
                         ))}

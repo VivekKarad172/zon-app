@@ -436,14 +436,24 @@ router.post('/complete', async (req, res) => {
 router.get('/history', async (req, res) => {
     try {
         const workerId = req.headers['x-worker-id'];
-        if (!workerId) return res.status(401).json({ error: 'Worker ID required' });
+        console.log('[HISTORY] Request received for worker:', workerId);
+
+        if (!workerId) {
+            console.log('[HISTORY] ERROR: No worker ID provided');
+            return res.status(401).json({ error: 'Worker ID required' });
+        }
 
         const worker = await Worker.findByPk(workerId);
-        if (!worker) return res.status(404).json({ error: 'Worker not found' });
+        if (!worker) {
+            console.log('[HISTORY] ERROR: Worker not found:', workerId);
+            return res.status(404).json({ error: 'Worker not found' });
+        }
+        console.log('[HISTORY] Found worker:', worker.name, worker.role);
 
         // Get ProcessRecords for today
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
+        console.log('[HISTORY] Fetching records from:', startOfDay);
 
         const history = await ProcessRecord.findAll({
             where: {
@@ -457,16 +467,18 @@ router.get('/history', async (req, res) => {
                     include: [
                         { model: Design, attributes: ['designNumber'] },
                         { model: Color, attributes: ['name'] },
-                        { model: Order, attributes: ['id', 'referenceNumber'] } // Added Order Ref
+                        { model: Order, attributes: ['id', 'status'] }
                     ]
                 }]
             }],
             order: [['timestamp', 'DESC']]
         });
 
+        console.log('[HISTORY] Found', history.length, 'records');
         res.json(history);
     } catch (error) {
-        console.error('History Error:', error);
+        console.error('[HISTORY] ERROR:', error.message);
+        console.error('[HISTORY] Stack:', error.stack);
         res.status(500).json({ error: error.message });
     }
 });
