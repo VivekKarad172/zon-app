@@ -4,6 +4,8 @@ import api from '../../utils/api';
 import toast from 'react-hot-toast';
 import { LogOut, RefreshCw, Check, Lock, AlertOctagon, Box, Ruler, User, Layers } from 'lucide-react';
 
+import { getDesignType, getOptimalBlankSize } from '../../utils/designLogicClient';
+
 export default function WorkerDashboard() {
     const navigate = useNavigate();
     const [groupedTasks, setGroupedTasks] = useState([]);
@@ -34,6 +36,7 @@ export default function WorkerDashboard() {
             await api.post('/workers/undo', { workerId: worker.id, recordId });
             toast.success('Undone!');
             fetchHistory(); // Refresh history
+            fetchTasks();   // Refresh tasks too
         } catch (error) {
             toast.error('Undo Failed');
         }
@@ -73,12 +76,14 @@ export default function WorkerDashboard() {
             const res = await api.get('/workers/tasks', {
                 headers: { 'x-worker-id': worker.id }
             });
-            // Filter out tasks I have already done
-            const pendingTasks = res.data.filter(t => !t[myRole.flag]);
+
+            // Server returns all non-packed items.
+            // We want to see EVERYTHING. Even completed ones (until they are packed/disappear from server list).
+            const allTasks = res.data;
 
             // Group by Order ID
             const groups = {};
-            pendingTasks.forEach(t => {
+            allTasks.forEach(t => {
                 const order = t.OrderItem?.Order;
                 if (!order) return;
                 const oid = order.id;
@@ -86,7 +91,7 @@ export default function WorkerDashboard() {
                 if (!groups[oid]) {
                     groups[oid] = {
                         id: oid,
-                        ref: order.referenceNumber, // Might be undefined, handled purely visually
+                        ref: order.referenceNumber,
                         distributor: order.Distributor,
                         items: []
                     };
@@ -133,11 +138,13 @@ export default function WorkerDashboard() {
         return { locked: false };
     };
 
-    const handleComplete = (unitId) => {
-        if (!window.confirm('Are you sure you want to mark this process as DONE?')) return;
+    const handleComplete = (unitId, partialType = null) => {
+        // Confirmation? Maybe irrelevant for quick taps.
+        // if (!window.confirm('Are you sure?')) return;
+
         if (!navigator.geolocation) return toast.error('GPS not supported');
 
-        const toastId = toast.loading('Verifying Location...');
+        const toastId = toast.loading('Updating...'); // Faster feedback
 
         navigator.geolocation.getCurrentPosition(async (pos) => {
             try {
@@ -146,6 +153,7 @@ export default function WorkerDashboard() {
                 await api.post('/workers/complete', {
                     workerId: worker.id,
                     unitId,
+                    partialType, // NEW: Pass partial action
                     lat: latitude,
                     lng: longitude
                 });
@@ -208,6 +216,8 @@ export default function WorkerDashboard() {
                                             {record.ProductionUnit?.OrderItem?.Design?.designNumber} - {record.ProductionUnit?.OrderItem?.Color?.name}
                                         </div>
                                         <div className="text-xs text-gray-500">Order #{record.ProductionUnit?.OrderItem?.Order?.id}</div>
+                                        {/* Show Stage Detail */}
+                                        <div className="text-[10px] bg-blue-50 text-blue-600 px-1 rounded inline-block mt-1 uppercase font-bold">{record.stage}</div>
                                     </div>
                                     <button onClick={() => handleUndo(record.id)} className="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-red-100 active:scale-95">
                                         Undo
@@ -233,19 +243,6 @@ export default function WorkerDashboard() {
 
                         {groupedTasks.map(group => (
                             <div key={group.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                                {/* GROUP HEADER */}
-                                <div className="bg-indigo-50/50 px-4 py-3 border-b border-indigo-100 flex justify-between items-center">
-                                    <div className="flex items-center gap-2">
-                                        <div className="bg-indigo-600 text-white font-mono font-bold text-xs px-2 py-1 rounded">#{group.id}</div>
-                                        <div className="text-xs font-bold text-indigo-900 flex items-center gap-1">
-                                            <User size={12} /> {group.distributor?.shopName || 'Distributor'}
-                                        </div>
-                                    </div>
-                                    <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-wide flex items-center gap-1">
-                                        <Layers size={12} /> {group.items.length} Units
-                                    </div>
-                                </div>
-
                                 {/* UNIT LIST */}
                                 <div className="divide-y divide-gray-100">
                                     {group.items.map(unit => {
@@ -256,6 +253,7 @@ export default function WorkerDashboard() {
 
                                         const { locked, reason } = checkDependencies(unit);
                                         const isHighPriority = checkPriority(unit);
+                                        const isCompleted = unit[myRole.flag]; // Main Completion Flag
 
                                         // CUSTOM RENDERING PER ROLE
                                         const showSize = ['PVC_CUT', 'FOIL_PASTING', 'DOOR_MAKING', 'PACKING'].includes(worker.role);
@@ -263,14 +261,25 @@ export default function WorkerDashboard() {
                                         const showColor = ['FOIL_PASTING', 'EMBOSS', 'PACKING'].includes(worker.role);
                                         const bigColor = ['FOIL_PASTING'].includes(worker.role);
                                         const showDesign = ['EMBOSS', 'PACKING', 'PVC_CUT', 'DOOR_MAKING'].includes(worker.role);
-                                        const showFullDetails = worker.role === 'PACKING';
+
+                                        // BLANK SIZE CALCULATION
+                                        const blankSize = worker.role === 'FOIL_PASTING' ? getOptimalBlankSize(item?.width, item?.height, design?.category || getDesignType(design?.designNumber)) : null;
 
                                         return (
-                                            <div key={unit.id} className={`p-0 flex relative ${isHighPriority ? 'bg-red-50/30' : ''}`}>
+                                            <div key={unit.id} className={`p-0 flex relative ${isHighPriority ? 'bg-red-50/30' : ''} ${isCompleted ? 'opacity-50' : ''}`}>
 
-                                                {isHighPriority && (
+                                                {isHighPriority && !isCompleted && (
                                                     <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-bl-lg z-20 shadow-md">
                                                         Urgent
+                                                    </div>
+                                                )}
+
+                                                {/* COMPLETED OVELAY / STRUCK */}
+                                                {isCompleted && (
+                                                    <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center">
+                                                        <div className="bg-green-100 text-green-700 font-black uppercase text-xs px-3 py-1 rounded-full border border-green-300 shadow-sm rotate-12 backdrop-blur-sm">
+                                                            COMPLETED
+                                                        </div>
                                                     </div>
                                                 )}
 
@@ -286,14 +295,14 @@ export default function WorkerDashboard() {
                                                         <div className="w-full h-full flex items-center justify-center text-gray-300"><Box size={20} /></div>
                                                     )}
 
-                                                    {/* Color Overlay (Big for Foil) */}
+                                                    {/* Color Overlay */}
                                                     {showColor && color?.imageUrl && (
                                                         <div className={`absolute bottom-0 right-0 overflow-hidden shadow-sm border border-white ${bigColor ? 'w-full h-1/2' : 'w-8 h-8 rounded-tl-lg'}`}>
                                                             <img src={`${BASE_URL}${color.imageUrl}`} className="w-full h-full object-cover" />
                                                         </div>
                                                     )}
 
-                                                    {/* Unit Number Badge */}
+                                                    {/* Unit Badge */}
                                                     <div className="absolute top-1 left-1 bg-black/50 text-white text-[9px] font-mono px-1 rounded backdrop-blur-sm">
                                                         #{unit.unitNumber}
                                                     </div>
@@ -302,41 +311,73 @@ export default function WorkerDashboard() {
                                                 {/* RIGHT DETAILS */}
                                                 <div className="flex-1 p-3 flex flex-col justify-between min-h-[100px]">
                                                     <div>
-                                                        {/* Dimensions */}
+                                                        {/* Dimensions & Blank Size */}
                                                         {showSize && (
-                                                            <div className={`font-black text-gray-800 flex items-center gap-1 ${bigSize ? 'text-xl' : 'text-sm'}`}>
-                                                                <Ruler size={bigSize ? 16 : 12} className="text-gray-400" />
-                                                                {item?.width}" × {item?.height}"
+                                                            <div className="flex flex-col">
+                                                                <div className={`font-black text-gray-800 flex items-center gap-1 ${bigSize ? 'text-xl' : 'text-sm'}`}>
+                                                                    <Ruler size={bigSize ? 16 : 12} className="text-gray-400" />
+                                                                    {item?.width}" × {item?.height}"
+                                                                </div>
+                                                                {/* BLANK SIZE DISPLAY */}
+                                                                {blankSize && (
+                                                                    <div className="text-xs font-bold text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded w-fit mt-1 border border-indigo-100">
+                                                                        Blank: {blankSize}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         )}
 
-                                                        {/* Design/Color Names */}
                                                         <div className="text-xs text-gray-500 font-medium truncate mt-0.5">
                                                             {design?.designNumber} • {color?.name}
                                                         </div>
-
-                                                        {/* Full Details for Packing */}
-                                                        {showFullDetails && (
-                                                            <div className="mt-2 text-[10px] space-y-0.5 text-indigo-900 bg-indigo-50/50 p-1 rounded">
-                                                                <div className="flex justify-between"><span>DLR: {dealer?.shopName}</span></div>
-                                                                <div className="font-mono opacity-50 text-[9px]">{unit.uniqueCode}</div>
-                                                            </div>
-                                                        )}
                                                     </div>
 
-                                                    {/* ACTION BUTTON */}
+                                                    {/* ACTION BUTTONS */}
                                                     <div className="mt-2">
                                                         {locked ? (
                                                             <button disabled className="w-full bg-gray-50 text-gray-300 font-bold py-2 rounded-lg flex items-center justify-center gap-2 cursor-not-allowed text-[10px] uppercase tracking-wide border border-gray-100">
                                                                 <Lock size={10} /> {reason}
                                                             </button>
+                                                        ) : worker.role === 'FOIL_PASTING' ? (
+                                                            // CUSTOM FOIL UI
+                                                            <div className="flex gap-2 items-center">
+                                                                {/* 1. PICK */}
+                                                                <button
+                                                                    onClick={() => handleComplete(unit.id, unit.isFoilSheetPicked ? 'PICK_UNDO' : 'PICK')}
+                                                                    className={`p-2 rounded-lg border ${unit.isFoilSheetPicked ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-400 border-gray-200'}`}
+                                                                >
+                                                                    <div className="text-[9px] font-bold uppercase mb-[2px]">Pick</div>
+                                                                    {unit.isFoilSheetPicked ? <Check size={16} /> : <div className="w-4 h-4 rounded-sm border border-gray-300 mx-auto" />}
+                                                                </button>
+
+                                                                {/* 2. FRONT */}
+                                                                <button
+                                                                    onClick={() => !unit.isFoilFrontDone && handleComplete(unit.id, 'FRONT')}
+                                                                    disabled={unit.isFoilFrontDone}
+                                                                    className={`flex-1 py-2 rounded-lg font-bold text-[10px] uppercase border transition-all ${unit.isFoilFrontDone ? 'bg-green-100 text-green-700 border-green-200 opacity-50' : 'bg-white text-gray-700 border-gray-300 active:scale-95'}`}
+                                                                >
+                                                                    {unit.isFoilFrontDone ? 'Front Done' : 'Front'}
+                                                                </button>
+
+                                                                {/* 3. BACK */}
+                                                                <button
+                                                                    onClick={() => !unit.isFoilBackDone && handleComplete(unit.id, 'BACK')}
+                                                                    disabled={unit.isFoilBackDone}
+                                                                    className={`flex-1 py-2 rounded-lg font-bold text-[10px] uppercase border transition-all ${unit.isFoilBackDone ? 'bg-green-100 text-green-700 border-green-200 opacity-50' : 'bg-white text-gray-700 border-gray-300 active:scale-95'}`}
+                                                                >
+                                                                    {unit.isFoilBackDone ? 'Back Done' : 'Back'}
+                                                                </button>
+                                                            </div>
                                                         ) : (
-                                                            <button
-                                                                onClick={() => handleComplete(unit.id)}
-                                                                className={`w-full py-2 rounded-lg font-black text-white shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-wide ${isHighPriority ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}
-                                                            >
-                                                                <Check size={14} strokeWidth={4} /> DONE
-                                                            </button>
+                                                            // STANDARD BUTTON (Non-Foil)
+                                                            !isCompleted && (
+                                                                <button
+                                                                    onClick={() => handleComplete(unit.id)}
+                                                                    className={`w-full py-2 rounded-lg font-black text-white shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-wide ${isHighPriority ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}
+                                                                >
+                                                                    <Check size={14} strokeWidth={4} /> DONE
+                                                                </button>
+                                                            )
                                                         )}
                                                     </div>
                                                 </div>
@@ -352,3 +393,4 @@ export default function WorkerDashboard() {
         </div>
     );
 }
+

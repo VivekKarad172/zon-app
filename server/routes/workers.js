@@ -259,7 +259,7 @@ router.get('/tasks', async (req, res) => {
 // POST /workers/complete - Mark task as done (With Dependency Checks)
 router.post('/complete', async (req, res) => {
     try {
-        const { workerId, unitId } = req.body;
+        const { workerId, unitId, partialType } = req.body; // partialType: 'FRONT', 'BACK', 'PICK', 'PICK_UNDO'
 
         const worker = await Worker.findByPk(workerId);
         if (!worker) return res.status(404).json({ error: 'Worker not found' });
@@ -290,19 +290,63 @@ router.post('/complete', async (req, res) => {
             'PVC_CUT': { flag: 'isPvcDone', deps: [] },
             'FOIL_PASTING': { flag: 'isFoilDone', deps: [] },
             'EMBOSS': { flag: 'isEmbossDone', deps: ['isFoilDone'] },
-            'DOOR_MAKING': { flag: 'isDoorMade', deps: ['isPvcDone', 'isFoilDone'] }, // Removed 'isEmbossDone' from hard dependency
+            'DOOR_MAKING': { flag: 'isDoorMade', deps: ['isPvcDone', 'isFoilDone'] },
             'PACKING': { flag: 'isPacked', deps: ['isDoorMade'] }
         };
 
         const rule = ROLE_MAP[worker.role];
         if (!rule) return res.status(400).json({ error: 'Invalid Worker Role' });
 
+        // SPECIAL HANDLING FOR FOIL PASTING
+        if (worker.role === 'FOIL_PASTING' && partialType) {
+            const changes = {};
+            let isFullComplete = false;
+
+            if (partialType === 'PICK') {
+                changes.isFoilSheetPicked = true;
+            } else if (partialType === 'PICK_UNDO') {
+                changes.isFoilSheetPicked = false;
+            } else if (partialType === 'FRONT') {
+                changes.isFoilFrontDone = true;
+            } else if (partialType === 'BACK') {
+                changes.isFoilBackDone = true;
+            }
+
+            // Check if Main "Done" should be triggered
+            // It triggers if Front & Back are done (either now or previously)
+            const front = (partialType === 'FRONT') || unit.isFoilFrontDone;
+            const back = (partialType === 'BACK') || unit.isFoilBackDone;
+
+            if (front && back) {
+                changes.isFoilDone = true; // Mark Main Complete
+                isFullComplete = true;
+            }
+
+            await unit.update(changes);
+
+            // only create history record for full completion or major steps?
+            // User likely wants history for payroll/tracking. 
+            // Let's create record for Front/Back actions too, maybe with stage detail?
+            // Existing schema 'stage' is string. We can store 'FOIL_PASTING_FRONT'.
+            // But standardizing:
+            if (partialType === 'FRONT' || partialType === 'BACK') {
+                await sequelize.models.ProcessRecord.create({
+                    productionUnitId: unit.id,
+                    workerId: worker.id,
+                    stage: `FOIL_${partialType}`, // FOIL_FRONT or FOIL_BACK
+                    timestamp: new Date()
+                });
+            }
+
+            return res.json({ message: 'Updated', flags: changes, isFullComplete });
+        }
+
+
         // CHECK 1: Already Done?
         if (unit[rule.flag]) {
             return res.json({ message: 'Already completed' });
         }
 
-        // CHECK 2: Dependencies
         // CHECK 2: Dependencies
         // Dynamic Dependency Check for EMBOSS
         let requiredDeps = [...rule.deps];
@@ -328,7 +372,7 @@ router.post('/complete', async (req, res) => {
             return res.status(400).json({ error: `Start failed. Waiting for: ${missingDeps.join(', ')}` });
         }
 
-        // EXECUTE
+        // EXECUTE (STANDARD)
         const updateData = {};
         updateData[rule.flag] = true;
 

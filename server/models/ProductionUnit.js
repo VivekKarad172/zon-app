@@ -30,6 +30,20 @@ const ProductionUnit = sequelize.define('ProductionUnit', {
         type: DataTypes.BOOLEAN,
         defaultValue: false
     },
+    // Granular Foil Tracking
+    isFoilFrontDone: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+    isFoilBackDone: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+    isFoilSheetPicked: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+
     isEmbossDone: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
