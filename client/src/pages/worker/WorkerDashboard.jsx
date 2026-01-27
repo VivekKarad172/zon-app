@@ -82,6 +82,28 @@ export default function WorkerDashboard() {
         }
     };
 
+    // PVC CUT WIDTH REDUCTION LOGIC
+    // Formula: =INT(((INT(E2)*8 + MOD(E2,1)*10) - 12)/8) + (MOD(((INT(E2)*8 + MOD(E2,1)*10) - 12),8)/10)
+    // Applies 12-unit reduction to width for PVC cutting
+    const calculatePvcCutWidth = (originalWidth) => {
+        // originalWidth is in format like 30.6 (30 feet 6 inches as decimal)
+        const feet = Math.floor(originalWidth);
+        const inches = (originalWidth % 1) * 10; // Get decimal part and convert to inches
+
+        // Convert to working units (feet*8 + inches)
+        const totalUnits = feet * 8 + inches;
+
+        // Apply 12-unit reduction
+        const reducedUnits = totalUnits - 12;
+
+        // Convert back to feet.inches format
+        const newFeet = Math.floor(reducedUnits / 8);
+        const newInches = reducedUnits % 8;
+
+        // Return as decimal (e.g., 29.2 for 29 feet 2 inches)
+        return newFeet + (newInches / 10);
+    };
+
     useEffect(() => {
         if (activeTab === 'history') {
             fetchHistory();
@@ -816,7 +838,11 @@ export default function WorkerDashboard() {
                                                                 <div className="flex flex-col gap-1">
                                                                     <div className={`font-black text-gray-800 flex items-center gap-1.5 ${bigSize ? 'text-xl' : 'text-base'}`}>
                                                                         <Ruler size={bigSize ? 18 : 14} className="text-gray-400" />
-                                                                        {item?.width}" × {item?.height}"
+                                                                        {/* PVC_CUT gets reduced width, others see original */}
+                                                                        {worker.role === 'PVC_CUT'
+                                                                            ? `${calculatePvcCutWidth(item?.width)}" × ${item?.height}"`
+                                                                            : `${item?.width}" × ${item?.height}"`
+                                                                        }
                                                                     </div>
                                                                     {/* BLANK SIZE DISPLAY */}
                                                                     {blankSize && (
