@@ -2,15 +2,80 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
-import { LogOut, RefreshCw, Check, Lock, AlertOctagon, Box, Ruler, User, Layers, Search, Filter, X } from 'lucide-react';
+import { LogOut, RefreshCw, Check, Lock, AlertOctagon, Box, Ruler, User, Layers, Search, Filter, X, Volume2, VolumeX, Wifi, WifiOff } from 'lucide-react';
 
 import { getDesignType, getOptimalBlankSize } from '../../utils/designLogicClient';
+import { useSound } from '../../hooks/useSound';
+import { saveTasksToCache, getCachedTasks, queueOfflineAction, getOfflineQueue, removeActionFromQueue } from '../../utils/offlineSync';
 
 export default function WorkerDashboard() {
     const navigate = useNavigate();
+    const { playSuccess, playError, playClick, muted, toggleMute } = useSound();
     const [groupedTasks, setGroupedTasks] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
     const worker = JSON.parse(localStorage.getItem('workerToken'));
+
+    // HELPERS FOR SYNC
+    const processOfflineQueue = async () => {
+        const queue = getOfflineQueue();
+        if (queue.length === 0) return;
+
+        const toastId = toast.loading(`Syncing ${queue.length} offline actions...`);
+        let successCount = 0;
+
+        for (const action of queue) {
+            try {
+                if (action.type === 'COMPLETE') {
+                    await api.post('/workers/complete', action.payload);
+                } else if (action.type === 'BATCH') {
+                    await api.post('/workers/complete-batch', action.payload);
+                }
+                removeActionFromQueue(action.id);
+                successCount++;
+            } catch (error) {
+                console.error('Sync failed for action', action, error);
+                // removing even on failure to prevent block? Or keep?
+                // For now, let's keep it if network error, remove if logic error (4xx)
+                if (error.response && error.response.status >= 400) {
+                    removeActionFromQueue(action.id);
+                }
+            }
+        }
+
+        toast.dismiss(toastId);
+        if (successCount > 0) {
+            playSuccess();
+            toast.success(`Synced ${successCount} actions`);
+            fetchTasks();
+        }
+    };
+
+    // NETWORK LISTENERS
+    useEffect(() => {
+        const handleOnline = () => {
+            setIsOnline(true);
+            toast.success('Back Online');
+            processOfflineQueue();
+        };
+        const handleOffline = () => {
+            setIsOnline(false);
+            toast('Offline Mode Active', { icon: '📡' });
+        };
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        // Initial sync if online
+        if (navigator.onLine) {
+            processOfflineQueue();
+        }
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
 
     // NEW STATE
     const [activeTab, setActiveTab] = useState('tasks'); // 'tasks' or 'history'
@@ -138,60 +203,80 @@ export default function WorkerDashboard() {
 
     const fetchTasks = async () => {
         try {
-            const res = await api.get('/workers/tasks', {
-                headers: { 'x-worker-id': worker.id }
-            });
-
-            // Server returns all non-packed items.
-            // We want to see EVERYTHING. Even completed ones (until they are packed/disappear from server list).
-            const allTasks = res.data;
-
-            // Group by Order ID
-            const groups = {};
-            allTasks.forEach(t => {
-                const order = t.OrderItem?.Order;
-                if (!order) return;
-                const oid = order.id;
-
-                if (!groups[oid]) {
-                    groups[oid] = {
-                        id: oid,
-                        ref: order.referenceNumber,
-                        distributor: order.Distributor,
-                        items: []
-                    };
+            // OFFLINE MODE FETCH
+            if (!navigator.onLine) {
+                const cached = getCachedTasks();
+                if (cached) {
+                    processTasks(cached);
+                    setLoading(false);
+                    setIsRefreshing(false);
+                    return;
                 }
-                groups[oid].items.push(t);
+            }
+
+            const res = await api.get('/workers/tasks', {
+                params: { workerId: worker.id }
             });
 
-            // Convert to Array
-            const groupArray = Object.values(groups).sort((a, b) => a.id - b.id);
+            const tasks = res.data;
+            saveTasksToCache(tasks); // Cache new data
+            processTasks(tasks);
 
-            // Sort items within group by priority?
-            groupArray.forEach(g => {
-                g.items.sort((a, b) => {
-                    const aPrio = checkPriority(a) ? 1 : 0;
-                    const bPrio = checkPriority(b) ? 1 : 0;
-                    // Primary: Priority (high first)
-                    if (bPrio !== aPrio) return bPrio - aPrio;
-                    // Secondary: Unit number (stable order)
-                    return a.unitNumber - b.unitNumber;
-                });
-            });
-
-            setGroupedTasks(groupArray);
-            setLoading(false);
-            setIsRefreshing(false);
-
-            // Fetch today's stats
-            fetchTodayStats();
         } catch (error) {
-            console.error(error);
-            const msg = error.response?.data?.error || error.message;
-            toast.error(`Error: ${msg}`);
+            console.error('Fetch error', error);
+            // If fetch fails but we have cache, use it
+            const cached = getCachedTasks();
+            if (cached) {
+                processTasks(cached);
+                toast('Network error, using cached data', { icon: '📂' });
+            } else {
+                toast.error('Failed to load tasks');
+            }
+        } finally {
             setLoading(false);
             setIsRefreshing(false);
         }
+    };
+
+    // Helper to process raw tasks into groups
+    const processTasks = (tasks) => {
+        // Server returns all non-packed items.
+        // We want to see EVERYTHING. Even completed ones (until they are packed/disappear from server list).
+        const allTasks = tasks;
+
+        // Group by Order ID
+        const groups = {};
+        allTasks.forEach(t => {
+            const order = t.OrderItem?.Order;
+            if (!order) return;
+            const oid = order.id;
+
+            if (!groups[oid]) {
+                groups[oid] = {
+                    id: oid,
+                    ref: order.referenceNumber,
+                    distributor: order.Distributor,
+                    items: []
+                };
+            }
+            groups[oid].items.push(t);
+        });
+
+        // Convert to Array
+        const groupArray = Object.values(groups).sort((a, b) => a.id - b.id);
+
+        // Sort items within group by priority?
+        groupArray.forEach(g => {
+            g.items.sort((a, b) => {
+                const aPrio = checkPriority(a) ? 1 : 0;
+                const bPrio = checkPriority(b) ? 1 : 0;
+                // Primary: Priority (high first)
+                if (bPrio !== aPrio) return bPrio - aPrio;
+                // Secondary: Unit number (stable order)
+                return a.unitNumber - b.unitNumber;
+            });
+        });
+        setGroupedTasks(groupArray);
     };
 
     const fetchTodayStats = async () => {
@@ -228,6 +313,29 @@ export default function WorkerDashboard() {
 
         if (!navigator.geolocation) return toast.error('GPS not supported');
 
+        // OFFLINE HANDLING
+        if (!isOnline) {
+            queueOfflineAction({
+                type: 'COMPLETE',
+                payload: { workerId: worker.id, unitId, partialType, lat: 0, lng: 0 } // No GPS in offline usually? or maybe cached last known?
+            });
+            playSuccess();
+            toast.success('Action queued (Offline)');
+            // Optimistic update
+            // We should remove this unit from the list locally
+            // Ideally we modify groupedTasks, but a simple re-fetch from cache (which is static) won't hide it.
+            // We need to locally mark it as hidden or filter it out.
+            // For now, let's just trigger a "soft" refresh or let user know.
+            // Actually, if we don't remove it, user might click again.
+            // Let's filter it out from state
+            const newGroups = groupedTasks.map(g => ({
+                ...g,
+                items: g.items.filter(i => i.id !== unitId)
+            })).filter(g => g.items.length > 0);
+            setGroupedTasks(newGroups);
+            return;
+        }
+
         const toastId = toast.loading('Updating...'); // Faster feedback
 
         navigator.geolocation.getCurrentPosition(async (pos) => {
@@ -243,9 +351,11 @@ export default function WorkerDashboard() {
                 });
                 toast.dismiss(toastId);
                 toast.success('Done!');
+                playSuccess(); // Audio feedback
                 fetchTasks(); // Refresh list 
             } catch (error) {
                 toast.dismiss(toastId);
+                playError(); // Audio feedback
                 const msg = error.response?.data?.error || 'Failed';
                 toast.error(msg);
             }
@@ -378,6 +488,10 @@ export default function WorkerDashboard() {
                     <div className="text-[10px] font-bold uppercase text-indigo-600 bg-indigo-50 px-1 rounded inline-block mt-1">{myRole.label}</div>
                 </div>
                 <div className="flex gap-2">
+                    {/* Sound Toggle */}
+                    <button onClick={toggleMute} className={`p-2 rounded-lg ${muted ? 'bg-gray-100 text-gray-400' : 'bg-indigo-50 text-indigo-600'}`}>
+                        {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                    </button>
                     <button onClick={() => setActiveTab(activeTab === 'tasks' ? 'history' : 'tasks')} className={`px-3 py-2 rounded-lg text-sm font-bold ${activeTab === 'history' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
                         {activeTab === 'tasks' ? 'History' : 'Tasks'}
                     </button>

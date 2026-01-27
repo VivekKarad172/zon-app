@@ -45,6 +45,52 @@ router.get('/settings/location', authenticate, authorize(['MANUFACTURER']), asyn
     }
 });
 
+router.get('/admin/workers/all-tasks', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        const tasks = await ProductionUnit.findAll({
+            where: { isPacked: false },
+            include: [{
+                model: OrderItem,
+                include: [
+                    { model: Design, attributes: ['designNumber', 'category'] },
+                    { model: Color, attributes: ['name'] },
+                    { model: Order, attributes: ['id', 'referenceNumber'] }
+                ]
+            }],
+            order: [['id', 'DESC']]
+        });
+        res.json(tasks);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post('/admin/workers/override', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        const { unitId, actionType } = req.body;
+        const unit = await ProductionUnit.findByPk(unitId);
+
+        if (!unit) return res.status(404).json({ error: 'Unit not found' });
+
+        // FORCE COMPLETE logic
+        if (actionType === 'Force Complete') {
+            if (!unit.isPvcDone) unit.isPvcDone = true;
+            else if (!unit.isFoilDone) unit.isFoilDone = true;
+            else if (!unit.isEmbossDone) unit.isEmbossDone = true;
+            else if (!unit.isDoorMade) unit.isDoorMade = true;
+            else if (!unit.isPacked) unit.isPacked = true;
+        }
+
+        await unit.save();
+
+        // Log override? (Later)
+
+        res.json({ success: true, unit });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // GET /workers/stats - Factory Floor Status (Pending Counts based on Flags)
 router.get('/stats', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
     try {

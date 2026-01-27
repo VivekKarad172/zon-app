@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
-import { User, Delete, ArrowLeft, Loader } from 'lucide-react';
+import { User, Delete, ArrowLeft, Loader, LogOut } from 'lucide-react';
 
 export default function WorkerLogin() {
     const navigate = useNavigate();
@@ -92,14 +92,22 @@ export default function WorkerLogin() {
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Floor Access System</p>
                     </div>
                 </div>
-                {selectedWorker && (
+                <div className="flex items-center gap-4">
+                    {selectedWorker && (
+                        <button
+                            onClick={() => { setSelectedWorker(null); setPin(''); }}
+                            className="flex items-center gap-2 text-gray-400 font-bold hover:text-gray-600"
+                        >
+                            <ArrowLeft size={20} /> Change User
+                        </button>
+                    )}
                     <button
-                        onClick={() => { setSelectedWorker(null); setPin(''); }}
-                        className="flex items-center gap-2 text-gray-400 font-bold hover:text-gray-600"
+                        onClick={() => navigate('/')}
+                        className="flex items-center gap-2 text-red-400 font-bold hover:text-red-600 bg-red-50 px-3 py-2 rounded-lg transition-colors"
                     >
-                        <ArrowLeft size={20} /> Change User
+                        <LogOut size={18} /> Exit
                     </button>
-                )}
+                </div>
             </div>
 
             <div className="flex-1 flex items-center justify-center p-6">
