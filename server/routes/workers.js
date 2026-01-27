@@ -218,19 +218,15 @@ router.get('/tasks', async (req, res) => {
         // Return all pending units (not yet packed).
 
         // CUSTOM RULE: Emboss Workers should ONLY see EMBOSS category designs
-        // AND only tasks that have completed Foil (their dependency)
+        // Frontend will handle locking based on dependencies (isFoilDone check)
         let designInclude = {};
-        let unitWhere = { isPacked: false };
 
         if (worker.role === 'EMBOSS') {
             designInclude = { category: 'EMBOSS' };
-            // Emboss workers should only see tasks where Foil is done
-            unitWhere.isFoilDone = true;
-            unitWhere.isEmbossDone = false; // Not yet embossed
         }
 
         const tasks = await ProductionUnit.findAll({
-            where: unitWhere,
+            where: { isPacked: false },
             include: [{
                 model: OrderItem,
                 include: [
