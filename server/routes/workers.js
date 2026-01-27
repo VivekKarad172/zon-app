@@ -45,7 +45,8 @@ router.get('/settings/location', authenticate, authorize(['MANUFACTURER']), asyn
     }
 });
 
-router.get('/admin/workers/all-tasks', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+// ADMIN ROUTES - WORKER CONTROL
+router.get('/admin/all-tasks', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
     try {
         const tasks = await ProductionUnit.findAll({
             where: { isPacked: false },
@@ -54,7 +55,7 @@ router.get('/admin/workers/all-tasks', authenticate, authorize(['MANUFACTURER'])
                 include: [
                     { model: Design, attributes: ['designNumber', 'category'] },
                     { model: Color, attributes: ['name'] },
-                    { model: Order, attributes: ['id', 'referenceNumber'] }
+                    { model: Order, attributes: ['id'] } // Removed referenceNumber - doesn't exist
                 ]
             }],
             order: [['id', 'DESC']]
@@ -65,7 +66,7 @@ router.get('/admin/workers/all-tasks', authenticate, authorize(['MANUFACTURER'])
     }
 });
 
-router.post('/admin/workers/override', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+router.post('/admin/override', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
     try {
         const { unitId, actionType } = req.body;
         const unit = await ProductionUnit.findByPk(unitId);

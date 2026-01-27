@@ -17,14 +17,31 @@ export default function AdminWorkerControl() {
     const fetchData = async () => {
         try {
             setLoading(true);
+            console.log('AdminWorkerControl: Fetching data...');
+
             const [wRes, tRes] = await Promise.all([
                 api.get('/workers/public'), // Get all workers
-                api.get('/admin/workers/all-tasks') // Need new endpoint
+                api.get('/workers/admin/all-tasks') // Corrected path
             ]);
-            setWorkers(wRes.data);
-            setTasks(tRes.data);
+
+            console.log('Workers received:', wRes.data.length);
+            console.log('Tasks received:', tRes.data.length);
+
+            setWorkers(wRes.data || []);
+            setTasks(tRes.data || []);
+
+            toast.success(`Loaded ${tRes.data.length} tasks`);
         } catch (error) {
-            toast.error('Failed to load data');
+            console.error('AdminWorkerControl fetch error:', error);
+            console.error('Error response:', error.response?.data);
+            console.error('Error status:', error.response?.status);
+
+            const errorMsg = error.response?.data?.error || error.message || 'Failed to load data';
+            toast.error(`Error: ${errorMsg}`);
+
+            // Set empty arrays to prevent crashes
+            setWorkers([]);
+            setTasks([]);
         } finally {
             setLoading(false);
         }
@@ -34,14 +51,15 @@ export default function AdminWorkerControl() {
         if (!confirm('Are you sure you want to force this action?')) return;
 
         try {
-            await api.post('/admin/workers/override', {
+            await api.post('/workers/admin/override', { // Corrected path
                 unitId,
-                actionType // 'COMPLETE_PVC', 'COMPLETE_FOIL', etc.
+                actionType // 'Force Complete'
             });
             toast.success('Override Successful');
             fetchData();
         } catch (error) {
-            toast.error('Override Failed');
+            console.error('Override error:', error);
+            toast.error(error.response?.data?.error || 'Override Failed');
         }
     };
 
@@ -50,10 +68,11 @@ export default function AdminWorkerControl() {
         toast('Unlock feature coming soon');
     };
 
-    // Filter tasks based on search
-    const filteredTasks = tasks.filter(t =>
-        !searchOrder || t.OrderItem.Order.id.toString().includes(searchOrder)
-    );
+    // Filter tasks based on search - with safe property access
+    const filteredTasks = tasks.filter(t => {
+        if (!searchOrder) return true;
+        return t?.OrderItem?.Order?.id?.toString().includes(searchOrder);
+    });
 
     return (
         <div className="p-6">
@@ -103,11 +122,15 @@ export default function AdminWorkerControl() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
-                                {filteredTasks.map(task => (
+                                {filteredTasks.length > 0 ? filteredTasks.map(task => (
                                     <tr key={task.id} className="hover:bg-gray-50">
                                         <td className="p-3">
-                                            <div className="font-bold">#{task.unitNumber} - Order #{task.OrderItem.Order.id}</div>
-                                            <div className="text-xs text-gray-500">{task.OrderItem.Design.designNumber}</div>
+                                            <div className="font-bold">
+                                                #{task.unitNumber} - Order #{task?.OrderItem?.Order?.id || 'N/A'}
+                                            </div>
+                                            <div className="text-xs text-gray-500">
+                                                {task?.OrderItem?.Design?.designNumber || 'No Design'}
+                                            </div>
                                         </td>
                                         <td className="p-3">
                                             <div className="flex gap-1 flex-wrap">
@@ -134,7 +157,13 @@ export default function AdminWorkerControl() {
                                             </div>
                                         </td>
                                     </tr>
-                                ))}
+                                )) : (
+                                    <tr>
+                                        <td colSpan="3" className="p-6 text-center text-gray-400 italic">
+                                            No tasks found. {searchOrder && 'Try a different search.'}
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>

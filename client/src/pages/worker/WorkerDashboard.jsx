@@ -194,6 +194,7 @@ export default function WorkerDashboard() {
             return;
         }
         fetchTasks();
+        fetchTodayStats(); // Load today's completed count
         const interval = setInterval(() => {
             setIsRefreshing(true);
             fetchTasks();
@@ -365,7 +366,8 @@ export default function WorkerDashboard() {
                 toast.dismiss(toastId);
                 toast.success('Done!');
                 playSuccess(); // Audio feedback
-                fetchTasks(); // Refresh list 
+                fetchTasks(); // Refresh list
+                fetchTodayStats(); // Update completed count 
             } catch (error) {
                 toast.dismiss(toastId);
                 playError(); // Audio feedback
@@ -475,8 +477,10 @@ export default function WorkerDashboard() {
 
                 toast.dismiss(toastId);
                 toast.success(`${selectedUnits.size} tasks completed!`);
+                playSuccess(); // Audio feedback
                 setSelectedUnits(new Set()); // Clear selection
                 fetchTasks(); // Refresh
+                fetchTodayStats(); // Update completed count
             } catch (error) {
                 toast.dismiss(toastId);
                 const msg = error.response?.data?.error || 'Batch completion failed';
