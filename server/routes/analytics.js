@@ -13,7 +13,7 @@ const getDateFilter = (days) => {
 };
 
 // GET /analytics/popular-sizes - Most ordered door dimensions
-router.get('/popular-sizes', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), async (req, res) => {
+router.get('/popular-sizes', authenticate, async (req, res) => {
     try {
         const { days = 30, limit = 20 } = req.query;
 
@@ -64,7 +64,7 @@ router.get('/popular-sizes', authenticate, authorize(['MANUFACTURER', 'DISTRIBUT
 });
 
 // GET /analytics/design-trends - Most ordered designs
-router.get('/design-trends', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), async (req, res) => {
+router.get('/design-trends', authenticate, async (req, res) => {
     try {
         const { days = 30, limit = 20 } = req.query;
 
@@ -117,7 +117,7 @@ router.get('/design-trends', authenticate, authorize(['MANUFACTURER', 'DISTRIBUT
 });
 
 // GET /analytics/color-trends - Most ordered colors
-router.get('/color-trends', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), async (req, res) => {
+router.get('/color-trends', authenticate, async (req, res) => {
     try {
         const { days = 30, limit = 20 } = req.query;
 
@@ -169,7 +169,7 @@ router.get('/color-trends', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTO
 });
 
 // GET /analytics/sales-summary - Overall metrics
-router.get('/sales-summary', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), async (req, res) => {
+router.get('/sales-summary', authenticate, async (req, res) => {
     try {
         const { days = 30 } = req.query;
 
