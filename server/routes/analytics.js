@@ -28,8 +28,8 @@ router.get('/popular-sizes', authenticate, async (req, res) => {
             attributes: [
                 'width',
                 'height',
-                [OrderItem.sequelize.fn('SUM', OrderItem.sequelize.col('quantity')), 'totalOrdered'],
-                [OrderItem.sequelize.fn('COUNT', OrderItem.sequelize.fn('DISTINCT', OrderItem.sequelize.col('OrderItem.orderId'))), 'orderCount']
+                [OrderItem.sequelize.fn('SUM', OrderItem.sequelize.col('quantity')), 'totalordered'],
+                [OrderItem.sequelize.fn('COUNT', OrderItem.sequelize.fn('DISTINCT', OrderItem.sequelize.col('OrderItem.orderId'))), 'ordercount']
             ],
             include: [{
                 model: Order,
@@ -37,7 +37,7 @@ router.get('/popular-sizes', authenticate, async (req, res) => {
                 where: whereClause
             }],
             group: ['width', 'height'],
-            order: [[OrderItem.sequelize.literal('totalOrdered'), 'DESC']],
+            order: [[OrderItem.sequelize.literal('totalordered'), 'DESC']],
             limit: parseInt(limit),
             raw: true
         });
@@ -48,8 +48,8 @@ router.get('/popular-sizes', authenticate, async (req, res) => {
             size: `${item.width}" × ${item.height}"`,
             width: item.width,
             height: item.height,
-            totalOrdered: parseInt(item.totalOrdered),
-            orderCount: parseInt(item.orderCount),
+            totalOrdered: parseInt(item.totalordered),
+            orderCount: parseInt(item.ordercount),
             popularity: index < 5 ? 'hot' : index < 10 ? 'warm' : 'cool'
         }));
 
@@ -76,8 +76,8 @@ router.get('/design-trends', authenticate, async (req, res) => {
 
         const designs = await OrderItem.findAll({
             attributes: [
-                [OrderItem.sequelize.fn('SUM', OrderItem.sequelize.col('quantity')), 'totalOrdered'],
-                [OrderItem.sequelize.fn('COUNT', OrderItem.sequelize.fn('DISTINCT', OrderItem.sequelize.col('OrderItem.orderId'))), 'orderCount']
+                [OrderItem.sequelize.fn('SUM', OrderItem.sequelize.col('quantity')), 'totalordered'],
+                [OrderItem.sequelize.fn('COUNT', OrderItem.sequelize.fn('DISTINCT', OrderItem.sequelize.col('OrderItem.orderId'))), 'ordercount']
             ],
             include: [
                 {
@@ -92,7 +92,7 @@ router.get('/design-trends', authenticate, async (req, res) => {
                 }
             ],
             group: ['Design.id', 'Design.designNumber', 'Design.category', 'Design.imageUrl', 'OrderItem.designNameSnapshot'],
-            order: [[OrderItem.sequelize.literal('totalOrdered'), 'DESC']],
+            order: [[OrderItem.sequelize.literal('totalordered'), 'DESC']],
             limit: parseInt(limit)
         });
 
@@ -101,8 +101,8 @@ router.get('/design-trends', authenticate, async (req, res) => {
             designNumber: item.Design?.designNumber || item.designNameSnapshot || 'Unknown',
             category: item.Design?.category || 'N/A',
             imageUrl: item.Design?.imageUrl || null,
-            totalOrdered: parseInt(item.dataValues.totalOrdered),
-            orderCount: parseInt(item.dataValues.orderCount),
+            totalOrdered: parseInt(item.dataValues.totalordered),
+            orderCount: parseInt(item.dataValues.ordercount),
             popularity: index < 5 ? 'hot' : index < 10 ? 'warm' : 'cool'
         }));
 
@@ -129,8 +129,8 @@ router.get('/color-trends', authenticate, async (req, res) => {
 
         const colors = await OrderItem.findAll({
             attributes: [
-                [OrderItem.sequelize.fn('SUM', OrderItem.sequelize.col('quantity')), 'totalOrdered'],
-                [OrderItem.sequelize.fn('COUNT', OrderItem.sequelize.fn('DISTINCT', OrderItem.sequelize.col('OrderItem.orderId'))), 'orderCount']
+                [OrderItem.sequelize.fn('SUM', OrderItem.sequelize.col('quantity')), 'totalordered'],
+                [OrderItem.sequelize.fn('COUNT', OrderItem.sequelize.fn('DISTINCT', OrderItem.sequelize.col('OrderItem.orderId'))), 'ordercount']
             ],
             include: [
                 {
@@ -145,7 +145,7 @@ router.get('/color-trends', authenticate, async (req, res) => {
                 }
             ],
             group: ['Color.id', 'Color.name', 'Color.imageUrl', 'OrderItem.colorNameSnapshot'],
-            order: [[OrderItem.sequelize.literal('totalOrdered'), 'DESC']],
+            order: [[OrderItem.sequelize.literal('totalordered'), 'DESC']],
             limit: parseInt(limit)
         });
 
@@ -153,8 +153,8 @@ router.get('/color-trends', authenticate, async (req, res) => {
             rank: index + 1,
             colorName: item.Color?.name || item.colorNameSnapshot || 'Unknown',
             imageUrl: item.Color?.imageUrl || null,
-            totalOrdered: parseInt(item.dataValues.totalOrdered),
-            orderCount: parseInt(item.dataValues.orderCount),
+            totalOrdered: parseInt(item.dataValues.totalordered),
+            orderCount: parseInt(item.dataValues.ordercount),
             popularity: index < 5 ? 'hot' : index < 10 ? 'warm' : 'cool'
         }));
 
@@ -206,7 +206,7 @@ router.get('/sales-summary', authenticate, async (req, res) => {
         // Top dealer
         const topDealer = await OrderItem.findAll({
             attributes: [
-                [OrderItem.sequelize.fn('SUM', OrderItem.sequelize.col('quantity')), 'totalOrdered']
+                [OrderItem.sequelize.fn('SUM', OrderItem.sequelize.col('quantity')), 'totalordered']
             ],
             include: [{
                 model: Order,
@@ -218,7 +218,7 @@ router.get('/sales-summary', authenticate, async (req, res) => {
                 }]
             }],
             group: ['Order.User.id', 'Order.User.name', 'Order.User.shopName', 'Order.User.email'],
-            order: [[OrderItem.sequelize.literal('totalOrdered'), 'DESC']],
+            order: [[OrderItem.sequelize.literal('totalordered'), 'DESC']],
             limit: 1
         });
 
@@ -235,7 +235,7 @@ router.get('/sales-summary', authenticate, async (req, res) => {
                     name: topDealer[0].Order?.User?.name || 'N/A',
                     shopName: topDealer[0].Order?.User?.shopName,
                     email: topDealer[0].Order?.User?.email,
-                    totalOrdered: parseInt(topDealer[0].dataValues.totalOrdered)
+                    totalOrdered: parseInt(topDealer[0].dataValues.totalordered)
                 } : null
             }
         });
