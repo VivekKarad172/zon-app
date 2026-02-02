@@ -9,6 +9,7 @@ export default function AdminWorkerControl() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('tasks'); // 'status' | 'tasks'
     const [searchOrder, setSearchOrder] = useState('');
+    const [expandedOrderId, setExpandedOrderId] = useState(null); // NEW: Separate state for expansion
 
     useEffect(() => {
         fetchData();
@@ -112,60 +113,104 @@ export default function AdminWorkerControl() {
                         <button onClick={fetchData} className="p-2 bg-gray-100 rounded-lg"><RefreshCw size={20} /></button>
                     </div>
 
-                    <div className="bg-white rounded-xl shadow overflow-hidden">
-                        <table className="w-full text-left">
-                            <thead className="bg-gray-50 border-b">
-                                <tr>
-                                    <th className="p-3 text-xs font-bold text-gray-500 uppercase">Unit</th>
-                                    <th className="p-3 text-xs font-bold text-gray-500 uppercase">Current Status</th>
-                                    <th className="p-3 text-xs font-bold text-gray-500 uppercase">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y">
-                                {filteredTasks.length > 0 ? filteredTasks.map(task => (
-                                    <tr key={task.id} className="hover:bg-gray-50">
-                                        <td className="p-3">
-                                            <div className="font-bold">
-                                                #{task.unitNumber} - Order #{task?.OrderItem?.Order?.id || 'N/A'}
+                    {/* GROUPED TASKS VIEW */}
+                    <div className="space-y-4">
+                        {Object.entries(
+                            filteredTasks.reduce((acc, task) => {
+                                const orderId = task?.OrderItem?.Order?.id || 'Unknown';
+                                if (!acc[orderId]) acc[orderId] = [];
+                                acc[orderId].push(task);
+                                return acc;
+                            }, {})
+                        ).map(([orderId, orderTasks]) => {
+                            const isExpanded = expandedOrderId === orderId || searchOrder; // Auto-expand if searching
+                            const totalUnits = orderTasks.length;
+                            const completedUnits = orderTasks.filter(t => t.isPacked).length; // Packed = fully done
+                            const progress = Math.round((completedUnits / totalUnits) * 100);
+
+                            return (
+                                <div key={orderId} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                                    {/* ORDER HEADER */}
+                                    <div
+                                        onClick={() => setExpandedOrderId(isExpanded ? null : orderId)} // Correctly toggle expansion
+                                        className="p-4 bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="bg-indigo-600 text-white font-black text-lg w-10 h-10 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-200">
+                                                {orderId === 'Unknown' ? '?' : orderId}
                                             </div>
-                                            <div className="text-xs text-gray-500">
-                                                {task?.OrderItem?.Design?.designNumber || 'No Design'}
+                                            <div>
+                                                <h3 className="font-bold text-gray-900">Order #{orderId}</h3>
+                                                <p className="text-xs text-gray-500 font-bold">{totalUnits} Units • {progress}% Complete</p>
                                             </div>
-                                        </td>
-                                        <td className="p-3">
-                                            <div className="flex gap-1 flex-wrap">
-                                                {task.isPvcDone && <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded">PVC</span>}
-                                                {task.isFoilDone && <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded">Foil</span>}
-                                                {task.isEmbossDone && <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded">Emboss</span>}
-                                                {task.isDoorMade && <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded">Door</span>}
-                                                {task.isPacked && <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded">Packed</span>}
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${progress}%` }}></div>
                                             </div>
-                                        </td>
-                                        <td className="p-3">
-                                            <div className="flex gap-2">
-                                                {!task.isPacked && (
-                                                    <button
-                                                        onClick={() => handleOverride(task.id, 'Force Complete')}
-                                                        className="text-indigo-600 font-bold text-xs border border-indigo-200 px-2 py-1 rounded hover:bg-indigo-50"
-                                                    >
-                                                        Force Next Step
-                                                    </button>
-                                                )}
-                                                <button onClick={() => unlockTask(task.id)} className="text-gray-400 hover:text-gray-600">
-                                                    <Unlock size={16} />
-                                                </button>
+                                            <div className="text-gray-400">
+                                                {isExpanded ? '▲' : '▼'}
                                             </div>
-                                        </td>
-                                    </tr>
-                                )) : (
-                                    <tr>
-                                        <td colSpan="3" className="p-6 text-center text-gray-400 italic">
-                                            No tasks found. {searchOrder && 'Try a different search.'}
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                                        </div>
+                                    </div>
+
+                                    {/* ORDER TASKS TABLE (Collapsible) */}
+                                    {(isExpanded || searchOrder) && (
+                                        <div className="border-t border-gray-100">
+                                            <table className="w-full text-left">
+                                                <thead className="bg-white text-xs font-bold text-gray-400 uppercase tracking-widest">
+                                                    <tr>
+                                                        <th className="p-3 pl-4">Unit</th>
+                                                        <th className="p-3">Design</th>
+                                                        <th className="p-3">Status</th>
+                                                        <th className="p-3">Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-50">
+                                                    {orderTasks.map(task => (
+                                                        <tr key={task.id} className="hover:bg-indigo-50/30 transition-colors">
+                                                            <td className="p-3 pl-4 font-bold text-indigo-900">#{task.unitNumber}</td>
+                                                            <td className="p-3 text-sm font-medium">
+                                                                {task?.OrderItem?.Design?.designNumber || 'N/A'} <span className="text-gray-400 text-xs">({task?.OrderItem?.Color?.name})</span>
+                                                            </td>
+                                                            <td className="p-3">
+                                                                <div className="flex gap-1 flex-wrap">
+                                                                    {task.isPvcDone ? <span className="w-2 h-2 rounded-full bg-green-500" title="PVC Done"></span> : <span className="w-2 h-2 rounded-full bg-gray-200" title="PVC Pending"></span>}
+                                                                    {task.isFoilDone ? <span className="w-2 h-2 rounded-full bg-green-500" title="Foil Done"></span> : <span className="w-2 h-2 rounded-full bg-gray-200" title="Foil Pending"></span>}
+                                                                    {task.isEmbossDone ? <span className="w-2 h-2 rounded-full bg-green-500" title="Emboss Done"></span> : <span className="w-2 h-2 rounded-full bg-gray-200" title="Emboss Pending"></span>}
+                                                                    {task.isDoorMade ? <span className="w-2 h-2 rounded-full bg-green-500" title="Door Done"></span> : <span className="w-2 h-2 rounded-full bg-gray-200" title="Door Pending"></span>}
+                                                                </div>
+                                                                <div className="text-[10px] text-gray-400 font-bold mt-1 uppercase">
+                                                                    {!task.isPvcDone ? 'PVC Pending' : !task.isFoilDone ? 'Foil Pending' : !task.isEmbossDone ? 'Emboss Pending' : !task.isDoorMade ? 'Door Pending' : 'Packing'}
+                                                                </div>
+                                                            </td>
+                                                            <td className="p-3">
+                                                                {!task.isPacked && (
+                                                                    <button
+                                                                        onClick={() => handleOverride(task.id, 'Force Complete')}
+                                                                        className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
+                                                                    >
+                                                                        Force Next
+                                                                    </button>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+
+                        {filteredTasks.length === 0 && (
+                            <div className="text-center p-12 text-gray-400 bg-white rounded-2xl border border-dashed border-gray-200">
+                                <Search size={48} className="mx-auto mb-4 opacity-20" />
+                                <p className="font-bold">No tasks found</p>
+                                <p className="text-sm">Try searching for a different order.</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             ) : (

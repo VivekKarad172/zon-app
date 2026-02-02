@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { DoorType, Design, Color, DesignColor } = require('../models');
+const { DoorType, Design, Color, DesignColor, SheetMaster } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
 const { Op } = require('sequelize');
 const { getDesignType } = require('../utils/designLogic');
@@ -333,6 +333,43 @@ router.post('/designs/auto-categorize', authenticate, authorize(['MANUFACTURER']
         }
 
         res.json({ message: `Scanned ${designs.length} designs. Updated ${updated} categories to new standard.` });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// === SHEET MASTERS ===
+router.get('/sheets', authenticate, async (req, res) => {
+    const sheets = await SheetMaster.findAll({ where: { isEnabled: true }, order: [['width', 'ASC'], ['height', 'ASC']] });
+    res.json(sheets);
+});
+
+router.post('/sheets', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        const { width, height } = req.body;
+        if (!width || !height) return res.status(400).json({ error: 'Width and Height required' });
+
+        // Check duplicate
+        const existing = await SheetMaster.findOne({ where: { width, height } });
+        if (existing) {
+            if (!existing.isEnabled) {
+                await existing.update({ isEnabled: true });
+                return res.json(existing);
+            }
+            return res.status(400).json({ error: 'Sheet size already exists' });
+        }
+
+        const sheet = await SheetMaster.create({ width, height, isEnabled: true });
+        res.json(sheet);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.delete('/sheets/:id', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        await SheetMaster.destroy({ where: { id: req.params.id } });
+        res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

@@ -90,6 +90,9 @@ export default function WorkerDashboard() {
     // BATCH ACTIONS STATE
     const [selectedUnits, setSelectedUnits] = useState(new Set()); // Selected task IDs for batch completion
 
+    // MASTERS STATE
+    const [sheetMasters, setSheetMasters] = useState([]);
+
     // DAILY TARGET STATE
     const dailyTargets = {
         'PVC_CUT': 80,
@@ -99,6 +102,15 @@ export default function WorkerDashboard() {
         'PACKING': 70
     };
     const myTarget = dailyTargets[worker?.role] || 50;
+
+    const fetchSheetMasters = async () => {
+        try {
+            const res = await api.get('/sheets');
+            setSheetMasters(res.data);
+        } catch (error) {
+            console.error('Failed to load sheet masters', error);
+        }
+    };
 
     const fetchHistory = async () => {
         try {
@@ -195,6 +207,7 @@ export default function WorkerDashboard() {
         }
         fetchTasks();
         fetchTodayStats(); // Load today's completed count
+        fetchSheetMasters(); // Load dynamic sheet sizes
         const interval = setInterval(() => {
             setIsRefreshing(true);
             fetchTasks();
@@ -738,7 +751,9 @@ export default function WorkerDashboard() {
                                             const showDesign = ['EMBOSS', 'PACKING', 'PVC_CUT', 'DOOR_MAKING'].includes(worker.role);
 
                                             // BLANK SIZE CALCULATION
-                                            const blankSize = worker.role === 'FOIL_PASTING' ? getOptimalBlankSize(item?.width, item?.height, design?.category || getDesignType(design?.designNumber)) : null;
+                                            const designRef = design?.designNumber || item?.designNameSnapshot;
+                                            const categoryRef = design?.category || getDesignType(designRef);
+                                            const blankSize = worker.role === 'FOIL_PASTING' ? getOptimalBlankSize(item?.width, item?.height, categoryRef, sheetMasters) : null;
 
 
                                             // CUSTOM FOIL LAYOUT
@@ -817,11 +832,11 @@ export default function WorkerDashboard() {
                                                                         <div className="text-gray-900 font-bold text-base space-y-1">
                                                                             <div className="flex items-center gap-2">
                                                                                 <span className="text-gray-400 font-medium text-sm">Design no:-</span>
-                                                                                <span className="text-xl font-black">{design?.designNumber}</span>
+                                                                                <span className="text-xl font-black">{design?.designNumber || item?.designNameSnapshot || 'N/A'}</span>
                                                                             </div>
                                                                             <div className="flex items-center gap-2">
                                                                                 <span className="text-gray-400 font-medium text-sm">Colour no:-</span>
-                                                                                <span className="text-lg font-bold text-gray-800">{color?.name}</span>
+                                                                                <span className="text-lg font-bold text-gray-800">{color?.name || item?.colorNameSnapshot || 'N/A'}</span>
                                                                             </div>
                                                                         </div>
                                                                     </div>

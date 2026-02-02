@@ -35,7 +35,7 @@ router.post('/settings/location', authenticate, authorize(['MANUFACTURER']), asy
     }
 });
 
-router.get('/settings/location', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+router.get('/settings/location', authenticate, authorize(['MANUFACTURER', 'MANAGER']), async (req, res) => {
     try {
         await SystemSetting.sync();
         const s = await SystemSetting.findByPk('FACTORY_COORDS');
@@ -46,7 +46,7 @@ router.get('/settings/location', authenticate, authorize(['MANUFACTURER']), asyn
 });
 
 // ADMIN ROUTES - WORKER CONTROL
-router.get('/admin/all-tasks', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+router.get('/admin/all-tasks', authenticate, authorize(['MANUFACTURER', 'MANAGER']), async (req, res) => {
     try {
         const tasks = await ProductionUnit.findAll({
             where: { isPacked: false },
@@ -66,7 +66,7 @@ router.get('/admin/all-tasks', authenticate, authorize(['MANUFACTURER']), async 
     }
 });
 
-router.post('/admin/override', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+router.post('/admin/override', authenticate, authorize(['MANUFACTURER', 'MANAGER']), async (req, res) => {
     try {
         const { unitId, actionType } = req.body;
         const unit = await ProductionUnit.findByPk(unitId);
@@ -280,7 +280,8 @@ router.get('/tasks', async (req, res) => {
                     {
                         model: Design,
                         attributes: ['designNumber', 'imageUrl', 'category'],
-                        where: designInclude
+                        where: designInclude,
+                        required: worker.role === 'EMBOSS' // Only force inner join if filtering by category
                     },
                     { model: Color, attributes: ['name', 'imageUrl'] },
                     {

@@ -214,3 +214,65 @@
 [2026-01-27T20:12:46.106Z] --- GET /users REQUEST ---
 [2026-01-27T20:12:46.124Z] Found 3 users.
 [2026-01-27T20:12:46.125Z] Found 9 users.
+[2026-02-01T15:42:19.800Z] --- GET /users REQUEST ---
+[2026-02-01T15:42:20.148Z] --- GET /users REQUEST ---
+[2026-02-01T15:42:20.168Z] Found 9 users.
+[2026-02-01T15:42:20.170Z] Found 3 users.
+[2026-02-01T15:42:30.782Z] --- GET /users REQUEST ---
+[2026-02-01T15:42:30.788Z] Found 3 users.
+[2026-02-01T15:42:42.381Z] --- GET /users REQUEST ---
+[2026-02-01T15:42:42.385Z] Found 3 users.
+[2026-02-01T16:27:54.606Z] --- GET /users REQUEST ---
+[2026-02-01T16:27:54.707Z] Found 5 users.
+[2026-02-02T16:14:45.733Z] --- GET /users REQUEST ---
+[2026-02-02T16:14:45.813Z] Found 3 users.
+[2026-02-02T16:15:18.120Z] --- GET /users REQUEST ---
+[2026-02-02T16:15:18.128Z] Found 3 users.
+[2026-02-02T16:15:24.179Z] --- GET /users REQUEST ---
+[2026-02-02T16:15:24.215Z] Found 3 users.
+[2026-02-02T16:38:21.783Z] --- GET /users REQUEST ---
+[2026-02-02T16:38:21.784Z] ERROR: User is not associated to User!
+[2026-02-02T16:38:48.508Z] --- GET /users REQUEST ---
+[2026-02-02T16:38:48.509Z] ERROR: User is not associated to User!
+[2026-02-02T16:38:57.189Z] --- GET /users REQUEST ---
+[2026-02-02T16:38:57.190Z] ERROR: User is not associated to User!
+[2026-02-02T16:39:19.344Z] --- GET /users REQUEST ---
+[2026-02-02T16:39:19.345Z] ERROR: User is not associated to User!
+[2026-02-02T16:46:22.646Z] --- GET /users REQUEST ---
+[2026-02-02T16:46:22.647Z] ERROR: User is not associated to User!
+[2026-02-02T16:46:29.376Z] --- GET /users REQUEST ---
+[2026-02-02T16:46:29.377Z] ERROR: User is not associated to User!
+[2026-02-02T16:46:37.642Z] --- GET /users REQUEST ---
+[2026-02-02T16:46:37.643Z] ERROR: User is not associated to User!
+[2026-02-02T16:49:04.302Z] --- GET /users REQUEST ---
+[2026-02-02T16:49:04.336Z] Found 3 users.
+[2026-02-02T16:49:18.430Z] --- GET /users REQUEST ---
+[2026-02-02T16:49:18.463Z] Found 3 users.
+[2026-02-02T16:49:25.443Z] --- GET /users REQUEST ---
+[2026-02-02T16:49:25.485Z] Found 3 users.
+[2026-02-02T16:51:47.891Z] --- GET /users REQUEST ---
+[2026-02-02T16:51:47.926Z] Found 3 users.
+[2026-02-02T17:11:41.651Z] --- GET /users REQUEST ---
+[2026-02-02T17:11:41.659Z] Found 3 users.
+[2026-02-02T17:31:53.459Z] --- GET /users REQUEST ---
+[2026-02-02T17:31:53.474Z] Found 9 users.
+[2026-02-02T17:31:53.477Z] --- GET /users REQUEST ---
+[2026-02-02T17:31:53.482Z] Found 3 users.
+[2026-02-02T17:32:38.057Z] --- GET /users REQUEST ---
+[2026-02-02T17:32:38.071Z] Found 10 users.
+[2026-02-02T17:32:40.096Z] --- GET /users REQUEST ---
+[2026-02-02T17:32:40.100Z] Found 3 users.
+[2026-02-02T17:33:29.439Z] --- GET /users REQUEST ---
+[2026-02-02T17:33:29.449Z] Found 4 users.
+[2026-02-02T17:33:33.651Z] --- GET /users REQUEST ---
+[2026-02-02T17:33:33.653Z] --- GET /users REQUEST ---
+[2026-02-02T17:33:33.677Z] Found 4 users.
+[2026-02-02T17:33:33.677Z] Found 10 users.
+[2026-02-02T17:33:40.404Z] --- GET /users REQUEST ---
+[2026-02-02T17:33:40.419Z] Found 10 users.
+[2026-02-02T17:57:38.951Z] --- GET /users REQUEST ---
+[2026-02-02T17:57:39.112Z] Found 4 users.
+[2026-02-02T17:59:34.153Z] --- GET /users REQUEST ---
+[2026-02-02T17:59:34.344Z] Found 4 users.
+[2026-02-02T18:20:05.786Z] --- GET /users REQUEST ---
+[2026-02-02T18:20:05.949Z] Found 4 users.

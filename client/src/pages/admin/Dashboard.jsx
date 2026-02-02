@@ -3,13 +3,14 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
-import { Plus, X, Image as ImageIcon, Filter, Search, Edit2, Eye, EyeOff, Save, Trash2, User, Users, ShoppingBag, Bell, Upload, Download, FileSpreadsheet, Home, CheckSquare, Calendar, ChevronDown, Factory, Hammer, RefreshCw, MapPin, Printer, LogOut, Trophy, Calculator, Wand2 } from 'lucide-react';
+import { Plus, X, Image as ImageIcon, Filter, Search, Edit2, Eye, EyeOff, Save, Trash2, User, Users, ShoppingBag, Bell, Upload, Download, FileSpreadsheet, Home, CheckSquare, Calendar, ChevronDown, Factory, Hammer, RefreshCw, MapPin, Printer, LogOut, Trophy, Calculator, Wand2, Sheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import React from 'react'; // Required for Class Component
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // NEW COMPONENTS
 import AdminWorkerControl from './AdminWorkerControl';
+import MaterialAnalysis from './MaterialAnalysis';
 
 // === GLOBAL ERROR BOUNDARY ===
 class DashboardErrorBoundary extends React.Component {
@@ -81,6 +82,8 @@ export default function AdminDashboard() {
     // PRODUCTION INTELLIGENCE STATE
     const [workerLeaderboard, setWorkerLeaderboard] = useState([]);
     const [materialEstimates, setMaterialEstimates] = useState(null);
+    const [sheets, setSheets] = useState([]);
+    const [newSheet, setNewSheet] = useState({ width: '', height: '' });
 
     // --- INTELLIGENT FEATURES ---
     const [searchTerm, setSearchTerm] = useState(''); // Smart Search State
@@ -221,7 +224,7 @@ export default function AdminDashboard() {
         if (activeTab === 'orders') fetchOrders();
         if (activeTab === 'production') { fetchProductionOrders(); fetchDistributors(); fetchFactoryTracking(); fetchFactoryStats(); fetchProductionIntelligence(); }
         if (activeTab === 'factory') { fetchWorkers(); fetchFactoryStats(); fetchFactoryLocation(); }
-        if (activeTab === 'designs' || activeTab === 'masters') { fetchDesigns(); fetchDoors(); fetchColors(); }
+        if (activeTab === 'designs' || activeTab === 'masters') { fetchDesigns(); fetchDoors(); fetchColors(); fetchSheets(); }
         if (activeTab === 'distributors') fetchDistributors();
         if (activeTab === 'dealers') { fetchDealers(); fetchDistributors(); }
         if (activeTab === 'whatsnew') fetchPosts();
@@ -286,6 +289,21 @@ export default function AdminDashboard() {
     };
     const fetchFactoryLocation = async () => { try { const res = await api.get('/workers/settings/location'); setFactoryLocation(res.data); } catch (e) { } };
     const fetchWorkers = async () => { try { const res = await api.get('/workers'); setWorkers(res.data); } catch (e) { } };
+    const fetchSheets = async () => { try { const res = await api.get('/sheets'); setSheets(res.data); } catch (e) { } };
+
+    const handleAddSheet = async () => {
+        try {
+            await api.post('/sheets', newSheet);
+            toast.success('Sheet Added');
+            setNewSheet({ width: '', height: '' });
+            fetchSheets();
+        } catch (e) { toast.error(e.response?.data?.error || 'Failed'); }
+    };
+
+    const handleDeleteSheet = async (id) => {
+        if (!confirm('Delete sheet size?')) return;
+        try { await api.delete(`/sheets/${id}`); toast.success('Deleted'); fetchSheets(); } catch (e) { toast.error('Failed'); }
+    };
 
     // State for Grouping & Filtering
     const [groupBy, setGroupBy] = useState('order'); // 'order', 'design', 'color', 'distributor'
@@ -633,22 +651,62 @@ export default function AdminDashboard() {
                     return toast.error('No data found in file');
                 }
 
-                // UPDATE ANIMATION
-                setImportStatus({ active: true, total: cleanData.length, text: `Injecting ${cleanData.length} Orders into Core...` });
-                await new Promise(r => setTimeout(r, 1500)); // Fake delay for UX "wow" factor
+                // BATCH PROCESSING CONSTANTS
+                const BATCH_SIZE = 100;
+                const totalBatches = Math.ceil(cleanData.length / BATCH_SIZE);
+                let totalCreated = 0;
+                let totalFailed = 0;
+                let allErrors = [];
 
-                // Send to backend
-                const res = await api.post('/orders/import', { orders: cleanData });
-
-                // SUCCESS ANIMATION
-                setImportStatus({ active: true, total: cleanData.length, text: 'Synchronization Complete!' });
+                setImportStatus({ active: true, total: cleanData.length, progress: 0, text: 'Initializing Import Engine...' });
                 await new Promise(r => setTimeout(r, 800));
 
-                toast.success(`${res.data.created} orders imported successfully!`);
-                if (res.data.failed > 0) {
-                    toast.error(`${res.data.failed} rows failed - see console`);
-                    console.error('Import Errors:', res.data.errors);
+                for (let i = 0; i < totalBatches; i++) {
+                    const start = i * BATCH_SIZE;
+                    const end = start + BATCH_SIZE;
+                    const batch = cleanData.slice(start, end);
+
+                    // Update Progress
+                    const progress = Math.round(((i) / totalBatches) * 100);
+                    setImportStatus({
+                        active: true,
+                        total: cleanData.length,
+                        progress: progress,
+                        text: `Injecting Batch ${i + 1}/${totalBatches} (${start}-${Math.min(end, cleanData.length)})...`
+                    });
+
+                    try {
+                        const res = await api.post('/orders/import', { orders: batch });
+                        totalCreated += res.data.created;
+                        totalFailed += res.data.failed;
+                        if (res.data.errors) allErrors = [...allErrors, ...res.data.errors];
+                    } catch (err) {
+                        console.error(`Batch ${i + 1} Failed:`, err);
+                        totalFailed += batch.length;
+                        allErrors.push({ row: { batch: `Batch ${i + 1}` }, error: err.response?.data?.error || err.message });
+                    }
                 }
+
+                // SUCCESS ANIMATION
+                setImportStatus({ active: true, total: cleanData.length, progress: 100, text: 'Finalizing Synchronization...' });
+                await new Promise(r => setTimeout(r, 800));
+
+                if (totalFailed > 0) {
+                    toast.error(`${totalFailed} rows failed. Downloading error report...`);
+
+                    // Generate Error Report
+                    const errorData = allErrors.map(e => ({
+                        RowData: JSON.stringify(e.row || {}),
+                        ErrorMessage: e.error
+                    }));
+                    const ws = XLSX.utils.json_to_sheet(errorData);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "Errors");
+                    XLSX.writeFile(wb, `Import_Errors_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.xlsx`);
+                } else {
+                    toast.success(`${totalCreated} orders imported successfully!`);
+                }
+
                 setShowImportOrders(false);
                 fetchOrders();
             } catch (err) {
@@ -984,6 +1042,29 @@ export default function AdminDashboard() {
                         <Users size={20} /> Worker Control
                     </button>
 
+                    {/* NEW: All Dashboard Tabs Below Worker Control */}
+                    <div className="pt-4 mt-4 border-t border-slate-100 space-y-2">
+                        {[
+                            { id: 'home', label: 'Home', icon: Home },
+                            { id: 'production', label: 'Production', icon: Factory, hideFor: ['DISTRIBUTOR'] },
+                            { id: 'material-analysis', label: 'Materials', icon: Calculator, hideFor: ['DISTRIBUTOR'] },
+                            { id: 'factory', label: 'Factory Mgmt', icon: Hammer, hideFor: ['DISTRIBUTOR'] },
+                            { id: 'orders', label: 'Orders', icon: ShoppingBag },
+                            { id: 'distributors', label: 'Distributors', icon: Users, hideFor: ['DISTRIBUTOR'] },
+                            { id: 'designs', label: 'Designs', icon: ImageIcon },
+                            { id: 'masters', label: 'Masters', icon: Filter },
+                            { id: 'whatsnew', label: "What's New", icon: Bell }
+                        ].filter(tab => !tab.hideFor || !tab.hideFor.includes(user?.role)).map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all text-sm ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
+                            >
+                                <tab.icon size={18} /> {tab.label}
+                            </button>
+                        ))}
+                    </div>
+
                     <div className="pt-4 mt-4 border-t border-slate-100">
                         <button
                             onClick={logout}
@@ -1032,32 +1113,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-
-                {/* Floating Navigation Panels (original location) */}
-                <div className="px-4 relative z-[110] mb-8">
-                    <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-2 flex justify-between gap-1 max-w-5xl mx-auto overflow-x-auto border border-white/50 ring-1 ring-black/5 no-scrollbar">
-                        {[
-                            { id: 'home', label: 'Home', icon: Home },
-                            { id: 'production', label: 'Production', icon: Factory, hideFor: ['DISTRIBUTOR'] },
-                            { id: 'factory', label: 'Factory Mgmt', icon: Hammer, hideFor: ['DISTRIBUTOR'] },
-                            { id: 'orders', label: 'Orders', icon: ShoppingBag },
-                            { id: 'distributors', label: 'Distributors', icon: Users, hideFor: ['DISTRIBUTOR'] },
-                            { id: 'dealers', label: 'Dealers', icon: User },
-                            { id: 'designs', label: 'Designs', icon: ImageIcon },
-                            { id: 'masters', label: 'Masters', icon: Filter },
-                            { id: 'whatsnew', label: "New", icon: Bell }
-                        ].filter(tab => !tab.hideFor || !tab.hideFor.includes(user?.role)).map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`flex-1 py-3 px-6 rounded-2xl font-bold text-sm transition-all duration-300 flex flex-col sm:flex-row items-center justify-center gap-2 whitespace-nowrap group ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200 ring-4 ring-indigo-50' : 'text-gray-400 hover:bg-gray-100/50 hover:text-gray-600'}`}
-                            >
-                                <tab.icon size={18} className={`${activeTab === tab.id ? 'scale-110' : 'group-hover:scale-110'} transition-transform`} />
-                                <span className="hidden sm:inline">{tab.label}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                {/* Horizontal navigation removed - now in sidebar */}
 
                 <div className="max-w-7xl mx-auto px-4">
                     {/* Global Controls Filter Bar */}
@@ -1717,20 +1773,47 @@ export default function AdminDashboard() {
 
 
                                 {/* --- SMART SEARCH BAR --- */}
-                                <div className="bg-white p-4 rounded-[2rem] shadow-sm border border-gray-100 flex items-center gap-4">
-                                    <Search className="text-gray-400 ml-2" size={20} />
-                                    <input
-                                        type="text"
-                                        placeholder="Smart Search: Type Order ID, Dealer Name, Shop, or Distributor..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="flex-1 bg-transparent border-none outline-none font-bold text-gray-700 placeholder-gray-300 h-full py-2"
-                                    />
-                                    {searchTerm && (
-                                        <button onClick={() => setSearchTerm('')} className="bg-gray-100 hover:bg-gray-200 p-2 rounded-full text-gray-500 transition-all">
-                                            <X size={14} />
+                                <div className="flex gap-4">
+                                    <div className="flex-1 bg-white p-4 rounded-[2rem] shadow-sm border border-gray-100 flex items-center gap-4">
+                                        <Search className="text-gray-400 ml-2" size={20} />
+                                        <input
+                                            type="text"
+                                            placeholder="Smart Search: Type Order ID, Dealer Name, Shop, or Distributor..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="flex-1 bg-transparent border-none outline-none font-bold text-gray-700 placeholder-gray-300 h-full py-2"
+                                        />
+                                        {searchTerm && (
+                                            <button onClick={() => setSearchTerm('')} className="bg-gray-100 hover:bg-gray-200 p-2 rounded-full text-gray-500 transition-all">
+                                                <X size={14} />
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Import Button */}
+                                    <div className="bg-white p-2 rounded-[2rem] shadow-sm border border-gray-100 flex items-center">
+                                        <button
+                                            onClick={() => document.getElementById('order-import-input').click()}
+                                            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest transition-all shadow-lg active:scale-95"
+                                        >
+                                            <FileSpreadsheet size={18} />
+                                            Import Excel
                                         </button>
-                                    )}
+                                        <input
+                                            type="file"
+                                            id="order-import-input"
+                                            accept=".xlsx, .xls"
+                                            className="hidden"
+                                            onChange={handleOrderImportFile}
+                                        />
+                                        <button
+                                            onClick={downloadOrderImportSample}
+                                            className="ml-2 p-3 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"
+                                            title="Download Sample Template"
+                                        >
+                                            <Download size={20} />
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
@@ -2024,6 +2107,9 @@ export default function AdminDashboard() {
                     {/* ADMIN WORKER CONTROL TAB */}
                     {activeTab === 'worker-control' && <AdminWorkerControl />}
 
+                    {/* MATERIAL ANALYSIS TAB */}
+                    {activeTab === 'material-analysis' && <MaterialAnalysis />}
+
                     {/* Designs & Masters Tabs (Reused) */}
                     {
                         activeTab === 'designs' && (
@@ -2153,6 +2239,34 @@ export default function AdminDashboard() {
                                                 <span className="font-black text-xs text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-colors">{d.thickness}</span>
                                             </div>
                                         ))}
+                                    </div>
+                                </div>
+
+                                {/* Sheet Sizes */}
+                                <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 h-min">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <div>
+                                            <h2 className="text-2xl font-black text-gray-900 tracking-tight">Sheet Sizes</h2>
+                                            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Raw Material Dimensions</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Add Form */}
+                                    <div className="flex gap-2 mb-6">
+                                        <input type="number" placeholder="W" className="w-20 bg-gray-50 rounded-xl px-3 py-2 font-bold text-sm" value={newSheet.width} onChange={e => setNewSheet({ ...newSheet, width: e.target.value })} />
+                                        <span className="self-center text-gray-400 font-black">x</span>
+                                        <input type="number" placeholder="H" className="w-20 bg-gray-50 rounded-xl px-3 py-2 font-bold text-sm" value={newSheet.height} onChange={e => setNewSheet({ ...newSheet, height: e.target.value })} />
+                                        <button onClick={handleAddSheet} className="bg-indigo-600 text-white rounded-xl p-3 shadow-lg hover:bg-indigo-700 active:scale-95 transition-all"><Plus size={16} /></button>
+                                    </div>
+
+                                    <div className="space-y-3 max-h-60 overflow-y-auto no-scrollbar">
+                                        {sheets.map(s => (
+                                            <div key={s.id} className="flex justify-between items-center p-4 bg-gray-50/50 rounded-2xl border border-gray-100 group hover:border-indigo-100 transition-all">
+                                                <div className="font-black text-gray-700 text-sm">{s.width} x {s.height}</div>
+                                                <button onClick={() => handleDeleteSheet(s.id)} className="text-red-300 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                                            </div>
+                                        ))}
+                                        {sheets.length === 0 && <div className="text-center text-xs text-gray-400 italic py-4">No sizes defined. Using defaults.</div>}
                                     </div>
                                 </div>
                             </div>
@@ -2305,8 +2419,12 @@ export default function AdminDashboard() {
                                     {importStatus.total > 0 && <p className="text-indigo-200 font-bold uppercase tracking-[0.3em] animate-pulse">Processing {importStatus.total} Rows</p>}
 
                                     <div className="mt-12 w-full bg-white/10 h-2 rounded-full overflow-hidden backdrop-blur-sm">
-                                        <div className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 w-full animate-progress-indeterminate"></div>
+                                        <div
+                                            className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-300 ease-out shadow-[0_0_20px_rgba(99,102,241,0.5)]"
+                                            style={{ width: `${importStatus.progress || 5}%` }}
+                                        ></div>
                                     </div>
+                                    <p className="mt-4 text-white/50 font-mono text-xs">{importStatus.progress}% Complete</p>
                                 </div>
                             </div>
                         )

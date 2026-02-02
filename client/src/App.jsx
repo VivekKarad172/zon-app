@@ -6,6 +6,7 @@ import WorkerDashboard from './pages/worker/WorkerDashboard';
 import AdminDashboard from './pages/admin/Dashboard';
 import DistributorDashboard from './pages/distributor/Dashboard';
 import DealerDashboard from './pages/dealer/Dashboard';
+import ManagerDashboard from './pages/manager/ManagerDashboard'; // NEW
 import Profile from './pages/Profile';
 import { Toaster } from 'react-hot-toast';
 
@@ -34,6 +35,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
         // Redirect based on role if they try to access wrong area
         if (user.role === 'MANUFACTURER') return <Navigate to="/admin" replace />;
         if (user.role === 'DISTRIBUTOR') return <Navigate to="/distributor" replace />;
+        if (user.role === 'MANAGER') return <Navigate to="/manager/dashboard" replace />; // NEW
         if (user.role === 'DEALER') return <Navigate to="/dealer" replace />;
         return <Navigate to="/login" replace />;
     }
@@ -50,6 +52,7 @@ const HomeRedirect = () => {
     if (!user) return <Navigate to="/login" replace />;
     if (user.role === 'DEALER') return <Navigate to="/dealer" replace />;
     if (user.role === 'DISTRIBUTOR') return <Navigate to="/distributor" replace />;
+    if (user.role === 'MANAGER') return <Navigate to="/manager/dashboard" replace />; // NEW
     return <Navigate to="/admin" replace />;
 }
 
@@ -99,6 +102,16 @@ function App() {
                     element={
                         <ProtectedRoute allowedRoles={['DEALER']}>
                             <DealerDashboard />
+                        </ProtectedRoute>
+                    }
+                />
+
+                {/* MANAGER ROUTES */}
+                <Route
+                    path="/manager/*"
+                    element={
+                        <ProtectedRoute allowedRoles={['MANAGER']}>
+                            <ManagerDashboard />
                         </ProtectedRoute>
                     }
                 />

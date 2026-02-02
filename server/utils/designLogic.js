@@ -52,7 +52,8 @@ const getDesignType = (designNumber) => {
 
 
 // Master Blank Sizes (Width x Height) from User Screenshot
-const MASTER_BLANK_SIZES = [
+// Master Blank Sizes (Width x Height) - Fallback Defaults
+const DEFAULT_BLANK_SIZES = [
     { w: 29, h: 75 },
     { w: 32, h: 75 },
     { w: 36, h: 75 },
@@ -77,8 +78,13 @@ const MASTER_BLANK_SIZES = [
  * 1. Convert Input W/H (if in Decimal Eighths format e.g. 29.4 -> 29 4/8")
  * 2. Add Margin based on Design Type
  * 3. Find smallest available blank that fits
+ * 
+ * @param {number} width 
+ * @param {number} height 
+ * @param {string} designType 
+ * @param {Array} availableSheets (Optional) List of {width, height} from DB
  */
-const getOptimalBlankSize = (width, height, designType) => {
+const getOptimalBlankSize = (width, height, designType, availableSheets = []) => {
     if (!width || !height) return "Missing Dimensions";
 
     // 1. Parse Dimensions (Handle 'Decimal Eighths' logic from Excel)
@@ -114,9 +120,19 @@ const getOptimalBlankSize = (width, height, designType) => {
     const reqW = wIn + extra;
     const reqH = hIn + extra;
 
-    // 3. Find Best Fit
+    // 3. Prepare Candidates
+    let pool = DEFAULT_BLANK_SIZES;
+    if (availableSheets && availableSheets.length > 0) {
+        // Map DB format (width, height) to internal format (w, h)
+        pool = availableSheets.map(s => ({
+            w: s.width || s.w, // Handle DB object or plain object
+            h: s.height || s.h
+        }));
+    }
+
+    // 4. Find Best Fit
     // Filter pairs where Blank >= Req
-    const candidates = MASTER_BLANK_SIZES.filter(b => b.w >= reqW && b.h >= reqH);
+    const candidates = pool.filter(b => b.w >= reqW && b.h >= reqH);
 
     if (candidates.length === 0) return "No match";
 

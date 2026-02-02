@@ -1,4 +1,5 @@
 require('dotenv').config();
+// Force Restart for Analytics Permission Update
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -12,7 +13,8 @@ app.use(cors({
     origin: true, // Allow all origins for Mobile App access
     credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Debug: Log all requests

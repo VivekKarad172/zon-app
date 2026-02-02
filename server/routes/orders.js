@@ -50,7 +50,7 @@ router.post('/', authenticate, authorize(['DEALER']), async (req, res) => {
 });
 
 // Analytics & KPI Endpoint
-router.get('/analytics', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), async (req, res) => {
+router.get('/analytics', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR', 'MANAGER']), async (req, res) => {
     try {
         const where = {};
         if (req.user.role === 'DISTRIBUTOR') {
@@ -233,7 +233,7 @@ router.put('/:id/status', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR'
 });
 
 // ANALYTICS ENDPOINT (Manufacturer Only)
-router.get('/analytics', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+router.get('/analytics/manufacturer-details', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
     try {
         const today = new Date();
         const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -305,6 +305,69 @@ router.get('/analytics', authenticate, authorize(['MANUFACTURER']), async (req, 
         });
     } catch (error) {
         console.error("Analytics Error:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// MATERIAL USAGE ANALYSIS (New Feature)
+router.get('/analytics/materials', authenticate, authorize(['MANUFACTURER', 'MANAGER']), async (req, res) => {
+    try {
+        // Fetch all pending items (Received or Production)
+        const items = await OrderItem.findAll({
+            include: [
+                {
+                    model: Order,
+                    where: { status: { [Op.in]: ['RECEIVED', 'PRODUCTION'] } },
+                    attributes: [] // Only filter
+                },
+                {
+                    model: Design,
+                    include: [DoorType]
+                }
+            ]
+        });
+
+        // Fetch Dynamic Sheet Sizes
+        const { SheetMaster } = require('../models');
+        const { getOptimalBlankSize, getDesignType } = require('../utils/designLogic');
+
+        const sheetMasters = await SheetMaster.findAll({ where: { isEnabled: true } });
+
+        const breakdown = {};
+
+        for (const item of items) {
+            const designType = item.Design?.category || getDesignType(item.Design?.designNumber);
+
+            // Calculate Blank Size (e.g., "30 x 78")
+            const blankSize = getOptimalBlankSize(item.width, item.height, designType, sheetMasters);
+
+            if (blankSize !== 'No match' && blankSize !== 'Missing Dimensions') {
+                const matName = item.Design?.DoorType?.name || 'Generic';
+
+                // Structure: Material -> Size -> Count
+                if (!breakdown[matName]) breakdown[matName] = {};
+                if (!breakdown[matName][blankSize]) breakdown[matName][blankSize] = 0;
+
+                breakdown[matName][blankSize] += item.quantity;
+            }
+        }
+
+        // Format for Frontend
+        // [{ material: 'PVC', sizes: [{ size: '30x78', count: 10 }, ...] }]
+        const result = Object.entries(breakdown).map(([material, sizesObj]) => ({
+            material,
+            sizes: Object.entries(sizesObj)
+                .map(([size, count]) => ({ size, count }))
+                .sort((a, b) => b.count - a.count)
+        }));
+
+        res.json({
+            breakdown: result,
+            pendingItemCount: items.length
+        });
+
+    } catch (error) {
+        console.error('Material Analytics Error:', error);
         res.status(500).json({ error: error.message });
     }
 });
