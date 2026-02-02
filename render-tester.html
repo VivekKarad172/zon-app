@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Z-ON Door - Render Testing Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 900;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #64748b;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 40px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .step {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 2px solid #e2e8f0;
+        }
+
+        .step h2 {
+            font-size: 20px;
+            font-weight: 800;
+            color: #1e293b;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .step-number {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-center;
+            font-weight: 900;
+            font-size: 18px;
+        }
+
+        .step p {
+            color: #64748b;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .result {
+            margin-top: 16px;
+            padding: 16px;
+            border-radius: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            display: none;
+        }
+
+        .result.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 2px solid #6ee7b7;
+            display: block;
+        }
+
+        .result.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 2px solid #fca5a5;
+            display: block;
+        }
+
+        .warning {
+            background: #fef3c7;
+            border: 2px solid #fbbf24;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+
+        .warning strong {
+            color: #92400e;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .warning p {
+            color: #78350f;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        code {
+            background: #1e293b;
+            color: #a5b4fc;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🛠️ Z-ON Door Render Tester</h1>
+        <p class="subtitle">Test Analytics & Worker Dashboard Fixes</p>
+
+        <div class="warning">
+            <strong>⚠️ IMPORTANT:</strong>
+            <p>1. Open your <strong>Render app URL</strong> (not localhost)</p>
+            <p>2. <strong>Login</strong> to your admin account</p>
+            <p>3. Then open this HTML file and click the buttons below</p>
+        </div>
+
+        <!-- Step 1: Test Analytics -->
+        <div class="step">
+            <h2><span class="step-number">1</span> Test Analytics API</h2>
+            <p>This will test if all 4 analytics endpoints are working and accessible.</p>
+            <button onclick="testAnalytics()">🧪 Test Analytics Endpoints</button>
+            <div id="analytics-result" class="result"></div>
+        </div>
+
+        <!-- Step 2: Repair Worker Dashboard -->
+        <div class="step">
+            <h2><span class="step-number">2</span> Repair Worker Dashboard</h2>
+            <p>This will create missing ProductionUnits so workers can see their orders.</p>
+            <button onclick="repairWorkerDashboard()">🔧 Run Repair</button>
+            <div id="repair-result" class="result"></div>
+        </div>
+
+        <!-- Step 3: Verify -->
+        <div class="step">
+            <h2><span class="step-number">3</span> Verify Everything</h2>
+            <p>After repair completes:</p>
+            <p style="margin-top: 12px;">
+                ✅ Go to <code>Analytics</code> tab - should show charts<br>
+                ✅ Login as worker - should see door orders
+            </p>
+        </div>
+    </div>
+
+    <script>
+        async function testAnalytics() {
+            const resultDiv = document.getElementById('analytics-result');
+            resultDiv.textContent = 'Testing...';
+            resultDiv.className = 'result';
+            resultDiv.style.display = 'block';
+
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    throw new Error('Not logged in! Please login first.');
+                }
+
+                const headers = { 'Authorization': `Bearer ${token}` };
+
+                // Test all 4 endpoints
+                const tests = [
+                    { name: 'Popular Sizes', url: '/api/analytics/popular-sizes?days=30' },
+                    { name: 'Design Trends', url: '/api/analytics/design-trends?days=30' },
+                    { name: 'Color Trends', url: '/api/analytics/color-trends?days=30' },
+                    { name: 'Sales Summary', url: '/api/analytics/sales-summary?days=30' }
+                ];
+
+                let results = '📊 ANALYTICS TEST RESULTS\\n\\n';
+                let allPassed = true;
+
+                for (const test of tests) {
+                    try {
+                        const res = await fetch(test.url, { headers });
+                        const data = await res.json();
+
+                        if (res.ok) {
+                            results += `✅ ${test.name}: OK (${data.data?.length || 0} items)\\n`;
+                        } else {
+                            results += `❌ ${test.name}: ${res.status} - ${data.error}\\n`;
+                            allPassed = false;
+                        }
+                    } catch (err) {
+                        results += `❌ ${test.name}: ${err.message}\\n`;
+                        allPassed = false;
+                    }
+                }
+
+                results += '\\n' + (allPassed ? '🎉 ALL TESTS PASSED!' : '⚠️ Some tests failed - check errors above');
+
+                resultDiv.textContent = results;
+                resultDiv.className = allPassed ? 'result success' : 'result error';
+
+            } catch (error) {
+                resultDiv.textContent = `❌ ERROR: ${error.message}\\n\\nMake sure you're logged in on Render!`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function repairWorkerDashboard() {
+            const resultDiv = document.getElementById('repair-result');
+            resultDiv.textContent = 'Running repair...';
+            resultDiv.className = 'result';
+            resultDiv.style.display = 'block';
+
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    throw new Error('Not logged in! Please login first.');
+                }
+
+                const res = await fetch('/api/orders/repair-production-units', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    let result = '✅ REPAIR COMPLETED!\\n\\n';
+                    result += `📦 Total PRODUCTION Orders: ${data.stats.totalProductionOrders}\\n`;
+                    result += `🔧 Orders Processed: ${data.stats.ordersProcessed}\\n`;
+                    result += `✨ Units Created: ${data.stats.unitsCreated}\\n`;
+                    result += `⏭️  Orders Skipped (already had units): ${data.stats.ordersSkipped}\\n`;
+                    result += '\\n🎉 Workers should now see all orders!';
+
+                    resultDiv.textContent = result;
+                    resultDiv.className = 'result success';
+                } else {
+                    resultDiv.textContent = `❌ REPAIR FAILED:\\n${data.error || 'Unknown error'}`;
+                    resultDiv.className = 'result error';
+                }
+
+            } catch (error) {
+                resultDiv.textContent = `❌ ERROR: ${error.message}\\n\\nMake sure you're logged in on Render!`;
+                resultDiv.className = 'result error';
+            }
+        }
+    </script>
+</body>
+
+</html>
