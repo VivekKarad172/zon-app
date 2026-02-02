@@ -20,6 +20,8 @@ export default function AnalyticsDashboard() {
     const fetchAnalytics = async () => {
         setLoading(true);
         try {
+            console.log('[ANALYTICS] Fetching data for date range:', dateRange);
+
             const [sizesRes, designsRes, colorsRes, summaryRes] = await Promise.all([
                 api.get(`/analytics/popular-sizes?days=${dateRange}&limit=10`),
                 api.get(`/analytics/design-trends?days=${dateRange}&limit=10`),
@@ -27,13 +29,22 @@ export default function AnalyticsDashboard() {
                 api.get(`/analytics/sales-summary?days=${dateRange}`)
             ]);
 
+            console.log('[ANALYTICS] Sizes response:', sizesRes.data);
+            console.log('[ANALYTICS] Designs response:', designsRes.data);
+            console.log('[ANALYTICS] Colors response:', colorsRes.data);
+            console.log('[ANALYTICS] Summary response:', summaryRes.data);
+
             setPopularSizes(sizesRes.data.data || []);
             setDesignTrends(designsRes.data.data || []);
             setColorTrends(colorsRes.data.data || []);
             setSummary(summaryRes.data.summary || {});
+
+            console.log('[ANALYTICS] Data loaded successfully');
         } catch (error) {
-            toast.error('Failed to load analytics');
-            console.error('Analytics Error:', error);
+            console.error('[ANALYTICS] Full error:', error);
+            console.error('[ANALYTICS] Error response:', error.response?.data);
+            console.error('[ANALYTICS] Error status:', error.response?.status);
+            toast.error(`Failed to load analytics: ${error.response?.data?.error || error.message}`);
         } finally {
             setLoading(false);
         }
