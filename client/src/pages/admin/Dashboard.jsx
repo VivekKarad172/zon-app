@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
-import { Plus, X, Image as ImageIcon, Filter, Search, Edit2, Eye, EyeOff, Save, Trash2, User, Users, ShoppingBag, Bell, Upload, Download, FileSpreadsheet, Home, CheckSquare, Calendar, ChevronDown, Factory, Hammer, RefreshCw, MapPin, Printer, LogOut, Trophy, Calculator, Wand2, Sheet } from 'lucide-react';
+import { Plus, X, Image as ImageIcon, Filter, Search, Edit2, Eye, EyeOff, Save, Trash2, User, Users, ShoppingBag, Bell, Upload, Download, FileSpreadsheet, Home, CheckSquare, Calendar, ChevronDown, Factory, Hammer, RefreshCw, MapPin, Printer, LogOut, Trophy, Calculator, Wand2, Sheet, BarChart3 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import React from 'react'; // Required for Class Component
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -11,6 +11,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 // NEW COMPONENTS
 import AdminWorkerControl from './AdminWorkerControl';
 import MaterialAnalysis from './MaterialAnalysis';
+import AnalyticsDashboard from './AnalyticsDashboard';
 
 // === GLOBAL ERROR BOUNDARY ===
 class DashboardErrorBoundary extends React.Component {
@@ -1048,6 +1049,7 @@ export default function AdminDashboard() {
                             { id: 'home', label: 'Home', icon: Home },
                             { id: 'production', label: 'Production', icon: Factory, hideFor: ['DISTRIBUTOR'] },
                             { id: 'material-analysis', label: 'Materials', icon: Calculator, hideFor: ['DISTRIBUTOR'] },
+                            { id: 'analytics', label: 'Analytics', icon: BarChart3 },
                             { id: 'factory', label: 'Factory Mgmt', icon: Hammer, hideFor: ['DISTRIBUTOR'] },
                             { id: 'orders', label: 'Orders', icon: ShoppingBag },
                             { id: 'distributors', label: 'Distributors', icon: Users, hideFor: ['DISTRIBUTOR'] },
@@ -1529,6 +1531,11 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
                         </div>
+                    )}
+
+                    {/* ANALYTICS DASHBOARD TAB */}
+                    {activeTab === 'analytics' && (
+                        <AnalyticsDashboard />
                     )}
 
                     {/* FACTORY MANAGEMENT TAB */}

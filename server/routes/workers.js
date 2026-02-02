@@ -267,15 +267,18 @@ router.get('/tasks', async (req, res) => {
         // CUSTOM RULE: Emboss Workers should ONLY see EMBOSS category designs
         // Frontend will handle locking based on dependencies (isFoilDone check)
         let designInclude = {};
-
         if (worker.role === 'EMBOSS') {
             designInclude = { category: 'EMBOSS' };
         }
+
+        console.log('[WORKER TASKS] Fetching tasks for worker:', worker.id, worker.name, worker.role);
+        console.log('[WORKER TASKS] Design filter:', designInclude);
 
         const tasks = await ProductionUnit.findAll({
             where: { isPacked: false },
             include: [{
                 model: OrderItem,
+                required: false, // Don't filter out units with missing items
                 include: [
                     {
                         model: Design,
@@ -283,16 +286,30 @@ router.get('/tasks', async (req, res) => {
                         where: designInclude,
                         required: worker.role === 'EMBOSS' // Only force inner join if filtering by category
                     },
-                    { model: Color, attributes: ['name', 'imageUrl'] },
+                    {
+                        model: Color,
+                        attributes: ['name', 'imageUrl'],
+                        required: false // Don't filter out if color is missing
+                    },
                     {
                         model: Order,
                         attributes: ['id', 'status'], // Added status
                         where: {
                             status: { [Op.notIn]: ['READY', 'DISPATCHED', 'CANCELLED'] } // KEY FIX: Hide finished orders
                         },
+                        required: false, // Don't filter out if order is missing (shouldn't happen but defensive)
                         include: [
-                            { model: User, as: 'Distributor', attributes: ['name', 'shopName'] },
-                            { model: User, attributes: ['name', 'shopName'] } // Dealer
+                            {
+                                model: User,
+                                as: 'Distributor',
+                                attributes: ['name', 'shopName'],
+                                required: false // Allow orders without distributor
+                            },
+                            {
+                                model: User,
+                                attributes: ['name', 'shopName'],
+                                required: false // Allow orders without dealer
+                            }
                         ]
                     }
                 ]
@@ -300,8 +317,21 @@ router.get('/tasks', async (req, res) => {
             order: [['id', 'ASC']]
         });
 
+        console.log('[WORKER TASKS] Found', tasks.length, 'production units');
+        console.log('[WORKER TASKS] Sample task:', tasks[0] ? {
+            id: tasks[0].id,
+            uniqueCode: tasks[0].uniqueCode,
+            orderItemId: tasks[0].orderItemId,
+            hasOrderItem: !!tasks[0].OrderItem,
+            hasDesign: !!tasks[0].OrderItem?.Design,
+            hasColor: !!tasks[0].OrderItem?.Color,
+            hasOrder: !!tasks[0].OrderItem?.Order,
+            orderStatus: tasks[0].OrderItem?.Order?.status
+        } : 'No tasks found');
+
         res.json(tasks);
     } catch (error) {
+        console.error('Tasks Error:', error);
         res.status(500).json({ error: error.message });
     }
 });
