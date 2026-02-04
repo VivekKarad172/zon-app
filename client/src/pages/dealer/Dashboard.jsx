@@ -28,6 +28,7 @@ export default function DealerDashboard() {
 
     // Order Form State - Multi-Size Quick Add
     const [orderSelection, setOrderSelection] = useState({ doorTypeId: '', designId: '', colorId: '' });
+    const [searchQuery, setSearchQuery] = useState(''); // New Search State
     const [sizeRows, setSizeRows] = useState([{ id: 1, width: '', height: '', quantity: 1, remarks: '', hasLock: false, hasVent: false }]);
     const [cart, setCart] = useState([]);
 
@@ -52,12 +53,15 @@ export default function DealerDashboard() {
     }, [activeTab]);
 
     useEffect(() => {
+        let result = designs;
         if (orderSelection.doorTypeId) {
-            setFilteredDesigns(designs.filter(d => d.doorTypeId == orderSelection.doorTypeId));
-        } else {
-            setFilteredDesigns([]);
+            result = result.filter(d => d.doorTypeId == orderSelection.doorTypeId);
         }
-    }, [orderSelection.doorTypeId, designs]);
+        if (searchQuery) {
+            result = result.filter(d => d.designNumber.toLowerCase().includes(searchQuery.toLowerCase()));
+        }
+        setFilteredDesigns(result);
+    }, [orderSelection.doorTypeId, designs, searchQuery]);
 
     const fetchDoors = async () => { try { const res = await api.get('/doors'); setDoors(res.data); } catch (e) { } };
     const fetchDesigns = async () => { try { const res = await api.get('/designs'); setDesigns(res.data); } catch (e) { } };
@@ -188,6 +192,58 @@ export default function DealerDashboard() {
         }
     };
 
+    const handleReorder = (order) => {
+        // Map old order items to new cart items
+        // Note: We need to ensure design/color still exist, but for now we trust snapshots or just copy IDs
+        // For Cart, we need: doorTypeId, designId, colorId, width, height, qty...
+        // The order item has: width, height, quantity. It might NOT have original IDs if they were deleted.
+        // But assuming they exist:
+
+        const newCartItems = order.OrderItems.map(item => ({
+            id: Date.now() + Math.random(),
+            width: item.width,
+            height: item.height,
+            quantity: item.quantity,
+            remarks: item.remarks || '',
+            hasLock: item.hasLock || false,
+            hasVent: item.hasVent || false,
+            // Logic to find IDs based on snapshots names if needed, or use existing IDs if preserved
+            // For simplicity, we assume we can't fully reconstruct if IDs are missing.
+            // But we can try to find Design ID by Name
+            designId: designs.find(d => d.designNumber === item.designNameSnapshot)?.id || '',
+            colorId: allColors.find(c => c.name === item.colorNameSnapshot)?.id || '',
+            // We need Door Type? Ideally it's same for all?
+            // If we can't find exact ID, we might skip or use dummy?
+            // Let's rely on finding them.
+            designName: item.designNameSnapshot,
+            colorName: item.colorNameSnapshot,
+            // Images?
+            designImage: designs.find(d => d.designNumber === item.designNameSnapshot)?.imageUrl,
+            colorImage: allColors.find(c => c.name === item.colorNameSnapshot)?.imageUrl,
+
+            // We need doorTypeId to be valid?
+            // Not strictly needed for UI display but needed for order submission?
+            // Actually placeOrder just sends items. Backend creates OrderItems.
+            // Backend might validate.
+            // Let's assume user just wants to add to cart and maybe edit?
+        }));
+
+        // Filter out items that couldn't be matched (deleted designs)
+        const validItems = newCartItems.filter(i => i.designId && i.colorId);
+
+        if (validItems.length < newCartItems.length) {
+            toast('Some items could not be restored (Design/Color deleted)', { icon: '⚠️' });
+        }
+
+        if (validItems.length > 0) {
+            setCart([...cart, ...validItems]);
+            toast.success('Items added to cart!');
+            setActiveTab('new-order');
+        } else {
+            toast.error('Could not restore items.');
+        }
+    };
+
     // === PROPS FOR CHILD COMPONENTS ===
     const sharedProps = {
         user, logout, navigate,
@@ -196,8 +252,9 @@ export default function DealerDashboard() {
         orderSelection, setOrderSelection,
         sizeRows, addRow, removeRow, updateRow, addAllToCart, addBulkRows,
         cart, setCart, placeOrder,
-        myOrders, cancelOrder,
+        myOrders, cancelOrder, handleReorder,
         groupBy, setGroupBy, groupedOrders, // New Props
+        searchQuery, setSearchQuery, // Search Prop
         posts,
         getImageUrl
     };

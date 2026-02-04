@@ -1,4 +1,4 @@
-import { ShoppingCart, Clock, Bell, Users, CheckCircle, X, Plus, Trash2, LogOut, User, Lock, Wind, MessageSquare, PlusCircle } from 'lucide-react';
+import { ShoppingCart, Clock, Bell, Users, CheckCircle, X, Plus, Trash2, LogOut, User, Lock, Wind, MessageSquare, PlusCircle, RefreshCw, Search } from 'lucide-react';
 
 /**
  * Desktop-optimized Dealer Dashboard
@@ -14,7 +14,8 @@ export default function DesktopDealerDashboard({
     myOrders, cancelOrder,
     groupBy, setGroupBy, groupedOrders, // New Props
     posts,
-    getImageUrl
+    getImageUrl,
+    searchQuery, setSearchQuery, handleReorder // New Features
 }) {
     return (
         <div className="min-h-screen bg-gray-100 flex">
@@ -134,6 +135,16 @@ export default function DesktopDealerDashboard({
                                             <div className="animate-in fade-in slide-in-from-top-4">
                                                 <div className="flex justify-between items-center mb-3">
                                                     <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Step 2: Select Design</h3>
+                                                    <div className="relative">
+                                                        <Search size={14} className="absolute left-2 top-2 text-gray-400" />
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Search Design..."
+                                                            className="pl-7 pr-3 py-1.5 text-xs font-bold border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-40"
+                                                            value={searchQuery}
+                                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                                        />
+                                                    </div>
                                                 </div>
                                                 <div className="grid grid-cols-5 md:grid-cols-6 gap-3 max-h-[400px] overflow-y-auto custom-scrollbar p-1">
                                                     {filteredDesigns.map(d => (
@@ -435,12 +446,17 @@ export default function DesktopDealerDashboard({
                                                     </div>
                                                 )}
 
-                                                {/* Cancel Button */}
-                                                {item.status === 'RECEIVED' && (
-                                                    <button onClick={() => cancelOrder(item.id)} className="w-full bg-red-100 hover:bg-red-200 text-red-600 py-2 rounded-lg text-sm font-bold mb-4 transition-all">
-                                                        ❌ Cancel Order
+                                                {/* Cancel / Reorder Buttons */}
+                                                <div className="flex gap-2 mb-4">
+                                                    {item.status === 'RECEIVED' && (
+                                                        <button onClick={() => cancelOrder(item.id)} className="flex-1 bg-red-100 hover:bg-red-200 text-red-600 py-2 rounded-lg text-sm font-bold transition-all">
+                                                            ❌ Cancel
+                                                        </button>
+                                                    )}
+                                                    <button onClick={() => handleReorder(item)} className="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2">
+                                                        <RefreshCw size={14} /> Re-Order
                                                     </button>
-                                                )}
+                                                </div>
 
                                                 {/* Items */}
                                                 <div className="space-y-2 max-h-48 overflow-y-auto">
