@@ -1,4 +1,4 @@
-import { ShoppingCart, Clock, Bell, Users, CheckCircle, X, Plus, Trash2, LogOut, User } from 'lucide-react';
+import { ShoppingCart, Clock, Bell, Users, CheckCircle, X, Plus, Trash2, LogOut, User, Lock, Wind, MessageSquare, PlusCircle } from 'lucide-react';
 
 /**
  * Desktop-optimized Dealer Dashboard
@@ -9,7 +9,7 @@ export default function DesktopDealerDashboard({
     activeTab, setActiveTab,
     doors, designs, filteredDesigns, allColors,
     orderSelection, setOrderSelection,
-    sizeRows, addRow, removeRow, updateRow, addAllToCart,
+    sizeRows, addRow, removeRow, updateRow, addAllToCart, addBulkRows,
     cart, setCart, placeOrder,
     myOrders, cancelOrder,
     groupBy, setGroupBy, groupedOrders, // New Props
@@ -92,84 +92,131 @@ export default function DesktopDealerDashboard({
                                 <p className="text-gray-500 mb-8">Select material, design, color, then add sizes</p>
 
                                 {/* Step 1: Material */}
-                                <section className="mb-8">
-                                    <label className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 block">Step 1: Select Material</label>
-                                    <div className="grid grid-cols-3 gap-4">
-                                        {doors.map(d => (
-                                            <button
-                                                key={d.id}
-                                                onClick={() => setOrderSelection({ doorTypeId: d.id, designId: '', colorId: '' })}
-                                                className={`p-6 rounded-2xl text-left transition-all ${orderSelection.doorTypeId == d.id
-                                                    ? 'bg-indigo-600 text-white shadow-xl scale-[1.02]'
-                                                    : 'bg-white hover:bg-gray-50 shadow-md'
-                                                    }`}
-                                            >
-                                                <span className="text-3xl mb-2 block">🚪</span>
-                                                <div className="font-bold text-lg">{d.name}</div>
-                                                <div className={`text-sm ${orderSelection.doorTypeId == d.id ? 'text-indigo-200' : 'text-gray-400'}`}>{d.thickness}</div>
-                                            </button>
-                                        ))}
-                                    </div>
+                                <section className="mb-4">
+                                    {!orderSelection.doorTypeId ? (
+                                        // EXPANDED Step 1
+                                        <div className="animate-in fade-in slide-in-from-top-4">
+                                            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Step 1: Select Material</h3>
+                                            <div className="grid grid-cols-3 gap-3">
+                                                {doors.map(d => (
+                                                    <button
+                                                        key={d.id}
+                                                        onClick={() => setOrderSelection({ doorTypeId: d.id, designId: '', colorId: '' })}
+                                                        className="p-4 rounded-xl text-left bg-white hover:bg-gray-50 shadow-sm border border-transparent hover:border-indigo-100 transition-all flex items-center gap-3 group"
+                                                    >
+                                                        <span className="text-2xl group-hover:scale-110 transition-transform">🚪</span>
+                                                        <div>
+                                                            <div className="font-bold text-gray-800">{d.name}</div>
+                                                            <div className="text-xs text-gray-400">{d.thickness}</div>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        // COLLAPSED Step 1
+                                        <div onClick={() => setOrderSelection({ ...orderSelection, doorTypeId: '', designId: '', colorId: '' })} className="flex items-center gap-4 bg-indigo-50 border border-indigo-100 p-3 rounded-xl cursor-pointer hover:bg-indigo-100 transition-all">
+                                            <div className="bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">1</div>
+                                            <div className="flex-1">
+                                                <div className="text-xs text-indigo-400 font-bold uppercase tracking-wider">Material</div>
+                                                <div className="font-black text-indigo-900">{doors.find(d => d.id == orderSelection.doorTypeId)?.name}</div>
+                                            </div>
+                                            <div className="text-indigo-400 text-xs font-bold uppercase px-3">Change</div>
+                                        </div>
+                                    )}
                                 </section>
 
                                 {/* Step 2: Design */}
                                 {orderSelection.doorTypeId && (
-                                    <section className="mb-8 animate-in fade-in duration-300">
-                                        <label className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 block">Step 2: Select Design</label>
-                                        <div className="grid grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pb-2">
-                                            {filteredDesigns.map(d => (
-                                                <div
-                                                    key={d.id}
-                                                    onClick={() => setOrderSelection({ ...orderSelection, designId: d.id, colorId: '' })}
-                                                    className={`rounded-2xl overflow-hidden cursor-pointer transition-all ${orderSelection.designId == d.id ? 'ring-4 ring-indigo-500 shadow-xl' : 'shadow-md hover:shadow-lg'}`}
-                                                >
-                                                    <div className="aspect-[3/4] bg-gray-100 relative">
-                                                        {d.imageUrl ? (
-                                                            <img src={getImageUrl(d.imageUrl)} className="w-full h-full object-cover" alt={d.designNumber} />
-                                                        ) : (
-                                                            <div className="w-full h-full flex items-center justify-center text-gray-300 text-4xl">🚪</div>
-                                                        )}
-                                                        {orderSelection.designId == d.id && (
-                                                            <div className="absolute inset-0 bg-indigo-900/50 flex items-center justify-center">
-                                                                <CheckCircle size={40} className="text-white" />
-                                                            </div>
-                                                        )}
-                                                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 p-3">
-                                                            <div className="text-white font-bold">{d.designNumber}</div>
-                                                        </div>
-                                                    </div>
+                                    <section className="mb-4">
+                                        {!orderSelection.designId ? (
+                                            // EXPANDED Step 2
+                                            <div className="animate-in fade-in slide-in-from-top-4">
+                                                <div className="flex justify-between items-center mb-3">
+                                                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Step 2: Select Design</h3>
                                                 </div>
-                                            ))}
-                                        </div>
+                                                <div className="grid grid-cols-5 md:grid-cols-6 gap-3 max-h-[400px] overflow-y-auto custom-scrollbar p-1">
+                                                    {filteredDesigns.map(d => (
+                                                        <div
+                                                            key={d.id}
+                                                            onClick={() => setOrderSelection({ ...orderSelection, designId: d.id, colorId: '' })}
+                                                            className="rounded-xl overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-all ring-1 ring-gray-100 hover:ring-indigo-300 relative group"
+                                                        >
+                                                            <div className="aspect-[3/4] bg-gray-100 relative">
+                                                                {d.imageUrl ? (
+                                                                    <img src={getImageUrl(d.imageUrl)} className="w-full h-full object-cover" alt={d.designNumber} />
+                                                                ) : (
+                                                                    <div className="w-full h-full flex items-center justify-center text-gray-300 text-2xl">🚪</div>
+                                                                )}
+                                                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 pt-6">
+                                                                    <div className="text-white font-bold text-xs text-center">{d.designNumber}</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            // COLLAPSED Step 2
+                                            <div onClick={() => setOrderSelection({ ...orderSelection, designId: '', colorId: '' })} className="flex items-center gap-4 bg-indigo-50 border border-indigo-100 p-3 rounded-xl cursor-pointer hover:bg-indigo-100 transition-all">
+                                                <div className="bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">2</div>
+                                                <div className="w-10 h-10 rounded-lg bg-white overflow-hidden shadow-sm">
+                                                    <img src={getImageUrl(designs.find(d => d.id == orderSelection.designId)?.imageUrl)} className="w-full h-full object-cover" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="text-xs text-indigo-400 font-bold uppercase tracking-wider">Design</div>
+                                                    <div className="font-black text-indigo-900">{designs.find(d => d.id == orderSelection.designId)?.designNumber}</div>
+                                                </div>
+                                                <div className="text-indigo-400 text-xs font-bold uppercase px-3">Change</div>
+                                            </div>
+                                        )}
                                     </section>
                                 )}
 
                                 {/* Step 3: Foil Color */}
                                 {orderSelection.designId && (
-                                    <section className="mb-8 animate-in fade-in duration-300">
-                                        <label className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 block">Step 3: Select Foil Color</label>
-                                        <div className="bg-white p-6 rounded-2xl shadow-md">
-                                            <div className="grid grid-cols-8 gap-4">
-                                                {allColors.map(c => (
-                                                    <div
-                                                        key={c.id}
-                                                        onClick={() => setOrderSelection({ ...orderSelection, colorId: c.id })}
-                                                        className="flex flex-col items-center cursor-pointer group"
-                                                    >
-                                                        <div className={`w-14 h-14 rounded-full overflow-hidden border-4 transition-all ${orderSelection.colorId == c.id ? 'border-indigo-600 scale-110 ring-4 ring-indigo-100' : 'border-transparent group-hover:scale-105'}`}>
-                                                            {c.imageUrl ? (
-                                                                <img src={getImageUrl(c.imageUrl)} className="w-full h-full object-cover" alt={c.name} />
-                                                            ) : (
-                                                                <div className="w-full h-full" style={{ backgroundColor: c.hexCode || '#eee' }} />
-                                                            )}
-                                                        </div>
-                                                        <span className={`text-xs font-bold mt-2 text-center ${orderSelection.colorId == c.id ? 'text-indigo-600' : 'text-gray-500'}`}>
-                                                            {c.name}
-                                                        </span>
+                                    <section className="mb-6">
+                                        {!orderSelection.colorId ? (
+                                            // EXPANDED Step 3
+                                            <div className="animate-in fade-in slide-in-from-top-4">
+                                                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Step 3: Select Foil Color</h3>
+                                                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                                                    <div className="flex flex-wrap gap-4">
+                                                        {allColors.map(c => (
+                                                            <div
+                                                                key={c.id}
+                                                                onClick={() => setOrderSelection({ ...orderSelection, colorId: c.id })}
+                                                                className="flex flex-col items-center cursor-pointer group w-16"
+                                                            >
+                                                                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-transparent group-hover:border-indigo-400 group-hover:scale-105 transition-all shadow-sm">
+                                                                    {c.imageUrl ? (
+                                                                        <img src={getImageUrl(c.imageUrl)} className="w-full h-full object-cover" alt={c.name} />
+                                                                    ) : (
+                                                                        <div className="w-full h-full" style={{ backgroundColor: c.hexCode || '#eee' }} />
+                                                                    )}
+                                                                </div>
+                                                                <span className="text-[10px] font-bold mt-1 text-center text-gray-600 line-clamp-1 group-hover:text-indigo-600">
+                                                                    {c.name}
+                                                                </span>
+                                                            </div>
+                                                        ))}
                                                     </div>
-                                                ))}
+                                                </div>
                                             </div>
-                                        </div>
+                                        ) : (
+                                            // COLLAPSED Step 3
+                                            <div onClick={() => setOrderSelection({ ...orderSelection, colorId: '' })} className="flex items-center gap-4 bg-indigo-50 border border-indigo-100 p-3 rounded-xl cursor-pointer hover:bg-indigo-100 transition-all">
+                                                <div className="bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">3</div>
+                                                <div className="w-10 h-10 rounded-full bg-white overflow-hidden shadow-sm border border-gray-100">
+                                                    <img src={getImageUrl(allColors.find(c => c.id == orderSelection.colorId)?.imageUrl)} className="w-full h-full object-cover" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="text-xs text-indigo-400 font-bold uppercase tracking-wider">Color</div>
+                                                    <div className="font-black text-indigo-900">{allColors.find(c => c.id == orderSelection.colorId)?.name}</div>
+                                                </div>
+                                                <div className="text-indigo-400 text-xs font-bold uppercase px-3">Change</div>
+                                            </div>
+                                        )}
                                     </section>
                                 )}
 
@@ -178,38 +225,91 @@ export default function DesktopDealerDashboard({
                                     <section className="animate-in fade-in duration-300">
                                         <div className="flex justify-between items-center mb-4">
                                             <label className="text-sm font-bold text-gray-400 uppercase tracking-widest">Step 4: Add Sizes</label>
-                                            <button onClick={addRow} className="text-sm font-bold text-indigo-600 bg-indigo-50 px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-indigo-100 transition-all">
-                                                <Plus size={16} /> Add Row
-                                            </button>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => addBulkRows(5)} className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-2 rounded-lg hover:bg-indigo-100 transition-all">
+                                                    +5 Rows
+                                                </button>
+                                                <button onClick={() => addBulkRows(10)} className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-2 rounded-lg hover:bg-indigo-100 transition-all">
+                                                    +10 Rows
+                                                </button>
+                                                <button onClick={addRow} className="text-sm font-bold text-white bg-indigo-600 px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-md">
+                                                    <Plus size={16} /> Add 1 Row
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div className="bg-white p-6 rounded-2xl shadow-md">
+                                        <div className="bg-white p-4 rounded-2xl shadow-md border border-gray-100">
                                             {/* Table Header */}
-                                            <div className="grid grid-cols-9 gap-4 mb-3 text-xs font-bold text-gray-400 uppercase px-2">
-                                                <span className="col-span-3">Width (inch)</span>
-                                                <span className="col-span-3">Height (inch)</span>
-                                                <span className="col-span-2">Quantity</span>
+                                            <div className="grid grid-cols-12 gap-2 mb-3 text-[10px] font-black text-gray-400 uppercase tracking-wider px-2 text-center">
+                                                <span className="col-span-3 text-left">Width</span>
+                                                <span className="col-span-3 text-left">Height</span>
+                                                <span className="col-span-1">Lock</span>
+                                                <span className="col-span-1">Vent</span>
+                                                <span className="col-span-1">Note</span>
+                                                <span className="col-span-2">Qty</span>
                                                 <span className="col-span-1"></span>
                                             </div>
                                             {/* Rows */}
-                                            <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                                            <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                                                 {sizeRows.map(row => (
-                                                    <div key={row.id} className="grid grid-cols-9 gap-4 items-center bg-gray-50 p-3 rounded-xl">
-                                                        <input type="number" placeholder="Width" className="col-span-3 bg-white border border-gray-200 rounded-xl p-3 text-center font-bold focus:ring-2 focus:ring-indigo-500 outline-none" value={row.width} onChange={e => updateRow(row.id, 'width', e.target.value)} />
-                                                        <input type="number" placeholder="Height" className="col-span-3 bg-white border border-gray-200 rounded-xl p-3 text-center font-bold focus:ring-2 focus:ring-indigo-500 outline-none" value={row.height} onChange={e => updateRow(row.id, 'height', e.target.value)} />
-                                                        <input type="number" min="1" className="col-span-2 bg-white border border-gray-200 rounded-xl p-3 text-center font-bold focus:ring-2 focus:ring-indigo-500 outline-none" value={row.quantity} onChange={e => updateRow(row.id, 'quantity', Math.max(1, parseInt(e.target.value) || 1))} />
-                                                        <button onClick={() => removeRow(row.id)} disabled={sizeRows.length <= 1} className={`col-span-1 p-2 rounded-lg transition-all ${sizeRows.length > 1 ? 'text-red-500 hover:bg-red-50' : 'text-gray-300'}`}>
-                                                            <Trash2 size={18} />
+                                                    <div key={row.id} className="grid grid-cols-12 gap-2 items-center bg-gray-50/50 hover:bg-white p-2 rounded-xl border border-transparent hover:border-gray-200 transition-all group">
+                                                        <input type="number" placeholder="W" className="col-span-3 bg-white border border-gray-200 rounded-lg p-2 text-center font-bold focus:ring-2 focus:ring-indigo-500 outline-none text-sm" value={row.width} onChange={e => updateRow(row.id, 'width', e.target.value)} />
+                                                        <input type="number" placeholder="H" className="col-span-3 bg-white border border-gray-200 rounded-lg p-2 text-center font-bold focus:ring-2 focus:ring-indigo-500 outline-none text-sm" value={row.height} onChange={e => updateRow(row.id, 'height', e.target.value)} />
+
+                                                        {/* Lock Toggle */}
+                                                        <button
+                                                            onClick={() => updateRow(row.id, 'hasLock', !row.hasLock)}
+                                                            className={`col-span-1 flex justify-center items-center h-9 rounded-lg transition-all ${row.hasLock ? 'bg-orange-100 text-orange-600 border border-orange-200' : 'bg-gray-100 text-gray-300 hover:bg-gray-200'}`}
+                                                            title="Add Lock Cut"
+                                                        >
+                                                            <Lock size={16} strokeWidth={row.hasLock ? 2.5 : 2} />
+                                                        </button>
+
+                                                        {/* Vent Toggle */}
+                                                        <button
+                                                            onClick={() => updateRow(row.id, 'hasVent', !row.hasVent)}
+                                                            className={`col-span-1 flex justify-center items-center h-9 rounded-lg transition-all ${row.hasVent ? 'bg-cyan-100 text-cyan-600 border border-cyan-200' : 'bg-gray-100 text-gray-300 hover:bg-gray-200'}`}
+                                                            title="Add Ventilation"
+                                                        >
+                                                            <Wind size={16} strokeWidth={row.hasVent ? 2.5 : 2} />
+                                                        </button>
+
+                                                        {/* Remarks (Popover or inline input?) let's use small input visible on hover, or just an icon that toggles input? 
+                                                            User said "remrk button on every door just beside that delete buttoun or in between delete and quantity"
+                                                            Let's make it a small input that expands or just a button that verifies content.
+                                                            Actually, putting a small text input is better for speed. 
+                                                            Or a button that turns green if remark exists.
+                                                            I'll use a small button that toggles a text input or modal? No, slow.
+                                                            I'll use a small input field in the grid.
+                                                        */}
+                                                        <div className="col-span-1 relative group/remark">
+                                                            <input
+                                                                type="text"
+                                                                className={`w-full h-9 rounded-lg border text-xs px-2 outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${row.remarks ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-200 text-transparent focus:text-gray-900 placeholder-transparent focus:placeholder-gray-400'}`}
+                                                                placeholder="Note"
+                                                                value={row.remarks}
+                                                                onChange={e => updateRow(row.id, 'remarks', e.target.value)}
+                                                                title={row.remarks || "Add Remark"}
+                                                            />
+                                                            <div className={`pointer-events-none absolute inset-0 flex items-center justify-center text-gray-300 ${row.remarks ? 'hidden' : ''}`}>
+                                                                <MessageSquare size={16} />
+                                                            </div>
+                                                        </div>
+
+                                                        <input type="number" min="1" className="col-span-2 bg-white border border-gray-200 rounded-lg p-2 text-center font-bold focus:ring-2 focus:ring-indigo-500 outline-none text-sm" value={row.quantity} onChange={e => updateRow(row.id, 'quantity', Math.max(1, parseInt(e.target.value) || 1))} />
+
+                                                        <button onClick={() => removeRow(row.id)} disabled={sizeRows.length <= 1} className={`col-span-1 h-9 flex items-center justify-center rounded-lg transition-all ${sizeRows.length > 1 ? 'text-red-400 hover:bg-red-50 hover:text-red-600' : 'text-gray-200 cursor-not-allowed'}`}>
+                                                            <Trash2 size={16} />
                                                         </button>
                                                     </div>
                                                 ))}
                                             </div>
                                             {/* Summary */}
-                                            <div className="mt-4 pt-4 border-t">
-                                                <div className="text-sm text-gray-500 mb-3">
-                                                    {sizeRows.filter(r => r.width && r.height).length} valid size(s) ready to add
+                                            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
+                                                <div className="text-sm font-bold text-gray-500">
+                                                    {sizeRows.filter(r => r.width && r.height).length} valid item(s) • Total Quantity: {sizeRows.reduce((sum, r) => sum + (parseInt(r.quantity) || 0), 0)}
                                                 </div>
-                                                <button onClick={addAllToCart} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95">
-                                                    <ShoppingCart size={20} /> Add All to Cart
+                                                <button onClick={addAllToCart} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg flex items-center gap-2 transition-all active:scale-95">
+                                                    <ShoppingCart size={20} /> Add to Cart
                                                 </button>
                                             </div>
                                         </div>

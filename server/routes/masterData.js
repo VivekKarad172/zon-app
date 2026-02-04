@@ -317,22 +317,41 @@ router.post('/designs/bulk', authenticate, authorize(['MANUFACTURER']), async (r
 });
 
 // Auto-Categorize All Designs (Migration Tool)
+// Auto-Categorize All Designs (Migration Tool)
 router.post('/designs/auto-categorize', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
     try {
         const designs = await Design.findAll();
+        // Fetch known Door Types for smart linking
+        const wpcDoor = await DoorType.findOne({ where: { name: { [Op.like]: '%WPC%' } } });
+        // Can add others if needed (e.g. Membrane)
+
         let updated = 0;
 
         for (const design of designs) {
             const newType = getDesignType(design.designNumber);
+            const updateData = {};
 
-            // Update if different
+            // 1. Update Category
             if (design.category !== newType) {
-                await design.update({ category: newType });
+                updateData.category = newType;
+            }
+
+            // 2. Auto-Link WPC Door Type
+            // If the Logic says it's WPC (CNC or PLAIN), move it to WPC Section
+            if (wpcDoor && newType.includes('WPC')) {
+                if (design.doorTypeId !== wpcDoor.id) {
+                    updateData.doorTypeId = wpcDoor.id;
+                }
+            }
+
+            // Execute Update
+            if (Object.keys(updateData).length > 0) {
+                await design.update(updateData);
                 updated++;
             }
         }
 
-        res.json({ message: `Scanned ${designs.length} designs. Updated ${updated} categories to new standard.` });
+        res.json({ message: `Scanned ${designs.length} designs. Updated ${updated} items (Linked WPC & Categories).` });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -340,29 +359,52 @@ router.post('/designs/auto-categorize', authenticate, authorize(['MANUFACTURER']
 
 // === SHEET MASTERS ===
 router.get('/sheets', authenticate, async (req, res) => {
-    const sheets = await SheetMaster.findAll({ where: { isEnabled: true }, order: [['width', 'ASC'], ['height', 'ASC']] });
+    const { materialType } = req.query;
+    const where = { isEnabled: true };
+    if (materialType) where.materialType = materialType;
+
+    const sheets = await SheetMaster.findAll({
+        attributes: ['id', 'width', 'height', 'materialType', 'isEnabled', 'createdAt', 'updatedAt'],
+        where,
+        order: [['materialType', 'ASC'], ['width', 'ASC'], ['height', 'ASC']]
+    });
+
+    console.log('[SHEETS API] Returning', sheets.length, 'sheets');
+    console.log('[SHEETS API] Sample:', sheets.slice(0, 2).map(s => ({ w: s.width, h: s.height, mat: s.materialType })));
+
     res.json(sheets);
 });
 
 router.post('/sheets', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
     try {
-        const { width, height } = req.body;
-        if (!width || !height) return res.status(400).json({ error: 'Width and Height required' });
+        console.log('[SHEET CREATE] Request body:', req.body);
+        const { width, height, materialType = 'PVC' } = req.body;
 
-        // Check duplicate
-        const existing = await SheetMaster.findOne({ where: { width, height } });
+        if (!width || !height) {
+            console.log('[SHEET CREATE] Missing width or height');
+            return res.status(400).json({ error: 'Width and Height required' });
+        }
+
+        console.log('[SHEET CREATE] Checking for duplicate:', { width, height, materialType });
+
+        // Check duplicate (same width + height + material type)
+        const existing = await SheetMaster.findOne({ where: { width, height, materialType } });
         if (existing) {
+            console.log('[SHEET CREATE] Duplicate found:', existing.id);
             if (!existing.isEnabled) {
                 await existing.update({ isEnabled: true });
                 return res.json(existing);
             }
-            return res.status(400).json({ error: 'Sheet size already exists' });
+            return res.status(400).json({ error: `${materialType} sheet ${width}x${height} already exists` });
         }
 
-        const sheet = await SheetMaster.create({ width, height, isEnabled: true });
+        console.log('[SHEET CREATE] Creating new sheet:', { width, height, materialType });
+        const sheet = await SheetMaster.create({ width, height, materialType, isEnabled: true });
+        console.log('[SHEET CREATE] Sheet created successfully:', sheet.id);
         res.json(sheet);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('[SHEET CREATE] Error:', error);
+        res.status(500).json({ error: error.message || 'Validation error' });
     }
 });
 

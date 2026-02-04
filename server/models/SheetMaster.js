@@ -10,17 +10,15 @@ const SheetMaster = sequelize.define('SheetMaster', {
         type: DataTypes.FLOAT,
         allowNull: false
     },
+    materialType: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: 'PVC'
+    },
     isEnabled: {
         type: DataTypes.BOOLEAN,
         defaultValue: true
     }
-}, {
-    indexes: [
-        {
-            unique: true,
-            fields: ['width', 'height']
-        }
-    ]
 });
 
 module.exports = SheetMaster;

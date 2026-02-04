@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Order, OrderItem, Design, Color, User, DoorType, sequelize, ProductionUnit } = require('../models');
+const { Order, OrderItem, Design, Color, User, DoorType, sequelize, ProductionUnit, Notification } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
 const { Op } = require('sequelize');
 const { getDesignType } = require('../utils/designLogic');
@@ -34,6 +34,8 @@ router.post('/', authenticate, authorize(['DEALER']), async (req, res) => {
                 height: item.height,
                 quantity: item.quantity,
                 remarks: item.remarks,
+                hasLock: item.hasLock || false,
+                hasVent: item.hasVent || false,
                 // Snapshots
                 designNameSnapshot: design ? design.designNumber : 'Unknown',
                 colorNameSnapshot: color ? color.name : 'Unknown',
@@ -41,6 +43,18 @@ router.post('/', authenticate, authorize(['DEALER']), async (req, res) => {
                 colorImageSnapshot: color ? color.imageUrl : null
             });
         }
+
+        // NOTIFY MANUFACTURER
+        try {
+            const dealerName = req.user.shopName || req.user.name;
+            await Notification.create({
+                targetRole: 'MANUFACTURER',
+                title: 'New Order Received',
+                message: `New Order from ${dealerName} (${items.length} items)`,
+                type: 'INFO',
+                orderId: order.id
+            });
+        } catch (nErr) { console.error('Notification failed', nErr); }
 
         res.status(201).json(order);
     } catch (error) {
@@ -184,8 +198,14 @@ router.put('/:id/status', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR'
         const newStatus = req.body.status;
 
         // Authorization Check for Distributor
-        if (req.user.role === 'DISTRIBUTOR' && order.distributorId !== req.user.id) {
-            return res.status(403).json({ error: 'Unauthorized' });
+        if (req.user.role === 'DISTRIBUTOR') {
+            if (order.distributorId !== req.user.id) {
+                return res.status(403).json({ error: 'Unauthorized' });
+            }
+            // Distributor cannot change status to PRODUCTION, READY, or DISPATCHED (Factory Only)
+            if (['PRODUCTION', 'READY', 'DISPATCHED'].includes(newStatus)) {
+                return res.status(403).json({ error: 'Distributors cannot update production or dispatch status' });
+            }
         }
 
         // Authorization Check for Dealer - Can only cancel their own orders before production
@@ -333,33 +353,43 @@ router.get('/analytics/materials', authenticate, authorize(['MANUFACTURER', 'MAN
 
         const sheetMasters = await SheetMaster.findAll({ where: { isEnabled: true } });
 
-        const breakdown = {};
+        const breakdown = {
+            'PVC': {},
+            'WPC': {}
+        };
 
         for (const item of items) {
-            const designType = item.Design?.category || getDesignType(item.Design?.designNumber);
+            const designRef = item.Design?.designNumber || item.designNameSnapshot;
+            const designType = item.Design?.category || getDesignType(designRef);
 
-            // Calculate Blank Size (e.g., "30 x 78")
-            const blankSize = getOptimalBlankSize(item.width, item.height, designType, sheetMasters);
+            // Determine material type from design name
+            const materialType = String(designRef || '').toUpperCase().startsWith('WPC') ? 'WPC' : 'PVC';
+
+            // Filter sheets by material type
+            const materialSheets = sheetMasters.filter(s => (s.materialType || 'PVC') === materialType);
+
+            // Calculate Blank Size with filtered sheets
+            const blankSize = getOptimalBlankSize(item.width, item.height, designType, materialSheets);
 
             if (blankSize !== 'No match' && blankSize !== 'Missing Dimensions') {
-                const matName = item.Design?.DoorType?.name || 'Generic';
-
-                // Structure: Material -> Size -> Count
-                if (!breakdown[matName]) breakdown[matName] = {};
-                if (!breakdown[matName][blankSize]) breakdown[matName][blankSize] = 0;
-
-                breakdown[matName][blankSize] += item.quantity;
+                // Group by material type (PVC or WPC)
+                if (!breakdown[materialType][blankSize]) {
+                    breakdown[materialType][blankSize] = 0;
+                }
+                breakdown[materialType][blankSize] += item.quantity;
             }
         }
 
         // Format for Frontend
-        // [{ material: 'PVC', sizes: [{ size: '30x78', count: 10 }, ...] }]
-        const result = Object.entries(breakdown).map(([material, sizesObj]) => ({
-            material,
-            sizes: Object.entries(sizesObj)
-                .map(([size, count]) => ({ size, count }))
-                .sort((a, b) => b.count - a.count)
-        }));
+        // [{ material: 'PVC', sizes: [{ size: '30x78', count: 10 }, ...] }, { material: 'WPC', sizes: [...] }]
+        const result = Object.entries(breakdown)
+            .filter(([material, sizesObj]) => Object.keys(sizesObj).length > 0) // Only include materials with data
+            .map(([material, sizesObj]) => ({
+                material,
+                sizes: Object.entries(sizesObj)
+                    .map(([size, count]) => ({ size, count }))
+                    .sort((a, b) => b.count - a.count)
+            }));
 
         res.json({
             breakdown: result,

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
-import { LogOut, RefreshCw, Check, Lock, AlertOctagon, Box, Ruler, User, Layers, Search, Filter, X, Volume2, VolumeX, Wifi, WifiOff } from 'lucide-react';
+import { LogOut, RefreshCw, Check, Lock, AlertOctagon, Box, Ruler, User, Layers, Search, Filter, X, Volume2, VolumeX, Wifi, WifiOff, Wind } from 'lucide-react';
 
 import { getDesignType, getOptimalBlankSize } from '../../utils/designLogicClient';
 import { useSound } from '../../hooks/useSound';
@@ -105,7 +105,9 @@ export default function WorkerDashboard() {
 
     const fetchSheetMasters = async () => {
         try {
-            const res = await api.get('/sheets');
+            const res = await api.get('/workers/sheets');
+            console.log('📦 Raw API response:', res.data);
+            console.log('📦 First 3 sheets:', res.data.slice(0, 3));
             setSheetMasters(res.data);
         } catch (error) {
             console.error('Failed to load sheet masters', error);
@@ -753,7 +755,28 @@ export default function WorkerDashboard() {
                                             // BLANK SIZE CALCULATION
                                             const designRef = design?.designNumber || item?.designNameSnapshot;
                                             const categoryRef = design?.category || getDesignType(designRef);
-                                            const blankSize = worker.role === 'FOIL_PASTING' ? getOptimalBlankSize(item?.width, item?.height, categoryRef, sheetMasters) : null;
+
+                                            // Determine material type from design name
+                                            const materialType = String(designRef || '').toUpperCase().startsWith('WPC') ? 'WPC' : 'PVC';
+
+                                            console.log('🔍 Material Detection:', {
+                                                designRef,
+                                                materialType,
+                                                allSheets: sheetMasters.length,
+                                                sheetsWithMaterial: sheetMasters.map(s => ({ w: s.width, h: s.height, mat: s.materialType }))
+                                            });
+
+                                            // Filter sheets by material type - IMPORTANT: handle undefined materialType
+                                            const materialSheets = sheetMasters.filter(s => (s.materialType || 'PVC') === materialType);
+
+                                            console.log('✅ Filtered sheets:', {
+                                                materialType,
+                                                filteredCount: materialSheets.length,
+                                                sizes: materialSheets.map(s => `${s.width}x${s.height}`)
+                                            });
+
+                                            const blankSize = worker.role === 'FOIL_PASTING' ? getOptimalBlankSize(item?.width, item?.height, categoryRef, materialSheets) : null;
+
 
 
                                             // CUSTOM FOIL LAYOUT
@@ -839,6 +862,29 @@ export default function WorkerDashboard() {
                                                                                 <span className="text-lg font-bold text-gray-800">{color?.name || item?.colorNameSnapshot || 'N/A'}</span>
                                                                             </div>
                                                                         </div>
+
+                                                                        {/* LOCK/VENT/REMARKS (Foil Layout) */}
+                                                                        {(item?.hasLock || item?.hasVent || item?.remarks) && (
+                                                                            <div className="flex flex-wrap gap-2 mt-2">
+                                                                                {item.hasLock && (
+                                                                                    <div className="bg-orange-50 text-orange-700 border border-orange-200 px-2 py-0.5 rounded flex items-center gap-1">
+                                                                                        <Lock size={12} strokeWidth={2.5} />
+                                                                                        <span className="text-[10px] font-black uppercase tracking-wide">Lock Cut</span>
+                                                                                    </div>
+                                                                                )}
+                                                                                {item.hasVent && (
+                                                                                    <div className="bg-cyan-50 text-cyan-700 border border-cyan-200 px-2 py-0.5 rounded flex items-center gap-1">
+                                                                                        <Wind size={12} strokeWidth={2.5} />
+                                                                                        <span className="text-[10px] font-black uppercase tracking-wide">Vent</span>
+                                                                                    </div>
+                                                                                )}
+                                                                                {item.remarks && (
+                                                                                    <div className="bg-yellow-50 text-yellow-800 border border-yellow-200 px-2 py-0.5 rounded text-[10px] font-bold">
+                                                                                        ⚠️ {item.remarks}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
                                                                     </div>
 
                                                                     <div className="text-right">
@@ -999,6 +1045,30 @@ export default function WorkerDashboard() {
                                                                 </div>
                                                             )}
 
+                                                            {/* LOCK/VENT/REMARKS (Standard Layout) */}
+                                                            {(item?.hasLock || item?.hasVent || item?.remarks) && (
+                                                                <div className="flex flex-wrap gap-2 mt-1">
+                                                                    {item.hasLock && (
+                                                                        <div className="bg-orange-50 text-orange-700 border border-orange-200 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                                                            <Lock size={10} strokeWidth={2.5} />
+                                                                            <span className="text-[9px] font-black uppercase tracking-wide">Lock</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {item.hasVent && (
+                                                                        <div className="bg-cyan-50 text-cyan-700 border border-cyan-200 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                                                            <Wind size={10} strokeWidth={2.5} />
+                                                                            <span className="text-[9px] font-black uppercase tracking-wide">Vent</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {item.remarks && (
+                                                                        <div className="bg-yellow-50 text-yellow-800 border border-yellow-200 px-1.5 py-0.5 rounded text-[9px] font-bold max-w-full truncate">
+                                                                            ⚠️ {item.remarks}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+
+
                                                             <div className="text-xs text-gray-500 font-medium truncate mt-1">
                                                                 {design?.designNumber} • {color?.name}
                                                             </div>
@@ -1076,18 +1146,20 @@ export default function WorkerDashboard() {
             </div>
 
             {/* FLOATING BATCH COMPLETE BUTTON */}
-            {selectedUnits.size > 0 && ['PVC_CUT', 'PACKING'].includes(worker.role) && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-bounce-in">
-                    <button
-                        onClick={handleBatchComplete}
-                        className="bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-3 font-black text-lg hover:scale-105 active:scale-95 transition-transform"
-                    >
-                        <Check size={24} strokeWidth={3} />
-                        Complete {selectedUnits.size} Selected
-                    </button>
-                </div>
-            )}
-        </div>
+            {
+                selectedUnits.size > 0 && ['PVC_CUT', 'PACKING'].includes(worker.role) && (
+                    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-bounce-in">
+                        <button
+                            onClick={handleBatchComplete}
+                            className="bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-3 font-black text-lg hover:scale-105 active:scale-95 transition-transform"
+                        >
+                            <Check size={24} strokeWidth={3} />
+                            Complete {selectedUnits.size} Selected
+                        </button>
+                    </div>
+                )
+            }
+        </div >
     );
 }
 

@@ -14,6 +14,14 @@ const OrderItem = sequelize.define('OrderItem', {
         type: DataTypes.INTEGER,
         allowNull: false
     },
+    hasLock: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+    hasVent: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
     // Snapshots for Data Integrity
     designNameSnapshot: {
         type: DataTypes.STRING,

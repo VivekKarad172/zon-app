@@ -1,4 +1,7 @@
-import { Bell, ShoppingBag, Users, Clock, CheckCircle, Upload, X, FileSpreadsheet, User, LogOut, Plus, Edit2, Trash2, Search } from 'lucide-react';
+import { Bell, ShoppingBag, Users, Clock, CheckCircle, Upload, X, FileSpreadsheet, User, LogOut, Plus, Edit2, Trash2, Search, Mail } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import api from '../../utils/api';
+import toast from 'react-hot-toast';
 
 /**
  * Desktop-optimized Distributor Dashboard
@@ -16,6 +19,44 @@ export default function DesktopDistributorDashboard({
     showBulkUpload, setShowBulkUpload, handleFileUpload, downloadSample,
     pendingCount, completedCount, getStatusBadge, getImageUrl
 }) {
+    // NOTIFICATION LOGIC
+    const [notifications, setNotifications] = useState([]);
+    const unreadNotifCount = notifications.filter(n => !n.isRead).length;
+    const [lastNotifId, setLastNotifId] = useState(0);
+    const lastNotifRef = useRef(0);
+
+    useEffect(() => {
+        fetchNotifications();
+        const interval = setInterval(fetchNotifications, 5000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const fetchNotifications = async () => {
+        try {
+            const res = await api.get('/notifications');
+            const data = res.data;
+            if (data.length > 0) {
+                const latestId = data[0].id;
+                if (lastNotifRef.current !== 0 && latestId > lastNotifRef.current) {
+                    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+                    audio.volume = 0.5;
+                    audio.play().catch(() => { });
+                    toast('New Order Update!', { icon: '🔔' });
+                }
+                lastNotifRef.current = latestId;
+                setNotifications(data);
+            }
+        } catch (e) { console.error('Notif fetch failed'); }
+    };
+
+    const markAsRead = async () => {
+        try {
+            await api.put('/notifications/read-all');
+            fetchNotifications();
+            toast.success('All marked as read');
+        } catch (e) { }
+    };
+
     return (
         <div className="min-h-screen bg-gray-100 flex">
             {/* Left Sidebar */}
@@ -46,6 +87,11 @@ export default function DesktopDistributorDashboard({
                     <button onClick={() => setActiveTab('whatsnew')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left ${activeTab === 'whatsnew' ? 'bg-white/20 font-bold' : 'text-white/60 hover:bg-white/10'}`}>
                         <Bell size={20} />
                         <span>What's New</span>
+                    </button>
+                    <button onClick={() => { setActiveTab('notifications'); markAsRead(); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left ${activeTab === 'notifications' ? 'bg-white/20 font-bold' : 'text-white/60 hover:bg-white/10'}`}>
+                        <Mail size={20} />
+                        <span>Notifications</span>
+                        {unreadNotifCount > 0 && <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full animate-pulse">{unreadNotifCount}</span>}
                     </button>
                 </nav>
 
@@ -138,7 +184,7 @@ export default function DesktopDistributorDashboard({
                                         </th>
                                         {groupBy === 'order' && <th className="text-left p-4 font-bold text-sm text-gray-600">Date</th>}
                                         {groupBy === 'order' && <th className="text-left p-4 font-bold text-sm text-gray-600">Status</th>}
-                                        {groupBy === 'order' && <th className="text-left p-4 font-bold text-sm text-gray-600">Action</th>}
+                                        {groupBy === 'order' && <th className="text-left p-4 font-bold text-sm text-gray-600"></th>}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -171,20 +217,7 @@ export default function DesktopDistributorDashboard({
                                                     <td className="p-4 text-sm text-gray-600">{new Date(row.createdAt).toLocaleDateString()}</td>
                                                     <td className="p-4">{getStatusBadge(row.status)}</td>
                                                     <td className="p-4">
-                                                        {row.status !== 'DISPATCHED' && row.status !== 'CANCELLED' ? (
-                                                            <select
-                                                                value={row.status}
-                                                                onChange={e => updateStatus(row.id, e.target.value)}
-                                                                className="bg-gray-50 border rounded-lg px-3 py-2 text-sm font-bold"
-                                                            >
-                                                                <option value="RECEIVED">📥 Received</option>
-                                                                <option value="PRODUCTION">🔧 Production</option>
-                                                                <option value="READY">✅ Ready</option>
-                                                                <option value="DISPATCHED">🚚 Dispatched</option>
-                                                            </select>
-                                                        ) : (
-                                                            <span className="text-gray-400 text-sm">—</span>
-                                                        )}
+                                                        null
                                                     </td>
                                                 </>
                                             ) : (
@@ -313,6 +346,31 @@ export default function DesktopDistributorDashboard({
                                 ))}
                             </div>
                         )}
+                    </div>
+                )}
+                {activeTab === 'notifications' && (
+                    <div className="animate-in fade-in duration-300">
+                        <div className="flex justify-between items-center mb-8">
+                            <h1 className="text-3xl font-black text-gray-900">Notifications</h1>
+                            <button onClick={markAsRead} className="text-gray-500 hover:text-indigo-600 font-bold text-sm">Mark all read</button>
+                        </div>
+                        <div className="space-y-4">
+                            {notifications.length === 0 ? (
+                                <div className="text-center py-20 bg-white rounded-3xl shadow-sm text-gray-400">No notifications</div>
+                            ) : (
+                                notifications.map(n => (
+                                    <div key={n.id} className={`bg-white p-6 rounded-2xl shadow-sm border-l-4 ${n.type === 'SUCCESS' ? 'border-emerald-500' : 'border-indigo-500'} ${!n.isRead ? 'bg-indigo-50/50' : ''}`}>
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h4 className="font-bold text-gray-900">{n.title}</h4>
+                                                <p className="text-gray-600 text-sm mt-1">{n.message}</p>
+                                            </div>
+                                            <span className="text-xs text-gray-400 font-bold">{new Date(n.createdAt).toLocaleTimeString()}</span>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </div>
                 )}
             </div>

@@ -12,6 +12,7 @@ const ProductionUnit = require('./ProductionUnit');
 const ProcessRecord = require('./ProcessRecord');
 const SystemSetting = require('./SystemSetting');
 const SheetMaster = require('./SheetMaster');
+const Notification = require('./Notification');
 
 // User Associations
 User.hasMany(User, { as: 'Dealers', foreignKey: 'distributorId' });
@@ -67,5 +68,6 @@ module.exports = {
     ProductionUnit,
     ProcessRecord,
     SystemSetting,
-    SheetMaster
+    SheetMaster,
+    Notification
 };

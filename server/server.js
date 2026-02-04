@@ -44,6 +44,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/posts', postsRoutes); // NEW: What's New
 app.use('/api/workers', require('./routes/workers')); // FACTORY SYSTEM
 app.use('/api/analytics', require('./routes/analytics')); // NEW: Analytics & Reports
+app.use('/api/notifications', require('./routes/notifications')); // NEW: Notifications
 
 // TEMPORARY: Seed Database via URL
 app.get('/api/seed', async (req, res) => {

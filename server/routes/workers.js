@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const { Worker, ProductionUnit, OrderItem, Design, Color, Order, User, sequelize, SystemSetting, ProcessRecord } = require('../models');
+const { Worker, ProductionUnit, OrderItem, Design, Color, Order, User, sequelize, SystemSetting, ProcessRecord, Notification } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
@@ -493,12 +493,32 @@ router.post('/complete', async (req, res) => {
                 console.log(`Order ${orderId}: ${packedUnits}/${totalUnits} packed`);
 
                 if (totalUnits > 0 && totalUnits === packedUnits) {
-                    // Safety Check: Only move to READY if currently in PRODUCTION or RECEIVED.
-                    // Do NOT revert DISPATCHED or override CANCELLED orders.
+                    // Fetch Order Details
                     const currentOrder = await Order.findByPk(orderId);
+
+                    // Safety Check: Only move to READY if currently in PRODUCTION or RECEIVED.
                     if (currentOrder && ['RECEIVED', 'PRODUCTION'].includes(currentOrder.status)) {
                         await Order.update({ status: 'READY' }, { where: { id: orderId } });
                         console.log(`[AUTO-UPDATE] Order ${orderId} marked as READY (All Items Packed)`);
+
+                        // NOTIFICATION: Order Ready
+                        await Notification.create({
+                            targetRole: 'MANUFACTURER',
+                            title: 'Order Ready',
+                            message: `Order #${orderId} is packed and ready for dispatch.`,
+                            type: 'SUCCESS',
+                            orderId: orderId
+                        });
+
+                        if (currentOrder.distributorId) {
+                            await Notification.create({
+                                userId: currentOrder.distributorId,
+                                title: 'Order Ready',
+                                message: `Your Order #${orderId} is packed and ready for pickup/dispatch.`,
+                                type: 'SUCCESS',
+                                orderId: orderId
+                            });
+                        }
                     }
                 }
             }
@@ -612,6 +632,25 @@ router.post('/complete-batch', async (req, res) => {
                             const currentOrder = await Order.findByPk(orderId);
                             if (currentOrder && ['RECEIVED', 'PRODUCTION'].includes(currentOrder.status)) {
                                 await Order.update({ status: 'READY' }, { where: { id: orderId } });
+
+                                // NOTIFICATION: Order Ready
+                                await Notification.create({
+                                    targetRole: 'MANUFACTURER',
+                                    title: 'Order Ready',
+                                    message: `Order #${orderId} is packed and ready for dispatch.`,
+                                    type: 'SUCCESS',
+                                    orderId: orderId
+                                });
+
+                                if (currentOrder.distributorId) {
+                                    await Notification.create({
+                                        userId: currentOrder.distributorId,
+                                        title: 'Order Ready',
+                                        message: `Your Order #${orderId} is packed and ready for pickup/dispatch.`,
+                                        type: 'SUCCESS',
+                                        orderId: orderId
+                                    });
+                                }
                             }
                         }
                     }
@@ -1002,6 +1041,25 @@ router.get('/analytics/materials', authenticate, authorize(['MANUFACTURER']), as
         });
 
     } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// SHEETS ENDPOINT FOR WORKERS
+// Workers need access to sheet masters to calculate blank sizes
+router.get('/sheets', async (req, res) => {
+    try {
+        const { SheetMaster } = require('../models');
+        const sheets = await SheetMaster.findAll({
+            attributes: ['id', 'width', 'height', 'materialType', 'isEnabled'],
+            where: { isEnabled: true },
+            order: [['materialType', 'ASC'], ['width', 'ASC'], ['height', 'ASC']]
+        });
+
+        console.log('[WORKER SHEETS] Returning', sheets.length, 'sheets to worker');
+        res.json(sheets);
+    } catch (error) {
+        console.error('[WORKER SHEETS] Error:', error);
         res.status(500).json({ error: error.message });
     }
 });

@@ -28,7 +28,7 @@ export default function DealerDashboard() {
 
     // Order Form State - Multi-Size Quick Add
     const [orderSelection, setOrderSelection] = useState({ doorTypeId: '', designId: '', colorId: '' });
-    const [sizeRows, setSizeRows] = useState([{ id: 1, width: '', height: '', quantity: 1, remarks: '' }]);
+    const [sizeRows, setSizeRows] = useState([{ id: 1, width: '', height: '', quantity: 1, remarks: '', hasLock: false, hasVent: false }]);
     const [cart, setCart] = useState([]);
 
     // My Orders & Posts
@@ -69,7 +69,20 @@ export default function DealerDashboard() {
 
     // === CART & ORDER FUNCTIONS ===
     const addRow = () => {
-        setSizeRows([...sizeRows, { id: Date.now(), width: '', height: '', quantity: 1, remarks: '' }]);
+        setSizeRows([...sizeRows, { id: Date.now(), width: '', height: '', quantity: 1, remarks: '', hasLock: false, hasVent: false }]);
+    };
+
+    const addBulkRows = (count) => {
+        const newRows = Array.from({ length: count }).map((_, i) => ({
+            id: Date.now() + i,
+            width: '',
+            height: '',
+            quantity: 1,
+            remarks: '',
+            hasLock: false,
+            hasVent: false
+        }));
+        setSizeRows([...sizeRows, ...newRows]);
     };
 
     const removeRow = (id) => {
@@ -146,7 +159,9 @@ export default function DealerDashboard() {
         }));
 
         setCart([...cart, ...newItems]);
-        setSizeRows([{ id: 1, width: '', height: '', quantity: 1, remarks: '' }]);
+        setCart([...cart, ...newItems]);
+        setSizeRows([{ id: 1, width: '', height: '', quantity: 1, remarks: '', hasLock: false, hasVent: false }]);
+        toast.success(`${validRows.length} item(s) added to cart!`);
         toast.success(`${validRows.length} item(s) added to cart!`);
     };
 
@@ -179,7 +194,7 @@ export default function DealerDashboard() {
         activeTab, setActiveTab,
         doors, designs, filteredDesigns, allColors,
         orderSelection, setOrderSelection,
-        sizeRows, addRow, removeRow, updateRow, addAllToCart,
+        sizeRows, addRow, removeRow, updateRow, addAllToCart, addBulkRows,
         cart, setCart, placeOrder,
         myOrders, cancelOrder,
         groupBy, setGroupBy, groupedOrders, // New Props

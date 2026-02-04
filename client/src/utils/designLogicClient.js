@@ -98,8 +98,10 @@ export const getOptimalBlankSize = (width, height, designType, availableSheets =
     let extra = 0;
     if (dType === 'EMBOSS' || dType === 'CNC' || dType === 'WPC CNC') {
         extra = 1.2;
-    } else if (dType === 'PLAIN' || dType === 'WPC PLAIN') {
+    } else if (dType === 'PLAIN') {
         extra = 1.0;
+    } else if (dType === 'WPC PLAIN') {
+        extra = 0; // WPC doesn't need margin - use exact door size
     } else {
         extra = 0;
     }
