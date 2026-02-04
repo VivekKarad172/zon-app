@@ -36,6 +36,7 @@ export default function AdminDashboard() {
     const { logout, user, isAuthenticated } = useAuth();
     const navigate = useNavigate(); // NEW: For Profile Navigation
     const [activeTab, setActiveTab] = useState('home'); // home, orders, designs, masters, distributors, dealers, worker-control
+    const [productionView, setProductionView] = useState('floor'); // 'floor' | 'workers'
 
     // ALL STATE DEFINTIONS FROM BEFORE...
     const [orders, setOrders] = useState([]);
@@ -1050,7 +1051,6 @@ export default function AdminDashboard() {
                             { id: 'production', label: 'Production', icon: Factory, hideFor: ['DISTRIBUTOR'] },
                             { id: 'material-analysis', label: 'Materials', icon: Calculator, hideFor: ['DISTRIBUTOR'] },
                             { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-                            { id: 'factory', label: 'Factory Mgmt', icon: Hammer, hideFor: ['DISTRIBUTOR'] },
                             { id: 'orders', label: 'Orders', icon: ShoppingBag },
                             { id: 'distributors', label: 'Distributors', icon: Users, hideFor: ['DISTRIBUTOR'] },
                             { id: 'designs', label: 'Designs', icon: ImageIcon },
@@ -3140,6 +3140,50 @@ export default function AdminDashboard() {
                             </div>
                         )
                     }
+
+                    {/* PRODUCTION TAB */}
+                    {activeTab === 'production' && (
+                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
+                            {/* Sub-tab Navigation */}
+                            <div className="flex gap-3 border-b pb-4">
+                                <button
+                                    onClick={() => setProductionView('floor')}
+                                    className={`px-6 py-3 rounded-t-xl font-bold transition-all ${productionView === 'floor'
+                                            ? 'bg-indigo-600 text-white shadow-lg'
+                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                        }`}
+                                >
+                                    Production Floor
+                                </button>
+                                <button
+                                    onClick={() => setProductionView('workers')}
+                                    className={`px-6 py-3 rounded-t-xl font-bold transition-all ${productionView === 'workers'
+                                            ? 'bg-indigo-600 text-white shadow-lg'
+                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                        }`}
+                                >
+                                    Worker Roster
+                                </button>
+                            </div>
+
+                            {/* Floor Sub-tab */}
+                            {productionView === 'floor' && (
+                                <div className="bg-white p-8 rounded-3xl shadow-lg">
+                                    <h2 className="text-2xl font-black text-gray-900">Production Floor</h2>
+                                    <p className="text-gray-500 mt-2">Content coming soon...</p>
+                                </div>
+                            )}
+
+                            {/* Worker Roster Sub-tab */}
+                            {productionView === 'workers' && (
+                                <div className="bg-white p-8 rounded-3xl shadow-lg">
+                                    <h2 className="text-2xl font-black text-gray-900">Worker Roster</h2>
+                                    <p className="text-gray-500 mt-2">Content coming soon...</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                 </div>
             </div>
         </div>
