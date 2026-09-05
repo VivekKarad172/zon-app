@@ -108,9 +108,9 @@ export default function Login() {
             
         } catch (error) {
             console.error(error);
-            // Ignore error if user just closed the popup
             if (error?.message !== 'user cancelled login') {
-                setError(`Google Login failed: ${error.message || JSON.stringify(error)}`);
+                const serverMsg = error.response?.data?.error || error.message;
+                setError(`Google Login failed: ${serverMsg}`);
             }
         } finally {
             setIsLoading(false);
