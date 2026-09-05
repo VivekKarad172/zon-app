@@ -1,5 +1,12 @@
 {
   "appId": "zondoor.app",
   "appName": "Z-on Door",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "GoogleAuth": {
+      "scopes": ["profile", "email"],
+      "serverClientId": "255657544771-f83qrosah74t147ln3iden1r195u3m7s.apps.googleusercontent.com",
+      "forceCodeForRefreshToken": true
+    }
+  }
 }

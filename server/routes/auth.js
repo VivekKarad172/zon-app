@@ -4,6 +4,68 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { User } = require('../models');
 const { authenticate } = require('../middleware/auth');
+const { OAuth2Client } = require('google-auth-library');
+
+const GOOGLE_CLIENT_ID = '255657544771-f83qrosah74t147ln3iden1r195u3m7s.apps.googleusercontent.com';
+const GOOGLE_ANDROID_CLIENT_ID = '255657544771-fekgq291uqqvbqujqc9oe38dskp9madp.apps.googleusercontent.com';
+const client = new OAuth2Client(GOOGLE_CLIENT_ID);
+
+// Google OAuth Login
+router.post('/google', async (req, res) => {
+    try {
+        const { token } = req.body;
+        if (!token) return res.status(400).json({ error: 'Token is required' });
+
+        // Verify token with both Web and Android audiences
+        const ticket = await client.verifyIdToken({
+            idToken: token,
+            audience: [GOOGLE_CLIENT_ID, GOOGLE_ANDROID_CLIENT_ID]
+        });
+        const payload = ticket.getPayload();
+        const email = payload.email;
+        const name = payload.name;
+
+        // Check if user exists
+        let user = await User.findOne({ where: { email } });
+
+        if (!user) {
+            // DEFAULT ROLE SYSTEM:
+            // Change these emails later to give your team instant admin access!
+            const adminEmails = ['admin@zondoor.com'];
+            const managerEmails = ['manager@zondoor.com'];
+            const workerEmails = ['worker@zondoor.com'];
+            const distributorEmails = ['distributor@zondoor.com'];
+
+            let role = 'DEALER'; // Default fallback
+            
+            if (adminEmails.includes(email.toLowerCase())) role = 'MANUFACTURER';
+            else if (managerEmails.includes(email.toLowerCase())) role = 'MANAGER';
+            else if (workerEmails.includes(email.toLowerCase())) role = 'WORKER';
+            else if (distributorEmails.includes(email.toLowerCase())) role = 'DISTRIBUTOR';
+
+            // Auto-register the new user
+            user = await User.create({
+                email,
+                name: name || 'Google User',
+                role,
+                isEnabled: true
+            });
+        }
+
+        if (!user.isEnabled) return res.status(403).json({ error: 'Account is disabled.' });
+
+        const jwtToken = jwt.sign(
+            { id: user.id, role: user.role, name: user.name, distributorId: user.distributorId },
+            process.env.JWT_SECRET || 'secret',
+            { expiresIn: '7d' }
+        );
+
+        res.json({ token: jwtToken, user: { id: user.id, email: user.email, role: user.role, name: user.name } });
+    } catch (error) {
+        console.error('Google Auth Error:', error);
+        res.status(401).json({ error: 'Invalid Google Login' });
+    }
+});
 
 // Login (Username/Password) - Manufacturer & Distributor
 router.post('/login', async (req, res) => {

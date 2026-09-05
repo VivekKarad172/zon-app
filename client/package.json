@@ -13,6 +13,7 @@
         "@capacitor/android": "^8.0.0",
         "@capacitor/cli": "^8.0.0",
         "@capacitor/core": "^8.0.0",
+        "@codetrix-studio/capacitor-google-auth": "^3.4.0-rc.4",
         "@react-oauth/google": "^0.13.4",
         "axios": "^1.6.0",
         "lucide-react": "^0.290.0",
@@ -21,9 +22,11 @@
         "react-hot-toast": "^2.4.1",
         "react-router-dom": "^6.18.0",
         "recharts": "^3.6.0",
+        "sharp": "^0.35.4",
         "xlsx": "^0.18.5"
     },
     "devDependencies": {
+        "@capacitor/assets": "^3.0.5",
         "@types/react": "^18.2.37",
         "@types/react-dom": "^18.2.15",
         "@vitejs/plugin-react": "^4.2.0",

@@ -83,13 +83,27 @@ export const AuthProvider = ({ children }) => {
         }
     }
 
+    const googleLogin = async (idToken) => {
+        try {
+            const res = await api.post('/auth/google', { token: idToken });
+            const { token, user: userData } = res.data;
+            localStorage.setItem('token', token);
+            api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+            setUser(userData);
+            return res.data;
+        } catch (error) {
+            console.error("Google Login Failed:", error);
+            throw error;
+        }
+    };
+
     const logout = () => {
         handleLogoutCleanup();
         window.location.href = '/login';
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, dealerLogin, logout, loading }}>
+        <AuthContext.Provider value={{ user, login, dealerLogin, googleLogin, logout, loading }}>
             {children}
             {/* NO global loading block here. Children render immediately. */}
         </AuthContext.Provider>

@@ -4,4 +4,5 @@
     <string name="title_activity_main">Z-on Door</string>
     <string name="package_name">zondoor.app</string>
     <string name="custom_url_scheme">zondoor.app</string>
+    <string name="server_client_id">255657544771-f83qrosah74t147ln3iden1r195u3m7s.apps.googleusercontent.com</string>
 </resources>

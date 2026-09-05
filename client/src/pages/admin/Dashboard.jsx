@@ -2341,7 +2341,7 @@ export default function AdminDashboard() {
                                                         Manage partners and authorizations <span className="text-red-400">({distributors.length})</span>
                                                     </p>
                                                 </div>
-                                                <div className="flex gap-2 w-full sm:w-auto">
+                                                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                                                     <button onClick={() => { fetchDistributors(); toast.success('Refreshing...'); }} className="bg-white hover:bg-gray-50 text-red-600 px-4 py-2.5 rounded-2xl font-black shadow-sm border border-red-100 flex items-center justify-center gap-2 text-xs transition-all active:scale-95 uppercase tracking-widest"><RefreshCw size={16} /> Refresh</button>
                                                     <button onClick={() => { setBulkUploadType('DISTRIBUTOR'); setShowBulkUpload(true); }} className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-2xl font-black shadow-lg shadow-emerald-100 flex items-center justify-center gap-2 text-xs transition-all active:scale-95 uppercase tracking-widest"><Upload size={16} /> Bulk</button>
                                                     <button onClick={() => openUserModal('DISTRIBUTOR')} className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-2xl font-black shadow-lg shadow-red-100 flex items-center justify-center gap-2 transition-all active:scale-95 uppercase tracking-widest text-xs">+ Register New</button>
@@ -2421,7 +2421,7 @@ export default function AdminDashboard() {
                                                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-red-400 pointer-events-none" size={14} />
                                                     </div>
                                                 </div>
-                                                <div className="flex gap-2 w-full lg:w-auto">
+                                                <div className="flex flex-wrap gap-2 w-full lg:w-auto">
                                                     <button onClick={() => { fetchDealers(); toast.success('Refreshing...'); }} className="flex-1 lg:flex-none bg-white hover:bg-gray-50 text-red-600 px-5 py-3 rounded-2xl font-black shadow-sm border border-red-100 flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-widest">
                                                         <RefreshCw size={18} /> Refresh
                                                     </button>
@@ -2520,7 +2520,7 @@ export default function AdminDashboard() {
                                                     <h2 className="text-2xl font-black text-gray-900 tracking-tight">Design Portfolio</h2>
                                                     <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Digital catalog and product inventory</p>
                                                 </div>
-                                                <div className="flex gap-2 w-full sm:w-auto">
+                                                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                                                     <button onClick={handleAutoCategorize} className="flex-1 sm:flex-none bg-red-50 hover:bg-red-100 text-red-600 px-5 py-3 rounded-2xl font-black shadow-sm flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-widest border border-red-200">
                                                         <Wand2 size={16} /> Auto-Fix
                                                     </button>
