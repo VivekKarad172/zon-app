@@ -5,6 +5,8 @@ import { AuthProvider } from './context/AuthContext'
 import App from './App.jsx'
 import './index.css'
 
+import { GoogleOAuthProvider } from '@react-oauth/google';
+
 // Simple Error Boundary to prevent white screen
 class ErrorBoundary extends React.Component {
     constructor(props) {
@@ -36,13 +38,17 @@ class ErrorBoundary extends React.Component {
     }
 }
 
+const GOOGLE_CLIENT_ID = '255657544771-f83qrosah74t147ln3iden1r195u3m7s.apps.googleusercontent.com';
+
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
         <BrowserRouter>
             <ErrorBoundary>
-                <AuthProvider>
-                    <App />
-                </AuthProvider>
+                <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+                    <AuthProvider>
+                        <App />
+                    </AuthProvider>
+                </GoogleOAuthProvider>
             </ErrorBoundary>
         </BrowserRouter>
     </React.StrictMode>,
