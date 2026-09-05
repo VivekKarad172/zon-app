@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { User } = require('../models');
+const { User, RoleWhitelist } = require('../models');
 const { authenticate } = require('../middleware/auth');
 const { OAuth2Client } = require('google-auth-library');
 
@@ -29,19 +29,13 @@ router.post('/google', async (req, res) => {
         let user = await User.findOne({ where: { email } });
 
         if (!user) {
-            // DEFAULT ROLE SYSTEM:
-            // Change these emails later to give your team instant admin access!
-            const adminEmails = ['admin@zondoor.com'];
-            const managerEmails = ['manager@zondoor.com'];
-            const workerEmails = ['worker@zondoor.com'];
-            const distributorEmails = ['distributor@zondoor.com'];
+            // Check RoleWhitelist table for pre-assigned role
+            let role = 'DEALER'; // Default fallback for unknown emails
 
-            let role = 'DEALER'; // Default fallback
-            
-            if (adminEmails.includes(email.toLowerCase())) role = 'MANUFACTURER';
-            else if (managerEmails.includes(email.toLowerCase())) role = 'MANAGER';
-            else if (workerEmails.includes(email.toLowerCase())) role = 'WORKER';
-            else if (distributorEmails.includes(email.toLowerCase())) role = 'DISTRIBUTOR';
+            const whitelistEntry = await RoleWhitelist.findOne({ where: { email: email.toLowerCase() } });
+            if (whitelistEntry) {
+                role = whitelistEntry.role;
+            }
 
             // Auto-register the new user
             user = await User.create({

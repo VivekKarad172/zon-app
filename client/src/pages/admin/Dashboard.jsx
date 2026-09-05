@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
-import { Plus, X, Image as ImageIcon, Layers, Filter, Search, Edit2, Eye, EyeOff, Save, Trash2, User, Users, ShoppingBag, Bell, Upload, Download, FileSpreadsheet, Home, CheckSquare, Calendar, ChevronDown, Factory, Hammer, RefreshCw, MapPin, Printer, LogOut, Trophy, Calculator, Wand2, Sheet, BarChart3, Lock, Wind, Menu, Package } from 'lucide-react';
+import { Plus, X, Image as ImageIcon, Layers, Filter, Search, Edit2, Eye, EyeOff, Save, Trash2, User, Users, ShoppingBag, Bell, Upload, Download, FileSpreadsheet, Home, CheckSquare, Calendar, ChevronDown, Factory, Hammer, RefreshCw, MapPin, Printer, LogOut, Trophy, Calculator, Wand2, Sheet, BarChart3, Lock, Wind, Menu, Package, Shield } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import React from 'react'; // Required for Class Component
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -46,6 +46,12 @@ export default function AdminDashboard() {
     const [mastersView, setMastersView] = useState('designs'); // 'designs', 'colors', 'specs'
     const [analyticsView, setAnalyticsView] = useState('dashboard'); // 'dashboard', 'materials'
     const [networkView, setNetworkView] = useState('distributors'); // 'distributors', 'dealers'
+
+    // ROLE WHITELIST STATE
+    const [roleWhitelist, setRoleWhitelist] = useState([]);
+    const [newRoleEmail, setNewRoleEmail] = useState('');
+    const [newRoleRole, setNewRoleRole] = useState('DEALER');
+    const [newRoleLabel, setNewRoleLabel] = useState('');
 
     // SIDEBAR NAVIGATION STATE
     const isMobile = useIsMobile();
@@ -154,6 +160,35 @@ export default function AdminDashboard() {
 
             setNotifications(data);
         } catch (e) { console.error('Failed to fetch notifications'); }
+    };
+
+    // ROLE WHITELIST FUNCTIONS (must be before useEffect that calls them)
+    const fetchRoleWhitelist = async () => {
+        try {
+            const res = await api.get('/role-whitelist');
+            setRoleWhitelist(res.data);
+        } catch (err) { console.error(err); }
+    };
+
+    const addRoleWhitelist = async () => {
+        if (!newRoleEmail) { toast.error('Email is required'); return; }
+        try {
+            await api.post('/role-whitelist', { email: newRoleEmail, role: newRoleRole, label: newRoleLabel });
+            toast.success('Role assigned!');
+            setNewRoleEmail(''); setNewRoleLabel('');
+            fetchRoleWhitelist();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to add');
+        }
+    };
+
+    const deleteRoleWhitelist = async (id) => {
+        if (!confirm('Remove this role assignment?')) return;
+        try {
+            await api.delete(`/role-whitelist/${id}`);
+            toast.success('Removed');
+            fetchRoleWhitelist();
+        } catch (err) { toast.error('Failed to remove'); }
     };
 
     const markAsRead = async (id, link) => {
@@ -391,6 +426,7 @@ export default function AdminDashboard() {
         if (activeTab === 'network') { fetchDealers(); fetchDistributors(); }
         if (activeTab === 'whatsnew') fetchPosts();
         if (activeTab === 'orders') fetchLeadDays();
+        if (activeTab === 'roles') fetchRoleWhitelist();
     }, [activeTab, orderFilter, dateRange, productionDistributorId]);
 
     // Live Factory Stats Polling
@@ -1254,7 +1290,8 @@ export default function AdminDashboard() {
         { id: 'stock', label: 'Stock', icon: Package, hideFor: ['DISTRIBUTOR'] },
         { id: 'network', label: 'Network', icon: Users },
         { id: 'masters', label: 'Catalogue', icon: Layers },
-        { id: 'whatsnew', label: "What's New", icon: Bell }
+        { id: 'whatsnew', label: "What's New", icon: Bell },
+        { id: 'roles', label: 'Roles', icon: Shield, hideFor: ['DISTRIBUTOR'] }
     ].filter(item => !item.hideFor || !item.hideFor.includes(user?.role));
 
     return (
@@ -2817,6 +2854,109 @@ export default function AdminDashboard() {
                                 </div>
                             )
                         }
+
+                        {/* === ROLES TAB === */}
+                        {activeTab === 'roles' && (
+                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
+                                <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="bg-red-100 text-red-600 w-12 h-12 rounded-2xl flex items-center justify-center">
+                                            <Shield size={24} />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-2xl font-black text-gray-900 tracking-tight">Role Management</h2>
+                                            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Pre-assign roles for Google Login users</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
+                                        <p className="text-xs font-bold text-amber-700">
+                                            💡 Add an email here BEFORE the person logs in with Google. When they sign in for the first time, they will automatically get the role you assigned. Anyone not listed here will become a <strong>Dealer</strong> by default.
+                                        </p>
+                                    </div>
+
+                                    {/* ADD NEW ROLE FORM */}
+                                    <div className="bg-gray-50 rounded-2xl p-5 mb-6">
+                                        <h3 className="font-black text-sm text-gray-700 mb-4 uppercase tracking-widest">Add New Role Assignment</h3>
+                                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                                            <input
+                                                type="email"
+                                                placeholder="user@gmail.com"
+                                                value={newRoleEmail}
+                                                onChange={e => setNewRoleEmail(e.target.value)}
+                                                className="col-span-1 sm:col-span-1 border-2 border-gray-200 rounded-xl p-3 text-sm focus:border-red-500 focus:outline-none"
+                                            />
+                                            <select
+                                                value={newRoleRole}
+                                                onChange={e => setNewRoleRole(e.target.value)}
+                                                className="border-2 border-gray-200 rounded-xl p-3 text-sm focus:border-red-500 focus:outline-none font-bold"
+                                            >
+                                                <option value="MANUFACTURER">🔴 Admin</option>
+                                                <option value="DISTRIBUTOR">🟢 Distributor</option>
+                                                <option value="MANAGER">🟡 Manager</option>
+                                                <option value="WORKER">🔵 Worker</option>
+                                                <option value="DEALER">⚪ Dealer</option>
+                                            </select>
+                                            <input
+                                                type="text"
+                                                placeholder="Label (e.g. Vivek)"
+                                                value={newRoleLabel}
+                                                onChange={e => setNewRoleLabel(e.target.value)}
+                                                className="border-2 border-gray-200 rounded-xl p-3 text-sm focus:border-red-500 focus:outline-none"
+                                            />
+                                            <button
+                                                onClick={addRoleWhitelist}
+                                                className="bg-red-600 hover:bg-red-700 text-white font-black py-3 px-6 rounded-xl transition-all active:scale-95 text-sm uppercase tracking-widest"
+                                            >
+                                                + Add
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* EXISTING ROLES LIST */}
+                                    <div className="space-y-3">
+                                        {roleWhitelist.length === 0 ? (
+                                            <div className="text-center py-12 text-gray-300">
+                                                <Shield size={48} className="mx-auto mb-3 opacity-30" />
+                                                <p className="font-bold text-sm">No roles assigned yet</p>
+                                                <p className="text-xs mt-1">Add email addresses above to pre-assign roles</p>
+                                            </div>
+                                        ) : roleWhitelist.map(entry => (
+                                            <div key={entry.id} className="flex items-center justify-between bg-gray-50 rounded-2xl p-4 group hover:bg-red-50/30 transition-all">
+                                                <div className="flex items-center gap-4">
+                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm ${
+                                                        entry.role === 'MANUFACTURER' ? 'bg-red-500' :
+                                                        entry.role === 'DISTRIBUTOR' ? 'bg-emerald-500' :
+                                                        entry.role === 'MANAGER' ? 'bg-amber-500' :
+                                                        entry.role === 'WORKER' ? 'bg-blue-500' : 'bg-gray-400'
+                                                    }`}>
+                                                        {entry.role[0]}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-gray-900 text-sm">{entry.email}</p>
+                                                        <div className="flex items-center gap-2 mt-0.5">
+                                                            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg ${
+                                                                entry.role === 'MANUFACTURER' ? 'bg-red-100 text-red-700' :
+                                                                entry.role === 'DISTRIBUTOR' ? 'bg-emerald-100 text-emerald-700' :
+                                                                entry.role === 'MANAGER' ? 'bg-amber-100 text-amber-700' :
+                                                                entry.role === 'WORKER' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                                                            }`}>{entry.role === 'MANUFACTURER' ? 'Admin' : entry.role}</span>
+                                                            {entry.label && <span className="text-xs text-gray-400">• {entry.label}</span>}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => deleteRoleWhitelist(entry.id)}
+                                                    className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* IMPORT PROGRESS OVERLAY */}
                         {

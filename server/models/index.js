@@ -15,6 +15,7 @@ const SheetMaster = require('./SheetMaster');
 const Notification = require('./Notification');
 const StockHistory = require('./StockHistory');
 const DamageReport = require('./DamageReport');
+const RoleWhitelist = require('./RoleWhitelist');
 
 // User Associations
 User.hasMany(User, { as: 'Dealers', foreignKey: 'distributorId' });
@@ -83,5 +84,6 @@ module.exports = {
     SheetMaster,
     Notification,
     StockHistory,
-    DamageReport
+    DamageReport,
+    RoleWhitelist
 };

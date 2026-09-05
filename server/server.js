@@ -48,6 +48,7 @@ app.use('/api/analytics', require('./routes/analytics')); // NEW: Analytics & Re
 app.use('/api/reports', require('./routes/reports')); // NEW: Business Reports (sales, churn, product-mix, stock)
 app.use('/api/damage', require('./routes/damage')); // NEW: Damage / Returns tracking
 app.use('/api/notifications', require('./routes/notifications')); // NEW: Notifications
+app.use('/api/role-whitelist', require('./routes/roleWhitelist')); // NEW: Role Whitelist
 
 // TEMPORARY: Seed Database via URL
 app.get('/api/seed', async (req, res) => {
@@ -72,7 +73,7 @@ app.get(/(.*)/, (req, res) => {
 // Sync Database and Start Server
 // Reverted to standard sync to prevent FK constraint errors
 // ENABLE ALTER for Schema Update (Foil Pasting Columns) - DISABLED LOCALLY DUE TO SQLITE ERROR
-sequelize.sync().then(() => {
+sequelize.sync({ alter: true }).then(() => {
     console.log('Database connected and schema updated.');
     console.log('>>> SERVER RESTART: Stock Logic v2 is ACTIVE <<<');
     app.listen(PORT, '0.0.0.0', () => {
