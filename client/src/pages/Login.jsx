@@ -107,10 +107,11 @@ export default function Login() {
             else navigate('/admin');
             
         } catch (error) {
-            console.error(error);
-            if (error?.message !== 'user cancelled login') {
-                const serverMsg = error.response?.data?.error || error.message;
-                setError(`Google Login failed: ${serverMsg}`);
+            console.error('GOOGLE AUTH ERROR RAW:', error);
+            const errMsg = error?.response?.data?.error || error?.message || error?.error || JSON.stringify(error);
+            
+            if (errMsg !== 'user cancelled login' && errMsg !== 'popup_closed_by_user') {
+                setError(`Google Login failed: ${errMsg}`);
             }
         } finally {
             setIsLoading(false);
