@@ -90,7 +90,7 @@ export default function AnalyticsDashboard() {
         switch (popularity) {
             case 'hot': return <Flame size={16} className="text-red-500" />;
             case 'warm': return <Wind size={16} className="text-orange-500" />;
-            case 'cool': return <Snowflake size={16} className="text-blue-500" />;
+            case 'cool': return <Snowflake size={16} className="text-red-500" />;
             default: return null;
         }
     };
@@ -99,21 +99,21 @@ export default function AnalyticsDashboard() {
         const styles = {
             hot: 'bg-red-50 text-red-700 border border-red-200',
             warm: 'bg-orange-50 text-orange-700 border border-orange-200',
-            cool: 'bg-blue-50 text-blue-700 border border-blue-200'
+            cool: 'bg-red-50 text-red-700 border border-red-200'
         };
         return styles[popularity] || 'bg-gray-50 text-gray-700';
     };
 
-    const CHART_COLORS = ['#4f46e5', '#818cf8', '#c7d2fe', '#e0e7ff', '#eef2ff'];
+    const CHART_COLORS = ['#E0312A', '#f87171', '#fca5a5', '#fecaca', '#fee2e2'];
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
             {/* Header */}
-            <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-8 rounded-[2.5rem] shadow-xl text-white">
+            <div className="bg-gradient-to-br from-red-600 via-rose-600 to-pink-600 p-8 rounded-[2.5rem] shadow-xl text-white">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                     <div>
                         <h2 className="text-3xl font-black tracking-tight mb-2">📊 Sales Analytics</h2>
-                        <p className="text-indigo-100 font-bold text-sm">Track trends, popular sizes, and stock insights</p>
+                        <p className="text-red-100 font-bold text-sm">Track trends, popular sizes, and stock insights</p>
                     </div>
 
                     <div className="flex gap-3 flex-wrap">
@@ -139,7 +139,7 @@ export default function AnalyticsDashboard() {
 
                         <button
                             onClick={exportToExcel}
-                            className="bg-white text-indigo-600 font-bold rounded-xl px-4 py-2.5 hover:bg-indigo-50 transition-all shadow-lg flex items-center gap-2"
+                            className="bg-white text-red-600 font-bold rounded-xl px-4 py-2.5 hover:bg-red-50 transition-all shadow-lg flex items-center gap-2"
                         >
                             <Download size={18} />
                             <span className="text-sm">Export</span>
@@ -153,8 +153,8 @@ export default function AnalyticsDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
                         <div className="flex items-center gap-3 mb-3">
-                            <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center">
-                                <Package className="text-indigo-600" size={24} />
+                            <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center">
+                                <Package className="text-red-600" size={24} />
                             </div>
                             <div>
                                 <div className="text-2xl font-black text-gray-900">{summary.totalOrders || 0}</div>
@@ -165,8 +165,8 @@ export default function AnalyticsDashboard() {
 
                     <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
                         <div className="flex items-center gap-3 mb-3">
-                            <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center">
-                                <Trophy className="text-purple-600" size={24} />
+                            <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center">
+                                <Trophy className="text-rose-600" size={24} />
                             </div>
                             <div>
                                 <div className="text-2xl font-black text-gray-900">{summary.totalUnits || 0}</div>
@@ -199,7 +199,7 @@ export default function AnalyticsDashboard() {
                 <div className="flex justify-between items-center mb-6">
                     <div>
                         <h3 className="text-xl font-black text-gray-900 flex items-center gap-2">
-                            <BarChart3 className="text-indigo-600" />
+                            <BarChart3 className="text-red-600" />
                             Most Popular Door Sizes
                         </h3>
                         <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-1">Ordered by total quantity</p>
@@ -213,8 +213,8 @@ export default function AnalyticsDashboard() {
                                 <BarChart data={popularSizes}>
                                     <defs>
                                         <linearGradient id="sizeBar" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#4f46e5" stopOpacity={1} />
-                                            <stop offset="100%" stopColor="#818cf8" stopOpacity={0.8} />
+                                            <stop offset="0%" stopColor="#E0312A" stopOpacity={1} />
+                                            <stop offset="100%" stopColor="#f87171" stopOpacity={0.8} />
                                         </linearGradient>
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -244,7 +244,7 @@ export default function AnalyticsDashboard() {
                                     {popularSizes.map((item) => (
                                         <tr key={item.rank} className="hover:bg-gray-50/50 transition-colors">
                                             <td className="px-6 py-4">
-                                                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 font-black text-sm">
+                                                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-50 text-red-600 font-black text-sm">
                                                     {item.rank}
                                                 </span>
                                             </td>
@@ -273,7 +273,7 @@ export default function AnalyticsDashboard() {
                 {/* Design Trends */}
                 <div className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 p-8">
                     <h3 className="text-xl font-black text-gray-900 mb-1 flex items-center gap-2">
-                        <Palette className="text-purple-600" />
+                        <Palette className="text-rose-600" />
                         Top Designs
                     </h3>
                     <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-6">Most ordered patterns</p>
@@ -281,8 +281,8 @@ export default function AnalyticsDashboard() {
                     {designTrends.length > 0 ? (
                         <div className="space-y-3">
                             {designTrends.map((item) => (
-                                <div key={item.rank} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl hover:bg-indigo-50/50 transition-colors">
-                                    <span className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 text-purple-600 font-black text-sm flex items-center justify-center">
+                                <div key={item.rank} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl hover:bg-red-50/50 transition-colors">
+                                    <span className="flex-shrink-0 w-8 h-8 rounded-full bg-rose-100 text-rose-600 font-black text-sm flex items-center justify-center">
                                         {item.rank}
                                     </span>
                                     <div className="flex-1 min-w-0">

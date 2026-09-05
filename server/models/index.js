@@ -13,6 +13,8 @@ const ProcessRecord = require('./ProcessRecord');
 const SystemSetting = require('./SystemSetting');
 const SheetMaster = require('./SheetMaster');
 const Notification = require('./Notification');
+const StockHistory = require('./StockHistory');
+const DamageReport = require('./DamageReport');
 
 // User Associations
 User.hasMany(User, { as: 'Dealers', foreignKey: 'distributorId' });
@@ -40,6 +42,7 @@ OrderItem.belongsTo(Order, { foreignKey: 'orderId' });
 // OrderItem relations
 OrderItem.belongsTo(Design, { foreignKey: 'designId' });
 OrderItem.belongsTo(Color, { foreignKey: 'colorId' });
+OrderItem.belongsTo(DoorType, { foreignKey: 'doorTypeId' });
 
 // --- FACTORY SYSTEM V2 ---
 // OrderItem -> ProductionUnits (1 OrderItem = quantity * Units)
@@ -53,6 +56,15 @@ ProcessRecord.belongsTo(ProductionUnit, { foreignKey: 'productionUnitId' });
 // Worker -> ProcessRecords
 Worker.hasMany(ProcessRecord, { foreignKey: 'workerId' });
 ProcessRecord.belongsTo(Worker, { foreignKey: 'workerId' });
+
+// --- STOCK MANAGEMENT ---
+// SheetMaster -> StockHistory (Track all stock changes)
+SheetMaster.hasMany(StockHistory, { foreignKey: 'sheetId' });
+StockHistory.belongsTo(SheetMaster, { foreignKey: 'sheetId' });
+
+// --- DAMAGE / RETURNS ---
+Order.hasMany(DamageReport, { foreignKey: 'orderId' });
+DamageReport.belongsTo(Order, { foreignKey: 'orderId' });
 
 module.exports = {
     sequelize,
@@ -69,5 +81,7 @@ module.exports = {
     ProcessRecord,
     SystemSetting,
     SheetMaster,
-    Notification
+    Notification,
+    StockHistory,
+    DamageReport
 };

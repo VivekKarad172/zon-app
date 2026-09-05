@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const { Worker, ProductionUnit, OrderItem, Design, Color, Order, User, sequelize, SystemSetting, ProcessRecord, Notification } = require('../models');
+const { Worker, ProductionUnit, OrderItem, Design, Color, Order, User, sequelize, SystemSetting, ProcessRecord, Notification, DoorType, DamageReport } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
 const { Op } = require('sequelize');
+const wa = require('../utils/whatsapp');
 
 // --- GEO FENCING HELPERS ---
 function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
@@ -73,13 +74,12 @@ router.post('/admin/override', authenticate, authorize(['MANUFACTURER', 'MANAGER
 
         if (!unit) return res.status(404).json({ error: 'Unit not found' });
 
-        // FORCE COMPLETE logic
+        // FORCE COMPLETE logic — advance the first incomplete stage
         if (actionType === 'Force Complete') {
-            if (!unit.isPvcDone) unit.isPvcDone = true;
-            else if (!unit.isFoilDone) unit.isFoilDone = true;
-            else if (!unit.isEmbossDone) unit.isEmbossDone = true;
-            else if (!unit.isDoorMade) unit.isDoorMade = true;
-            else if (!unit.isPacked) unit.isPacked = true;
+            const stages = ['isPvcDone', 'isFoilDone', 'isEmbossDone', 'isDoorMade', 'isPacked'];
+            for (const stage of stages) {
+                if (!unit[stage]) { unit[stage] = true; break; }
+            }
         }
 
         await unit.save();
@@ -257,6 +257,9 @@ router.get('/tasks', async (req, res) => {
     try {
         const workerId = req.headers['x-worker-id'];
         if (!workerId) return res.status(401).json({ error: 'Worker ID required' });
+        // Validate the worker exists (prevents spoofed IDs)
+        const workerCheck = await Worker.findByPk(workerId, { attributes: ['id', 'isActive'] });
+        if (!workerCheck || !workerCheck.isActive) return res.status(403).json({ error: 'Worker not authorized' });
 
         const worker = await Worker.findByPk(workerId);
         if (!worker) return res.status(404).json({ error: 'Worker not found' });
@@ -265,10 +268,19 @@ router.get('/tasks', async (req, res) => {
         // Return all pending units (not yet packed).
 
         // CUSTOM RULE: Emboss Workers should ONLY see EMBOSS category designs
-        // Frontend will handle locking based on dependencies (isFoilDone check)
         let designInclude = {};
+        let designRequired = false;
+
         if (worker.role === 'EMBOSS') {
             designInclude = { category: 'EMBOSS' };
+            designRequired = true;
+        }
+
+        if (worker.role === 'PVC_CUT') {
+            // PVC_CUT sees all non-WPC designs. Filter by design number only —
+            // do NOT require a DoorType JOIN because many orders may have no doorTypeId set.
+            designInclude.designNumber = { [Op.notLike]: '%WPC%' };
+            designRequired = true; // inner join so the WHERE clause actually filters
         }
 
         console.log('[WORKER TASKS] Fetching tasks for worker:', worker.id, worker.name, worker.role);
@@ -283,21 +295,26 @@ router.get('/tasks', async (req, res) => {
                     {
                         model: Design,
                         attributes: ['designNumber', 'imageUrl', 'category'],
-                        where: designInclude,
-                        required: worker.role === 'EMBOSS' // Only force inner join if filtering by category
+                        where: Object.keys(designInclude).length ? designInclude : undefined,
+                        required: designRequired
                     },
                     {
                         model: Color,
                         attributes: ['name', 'imageUrl'],
-                        required: false // Don't filter out if color is missing
+                        required: false
+                    },
+                    {
+                        model: DoorType,
+                        attributes: ['name'],
+                        required: false
                     },
                     {
                         model: Order,
-                        attributes: ['id', 'status'], // Added status
+                        attributes: ['id', 'status', 'siteName'],
                         where: {
-                            status: { [Op.notIn]: ['READY', 'DISPATCHED', 'CANCELLED'] } // KEY FIX: Hide finished orders
+                            status: { [Op.notIn]: ['READY', 'DISPATCHED', 'CANCELLED'] }
                         },
-                        required: false, // Don't filter out if order is missing (shouldn't happen but defensive)
+                        required: true, // INNER JOIN — exclude units whose order is finished/missing
                         include: [
                             {
                                 model: User,
@@ -341,8 +358,10 @@ router.post('/complete', async (req, res) => {
     try {
         const { workerId, unitId, partialType } = req.body; // partialType: 'FRONT', 'BACK', 'PICK', 'PICK_UNDO'
 
+        if (!workerId) return res.status(401).json({ error: 'Worker ID required' });
         const worker = await Worker.findByPk(workerId);
         if (!worker) return res.status(404).json({ error: 'Worker not found' });
+        if (!worker.isActive) return res.status(403).json({ error: 'Worker account disabled' });
 
         const unit = await ProductionUnit.findByPk(unitId);
         if (!unit) return res.status(404).json({ error: 'Unit not found' });
@@ -435,9 +454,14 @@ router.post('/complete', async (req, res) => {
         let requiredDeps = [...rule.deps];
 
         if (worker.role === 'DOOR_MAKING') {
-            // Fetch Design Category
             const orderItem = await OrderItem.findByPk(unit.orderItemId, { include: [Design] });
-            if (orderItem && orderItem.Design?.category === 'EMBOSS') {
+            const designRef = orderItem?.designNameSnapshot || orderItem?.Design?.designNumber || '';
+            const isWPC = String(designRef).toUpperCase().startsWith('WPC');
+            if (isWPC) {
+                // WPC doors skip PVC cutting — remove that dependency
+                requiredDeps = requiredDeps.filter(d => d !== 'isPvcDone');
+            }
+            if (orderItem?.Design?.category === 'EMBOSS') {
                 requiredDeps.push('isEmbossDone');
             }
         }
@@ -501,7 +525,7 @@ router.post('/complete', async (req, res) => {
                         await Order.update({ status: 'READY' }, { where: { id: orderId } });
                         console.log(`[AUTO-UPDATE] Order ${orderId} marked as READY (All Items Packed)`);
 
-                        // NOTIFICATION: Order Ready
+                        // In-app notifications
                         await Notification.create({
                             targetRole: 'MANUFACTURER',
                             title: 'Order Ready',
@@ -519,6 +543,17 @@ router.post('/complete', async (req, res) => {
                                 orderId: orderId
                             });
                         }
+
+                        // WhatsApp notifications
+                        try {
+                            const dealer = await User.findByPk(currentOrder.userId, { attributes: ['name', 'shopName', 'phone'] });
+                            wa.notifyDealerOrderReady(dealer, orderId).catch(() => {});
+
+                            if (currentOrder.distributorId) {
+                                const distributor = await User.findByPk(currentOrder.distributorId, { attributes: ['name', 'shopName', 'phone'] });
+                                wa.notifyDistributorOrderReady(distributor, orderId).catch(() => {});
+                            }
+                        } catch (waErr) { console.error('WhatsApp ready notify error:', waErr.message); }
                     }
                 }
             }
@@ -531,17 +566,51 @@ router.post('/complete', async (req, res) => {
     }
 });
 
+// POST /workers/reject - QC reject at packing (logs a damage report, does NOT pack)
+router.post('/reject', async (req, res) => {
+    try {
+        const { workerId, unitId, reason } = req.body;
+        if (!workerId) return res.status(401).json({ error: 'Worker ID required' });
+        const worker = await Worker.findByPk(workerId);
+        if (!worker || !worker.isActive) return res.status(403).json({ error: 'Worker not authorized' });
+
+        const unit = await ProductionUnit.findByPk(unitId);
+        if (!unit) return res.status(404).json({ error: 'Unit not found' });
+
+        const item = await OrderItem.findByPk(unit.orderItemId);
+        await DamageReport.create({
+            orderId: item ? item.orderId : null,
+            orderItemId: item ? item.id : null,
+            designName: item ? item.designNameSnapshot : null,
+            colorName: item ? item.colorNameSnapshot : null,
+            stage: worker.role || 'PACKING',
+            type: 'PRODUCTION_REJECT',
+            reason: reason || 'QC reject at packing',
+            quantity: 1,
+            reportedBy: worker.name,
+            status: 'LOGGED'
+        });
+
+        res.json({ message: 'Door rejected and logged to Damage & Returns' });
+    } catch (error) {
+        console.error('reject error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // POST /workers/complete-batch - Complete multiple tasks at once (for PVC_CUT, PACKING)
 router.post('/complete-batch', async (req, res) => {
     try {
         const { workerId, unitIds, lat, lng } = req.body;
 
+        if (!workerId) return res.status(401).json({ error: 'Worker ID required' });
         if (!Array.isArray(unitIds) || unitIds.length === 0) {
             return res.status(400).json({ error: 'No units selected' });
         }
 
         const worker = await Worker.findByPk(workerId);
         if (!worker) return res.status(404).json({ error: 'Worker not found' });
+        if (!worker.isActive) return res.status(403).json({ error: 'Worker account disabled' });
 
         // Only allow batch for simple roles
         if (!['PVC_CUT', 'PACKING'].includes(worker.role)) {
@@ -684,6 +753,7 @@ router.get('/history', async (req, res) => {
         }
 
         const worker = await Worker.findByPk(workerId);
+        if (!worker || !worker.isActive) return res.status(403).json({ error: 'Worker not authorized' });
         if (!worker) {
             console.log('[HISTORY] ERROR: Worker not found:', workerId);
             return res.status(404).json({ error: 'Worker not found' });
@@ -726,7 +796,11 @@ router.get('/history', async (req, res) => {
 // POST /workers/undo - Revert a completion
 router.post('/undo', async (req, res) => {
     try {
-        const { workerId, recordId } = req.body; // ProcessRecord ID is safer than Unit ID for history
+        const { workerId, recordId } = req.body;
+
+        if (!workerId) return res.status(401).json({ error: 'Worker ID required' });
+        const workerCheck = await Worker.findByPk(workerId, { attributes: ['id', 'isActive'] });
+        if (!workerCheck || !workerCheck.isActive) return res.status(403).json({ error: 'Worker not authorized' });
 
         const record = await sequelize.models.ProcessRecord.findByPk(recordId);
         if (!record) return res.status(404).json({ error: 'Record not found' });
@@ -737,17 +811,17 @@ router.post('/undo', async (req, res) => {
 
         const worker = await Worker.findByPk(workerId);
         const ROLE_MAP = {
-            'PVC_CUT': { flag: 'isPvcDone' },
-            'FOIL_PASTING': { flag: 'isFoilDone' },
-            'EMBOSS': { flag: 'isEmbossDone' },
-            'DOOR_MAKING': { flag: 'isDoorMade' },
-            'PACKING': { flag: 'isPacked' }
+            'PVC_CUT':      { flag: 'isPvcDone',    cascade: ['isDoorMade', 'isPacked'] },
+            'FOIL_PASTING': { flag: 'isFoilDone',   cascade: ['isEmbossDone', 'isDoorMade', 'isPacked'] },
+            'EMBOSS':       { flag: 'isEmbossDone', cascade: ['isDoorMade', 'isPacked'] },
+            'DOOR_MAKING':  { flag: 'isDoorMade',   cascade: ['isPacked'] },
+            'PACKING':      { flag: 'isPacked',     cascade: [] }
         };
         const rule = ROLE_MAP[worker.role];
 
-        // 1. Revert Flag
-        const updateData = {};
-        updateData[rule.flag] = false;
+        // Revert this flag and any later stages that depended on it
+        const updateData = { [rule.flag]: false };
+        for (const f of rule.cascade) updateData[f] = false;
         await unit.update(updateData);
 
         // 2. Delete Record

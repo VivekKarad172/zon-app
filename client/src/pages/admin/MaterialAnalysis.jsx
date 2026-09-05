@@ -70,7 +70,7 @@ export default function MaterialAnalysis() {
             </div>
             <h3 className="text-xl font-black text-slate-800 mb-2">Analysis Failed</h3>
             <p className="text-slate-500 mb-6">{error}</p>
-            <button onClick={fetchMaterials} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold">Try Again</button>
+            <button onClick={fetchMaterials} className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold">Try Again</button>
         </div>
     );
 
@@ -79,7 +79,7 @@ export default function MaterialAnalysis() {
             <div className="flex justify-between items-center mb-8">
                 <div>
                     <h1 className="text-2xl font-black text-slate-900 flex items-center gap-3">
-                        <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                        <div className="p-2 bg-red-100 text-red-600 rounded-lg">
                             <Calculator size={24} />
                         </div>
                         Material Analysis
@@ -88,22 +88,22 @@ export default function MaterialAnalysis() {
                         Calculate raw material needs (Sheet Count) based on pending orders.
                     </p>
                 </div>
-                <button onClick={fetchMaterials} className="p-2 text-slate-400 hover:text-indigo-600 transition-colors bg-white rounded-lg border border-slate-200 shadow-sm">
+                <button onClick={fetchMaterials} className="p-2 text-slate-400 hover:text-red-600 transition-colors bg-white rounded-lg border border-slate-200 shadow-sm">
                     <RefreshCw size={20} />
                 </button>
             </div>
 
             {/* KPI CARD */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div className="bg-gradient-to-br from-indigo-600 to-purple-800 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
+                <div className="bg-gradient-to-br from-red-600 to-rose-800 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-32 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
                     <div className="relative z-10">
-                        <div className="text-indigo-100 font-bold uppercase tracking-widest text-xs mb-2">Total Sheets Required</div>
+                        <div className="text-red-100 font-bold uppercase tracking-widest text-xs mb-2">Total Sheets Required</div>
                         <div className="text-6xl font-black tracking-tight mb-2">
                             {totalSheets}
                             <span className="text-2xl opacity-60 font-bold ml-2">sheets</span>
                         </div>
-                        <div className="inline-flex items-center gap-2 bg-indigo-500/30 backdrop-blur-md px-3 py-1.5 rounded-lg border border-indigo-400/30">
+                        <div className="inline-flex items-center gap-2 bg-red-500/30 backdrop-blur-md px-3 py-1.5 rounded-lg border border-red-400/30">
                             <span className="font-bold">{data?.pendingItemCount}</span>
                             <span className="text-sm opacity-90">Pending Order Items</span>
                         </div>
@@ -138,13 +138,13 @@ export default function MaterialAnalysis() {
                             </div>
                             <div className="divide-y divide-slate-100">
                                 {mat.sizes.map((s, j) => (
-                                    <div key={j} className="px-6 py-4 flex justify-between items-center group hover:bg-indigo-50/30 transition-colors">
+                                    <div key={j} className="px-6 py-4 flex justify-between items-center group hover:bg-red-50/30 transition-colors">
                                         <div className="font-bold text-slate-600 font-mono text-sm">{s.size}</div>
                                         <div className="flex items-center gap-4">
                                             {/* Bar Visualization */}
                                             <div className="w-32 h-2 bg-slate-100 rounded-full overflow-hidden hidden sm:block">
                                                 <div
-                                                    className="h-full bg-indigo-500 rounded-full"
+                                                    className="h-full bg-red-500 rounded-full"
                                                     style={{ width: `${Math.min(100, (s.count / totalSheets) * 100 * 5)}%` }} // Scale up for visibility
                                                 ></div>
                                             </div>

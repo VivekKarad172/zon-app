@@ -1,0 +1,26 @@
+
+> client@0.0.0 dev
+> vite
+
+
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m900[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+[2m  [32m➜[39m  [1mNetwork[22m[2m: use [22m[1m--host[22m[2m to expose[22m
+[2m[32m  ➜[39m[22m[2m  press [22m[1mh + enter[22m[2m to show help[22m
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+[2m1:36:06 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/dealer/Dashboard.jsx, /src/index.css[22m
+[2m1:36:24 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/dealer/Dashboard.jsx, /src/index.css[22m
+[2m1:36:32 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/dealer/Dashboard.jsx, /src/index.css[22m
+[2m1:37:16 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/dealer/DesktopDashboard.jsx, /src/index.css[22m
+[2m1:37:28 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/dealer/DesktopDashboard.jsx, /src/index.css[22m
+[2m1:37:38 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/dealer/DesktopDashboard.jsx, /src/index.css[22m
+[2m1:38:03 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/dealer/MobileDashboard.jsx, /src/index.css[22m
+[2m1:38:21 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/dealer/MobileDashboard.jsx, /src/index.css[22m
+[2m1:38:33 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/admin/Dashboard.jsx, /src/index.css[22m
+[2m1:38:44 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/admin/Dashboard.jsx, /src/index.css[22m
+[2m1:39:00 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/admin/Dashboard.jsx, /src/index.css[22m
+[2m1:39:26 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/dealer/MobileDashboard.jsx, /src/index.css[22m
+[2m1:40:18 am[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/worker/WorkerDashboard.jsx, /src/index.css[22m

@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
-import { Plus, X, Image as ImageIcon, Filter, Search, Edit2, Eye, EyeOff, Save, Trash2, User, Users, ShoppingBag, Bell, Upload, Download, FileSpreadsheet, Home, CheckSquare, Calendar, ChevronDown, Factory, Hammer, RefreshCw, MapPin, Printer, LogOut, Trophy, Calculator, Wand2, Sheet, BarChart3, Lock, Wind } from 'lucide-react';
+import { Plus, X, Image as ImageIcon, Layers, Filter, Search, Edit2, Eye, EyeOff, Save, Trash2, User, Users, ShoppingBag, Bell, Upload, Download, FileSpreadsheet, Home, CheckSquare, Calendar, ChevronDown, Factory, Hammer, RefreshCw, MapPin, Printer, LogOut, Trophy, Calculator, Wand2, Sheet, BarChart3, Lock, Wind, Menu, Package } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import React from 'react'; // Required for Class Component
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -12,6 +12,11 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import AdminWorkerControl from './AdminWorkerControl';
 import MaterialAnalysis from './MaterialAnalysis';
 import AnalyticsDashboard from './AnalyticsDashboard';
+import ReportsDashboard from './ReportsDashboard';
+import DamageReturns from './DamageReturns';
+import StockManagement from './StockManagement';
+import Sidebar from '../../components/Sidebar'; // SHARED SIDEBAR
+import { useIsMobile } from '../../hooks/useMediaQuery';
 
 // === GLOBAL ERROR BOUNDARY ===
 class DashboardErrorBoundary extends React.Component {
@@ -36,9 +41,27 @@ export default function AdminDashboard() {
     const { logout, user, isAuthenticated } = useAuth();
     const navigate = useNavigate(); // NEW: For Profile Navigation
     const [activeTab, setActiveTab] = useState('home'); // home, orders, designs, masters, distributors, dealers, worker-control
-    const [productionView, setProductionView] = useState('floor'); // 'floor' | 'workers'
+    const [productionView, setProductionView] = useState('floor'); // 'floor' | 'workers' | 'damage'
+    const [leadDays, setLeadDays] = useState(7); // production lead time (days) for auto expected-date
     const [mastersView, setMastersView] = useState('designs'); // 'designs', 'colors', 'specs'
     const [analyticsView, setAnalyticsView] = useState('dashboard'); // 'dashboard', 'materials'
+    const [networkView, setNetworkView] = useState('distributors'); // 'distributors', 'dealers'
+
+    // SIDEBAR NAVIGATION STATE
+    const isMobile = useIsMobile();
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+    // Close sidebar on mobile when navigating
+    useEffect(() => {
+        if (isMobile) setIsSidebarOpen(false);
+    }, [activeTab, isMobile]);
+
+    // Set default network view based on role
+    useEffect(() => {
+        if (user?.role === 'DISTRIBUTOR') {
+            setNetworkView('dealers');
+        }
+    }, [user]);
 
     // ALL STATE DEFINTIONS FROM BEFORE...
     const [orders, setOrders] = useState([]);
@@ -71,7 +94,7 @@ export default function AdminDashboard() {
 
     // Updated User Form: Added email
     const [userForm, setUserForm] = useState({
-        username: '', password: '', email: '', name: '', city: '', shopName: '', distributorId: '', isEnabled: true
+        username: '', password: '', email: '', name: '', city: '', shopName: '', distributorId: '', phone: '', isEnabled: true
     });
     const [newPost, setNewPost] = useState({ title: '', content: '', postType: 'announcement', image: null });
     const [showBulkUpload, setShowBulkUpload] = useState(false);
@@ -197,6 +220,7 @@ export default function AdminDashboard() {
                     </div>
                     <div class="meta">
                         <div><strong>Order #${order.id}</strong></div>
+                        ${order.siteName ? `<div><strong>Site/Party:</strong> ${order.siteName}</div>` : ''}
                         <div>Date: ${new Date(order.createdAt).toLocaleDateString()}</div>
                         <div>Status: ${order.status}</div>
                     </div>
@@ -251,6 +275,87 @@ export default function AdminDashboard() {
         printWindow.print();
     };
 
+    // --- DELIVERY CHALLAN (dispatch document — logistics, no money) ---
+    const handlePrintChallan = (order) => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return toast.error('Popup blocked');
+        const distName = distributors.find(d => d.id === order.distributorId)?.name || 'Direct';
+        const totalDoors = (order.OrderItems || []).reduce((s, it) => s + (parseInt(it.quantity) || 0), 0);
+        const challanDate = order.dispatchedAt ? new Date(order.dispatchedAt) : new Date();
+        const html = `
+            <html><head><title>Delivery Challan CH-${order.id}</title>
+            <style>
+                body { font-family: sans-serif; padding: 40px; color:#222; }
+                .top { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #E0312A; padding-bottom:16px; }
+                .brand { font-size:26px; font-weight:900; } .brand span{color:#E0312A;}
+                .doc { text-align:right; }
+                .doc .t { font-size:20px; font-weight:900; letter-spacing:1px; }
+                .grid { display:flex; gap:24px; margin:24px 0; }
+                .box { flex:1; border:1px solid #ddd; border-radius:8px; padding:14px; font-size:13px; }
+                .box h4 { margin:0 0 8px; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:#888; }
+                .transport { background:#fff5f5; border:1px solid #f3c9c9; border-radius:8px; padding:14px; margin-bottom:20px; display:flex; gap:30px; font-size:13px; }
+                table { width:100%; border-collapse:collapse; margin-bottom:8px; }
+                th,td { border:1px solid #ddd; padding:10px; text-align:left; font-size:12px; }
+                th { background:#fafafa; text-transform:uppercase; font-size:11px; }
+                .total { text-align:right; font-weight:900; font-size:14px; margin:8px 0 40px; }
+                .sign { display:flex; justify-content:space-between; margin-top:60px; font-size:12px; }
+                .sign div { border-top:1px solid #999; padding-top:8px; width:200px; text-align:center; }
+                .note { font-size:10px; color:#999; text-align:center; margin-top:24px; }
+            </style></head><body>
+                <div class="top">
+                    <div><div class="brand"><span>Z-ON</span> DOOR</div><div style="font-size:12px;color:#666;">Door Manufacturing</div></div>
+                    <div class="doc"><div class="t">DELIVERY CHALLAN</div>
+                        <div><strong>No:</strong> CH-${order.id}</div>
+                        <div><strong>Date:</strong> ${challanDate.toLocaleDateString()}</div>
+                        <div><strong>Order Ref:</strong> #${order.id}</div>
+                    </div>
+                </div>
+                <div class="grid">
+                    <div class="box"><h4>Deliver To (Dealer)</h4>
+                        <strong>${order.User?.name || ''}</strong><br>${order.User?.shopName || ''}<br>${order.User?.city || ''}
+                    </div>
+                    <div class="box"><h4>Distributor</h4><strong>${distName}</strong></div>
+                </div>
+                ${order.siteName ? `<div class="transport" style="background:#fffef0;border-color:#e8e0b0;"><div><strong>Site / Party:</strong> ${order.siteName}</div></div>` : ''}
+                <div class="transport">
+                    <div><strong>Vehicle No:</strong> ${order.vehicleNo || '__________'}</div>
+                    <div><strong>Transport:</strong> ${order.transportName || '__________'}</div>
+                    <div><strong>L.R. No:</strong> ${order.lrNumber || '__________'}</div>
+                </div>
+                <table><thead><tr><th>#</th><th>Design</th><th>Color / Foil</th><th>Size (W x H)</th><th>Lock</th><th>Qty</th></tr></thead>
+                <tbody>
+                    ${(order.OrderItems || []).map((it, i) => `<tr>
+                        <td>${i + 1}</td><td>${it.designNameSnapshot || ''}</td><td>${it.colorNameSnapshot || ''}</td>
+                        <td>${it.width} x ${it.height}</td><td>${it.hasLock ? 'Yes' : '-'}</td><td>${it.quantity}</td>
+                    </tr>`).join('')}
+                </tbody></table>
+                <div class="total">Total Doors: ${totalDoors}</div>
+                <div class="sign"><div>Receiver's Signature</div><div>For Z-ON DOOR</div></div>
+                <div class="note">This is a delivery challan for goods dispatch. Generated on ${new Date().toLocaleString()}</div>
+            </body></html>`;
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.print();
+    };
+
+    // Dispatch modal state + handlers
+    const [dispatchOrder, setDispatchOrder] = useState(null);
+    const [dispatchForm, setDispatchForm] = useState({ vehicleNo: '', transportName: '', lrNumber: '' });
+    const openDispatch = (order) => {
+        setDispatchForm({ vehicleNo: order.vehicleNo || '', transportName: order.transportName || '', lrNumber: order.lrNumber || '' });
+        setDispatchOrder(order);
+    };
+    const submitDispatch = async (print) => {
+        try {
+            const res = await api.put(`/orders/${dispatchOrder.id}/dispatch`, dispatchForm);
+            toast.success(`Order #${dispatchOrder.id} dispatched`);
+            const updated = { ...dispatchOrder, ...res.data, OrderItems: dispatchOrder.OrderItems, User: dispatchOrder.User };
+            setDispatchOrder(null);
+            fetchOrders();
+            if (print) handlePrintChallan(updated);
+        } catch (e) { toast.error(e.response?.data?.error || 'Dispatch failed'); }
+    };
+
     // NEW: Production View State
     const [productionOrders, setProductionOrders] = useState([]);
     const [productionDistributorId, setProductionDistributorId] = useState('');
@@ -283,7 +388,9 @@ export default function AdminDashboard() {
         if (activeTab === 'masters') { fetchDesigns(); fetchDoors(); fetchColors(); fetchSheets(); }
         if (activeTab === 'distributors') fetchDistributors();
         if (activeTab === 'dealers') { fetchDealers(); fetchDistributors(); }
+        if (activeTab === 'network') { fetchDealers(); fetchDistributors(); }
         if (activeTab === 'whatsnew') fetchPosts();
+        if (activeTab === 'orders') fetchLeadDays();
     }, [activeTab, orderFilter, dateRange, productionDistributorId]);
 
     // Live Factory Stats Polling
@@ -358,13 +465,31 @@ export default function AdminDashboard() {
     };
 
     const handleAddDoorType = async () => {
-        if (!newDoorType.name || !newDoorType.thickness) return toast.error('Enter details');
+        if (!newDoorType.name) return toast.error('Enter door type name (e.g. HPL)');
+        if (!newDoorType.thickness) return toast.error('Enter thickness (e.g. 32mm)');
         try {
             await api.post('/doors', newDoorType);
-            toast.success('Door Type Added');
+            toast.success(`Door type "${newDoorType.name}" added!`);
             setNewDoorType({ name: '', thickness: '' });
             fetchDoors();
+        } catch (e) { toast.error(e.response?.data?.error || 'Failed to add door type'); }
+    };
+
+    const handleToggleDoorType = async (door) => {
+        try {
+            await api.put(`/doors/${door.id}`, { isEnabled: !door.isEnabled });
+            toast.success(`"${door.name}" ${door.isEnabled ? 'disabled' : 'enabled'}`);
+            fetchDoors();
         } catch (e) { toast.error('Failed'); }
+    };
+
+    const handleDeleteDoorType = async (door) => {
+        if (!confirm(`Delete "${door.name}"? If designs use it, it will be disabled instead.`)) return;
+        try {
+            const res = await api.delete(`/doors/${door.id}`);
+            toast.success(res.data.message);
+            fetchDoors();
+        } catch (e) { toast.error(e.response?.data?.error || 'Failed'); }
     };
 
     const handleDeleteSheet = async (id) => {
@@ -524,9 +649,63 @@ export default function AdminDashboard() {
     const fetchDesigns = async () => { try { const res = await api.get('/designs'); setDesigns(res.data); } catch (e) { } };
     const fetchDoors = async () => { try { const res = await api.get('/doors'); setDoors(res.data); } catch (e) { } };
     const fetchColors = async () => { try { const res = await api.get('/colors'); setColors(res.data); } catch (e) { } };
-    const fetchDistributors = async () => { try { const res = await api.get('/users?role=DISTRIBUTOR'); setDistributors(res.data); } catch (e) { } };
-    const fetchDealers = async () => { try { const res = await api.get('/users?role=DEALER'); setDealers(res.data); } catch (e) { } };
+    const fetchDistributors = async () => { try { const res = await api.get('/users?role=DISTRIBUTOR'); console.log('FETCH DISTRIBS:', res.data); setDistributors(Array.isArray(res.data) ? res.data : []); } catch (e) { console.error('FETCH DISTRIBS ERROR:', e); } };
+    const fetchDealers = async () => { try { const res = await api.get('/users?role=DEALER'); console.log('FETCH DEALERS:', res.data); setDealers(Array.isArray(res.data) ? res.data : []); } catch (e) { console.error('FETCH DEALERS ERROR:', e); } };
     const fetchPosts = async () => { try { const res = await api.get('/posts'); setPosts(res.data); } catch (e) { } };
+
+    // Delete a distributor/dealer. The server SOFT-DISABLES (instead of deleting)
+    // any user that still has orders or dealers, to protect order history.
+    const handleDeleteUser = async (id) => {
+        if (!confirm('Delete this user? If they have orders, they will be safely DISABLED instead of deleted (to protect order history).')) return;
+        try {
+            const res = await api.delete(`/users/${id}`);
+            if (res.data?.softDisabled) {
+                toast(res.data.message || 'User disabled (has linked orders)', { icon: '🛡️', duration: 6000 });
+            } else {
+                toast.success(res.data?.message || 'User deleted');
+            }
+            fetchDealers();
+            fetchDistributors();
+        } catch (e) {
+            toast.error(e.response?.data?.error || 'Failed to delete user');
+        }
+    };
+
+    // --- Lead time setting ---
+    const fetchLeadDays = async () => { try { const r = await api.get('/orders/settings/lead-time'); setLeadDays(r.data.leadDays); } catch (e) { } };
+    const saveLeadDays = async (days) => {
+        try { const r = await api.post('/orders/settings/lead-time', { leadDays: days }); setLeadDays(r.data.leadDays); toast.success(`Lead time set to ${r.data.leadDays} days`); }
+        catch (e) { toast.error(e.response?.data?.error || 'Failed'); }
+    };
+
+    // --- Expected delivery date helpers ---
+    const isOverdue = (order) => {
+        if (!order.expectedDate) return false;
+        if (!['RECEIVED', 'PRODUCTION'].includes(order.status)) return false;
+        return new Date(order.expectedDate) < new Date(new Date().toDateString());
+    };
+    const updateExpectedDate = async (order) => {
+        const current = order.expectedDate ? new Date(order.expectedDate).toISOString().slice(0, 10) : '';
+        const input = prompt('Set expected ready date (YYYY-MM-DD). Leave empty to clear:', current);
+        if (input === null) return; // cancelled
+        try {
+            await api.put(`/orders/${order.id}/expected-date`, { expectedDate: input.trim() || null });
+            toast.success('Expected date updated');
+            fetchOrders();
+        } catch (e) { toast.error(e.response?.data?.error || 'Failed to update date'); }
+    };
+
+    // Enable / disable a user without deleting (keeps all records intact).
+    const toggleUserStatus = async (id, isEnabled) => {
+        try {
+            await api.put(`/users/${id}`, { isEnabled });
+            toast.success(isEnabled ? 'User enabled' : 'User disabled');
+            fetchDealers();
+            fetchDistributors();
+        } catch (e) {
+            toast.error(e.response?.data?.error || 'Failed to update status');
+        }
+    };
 
     const fetchProductionIntelligence = async () => {
         try {
@@ -553,10 +732,10 @@ export default function AdminDashboard() {
         if (user) {
             setUserForm({
                 username: user.username || '', password: '', email: user.email || '', name: user.name,
-                city: user.city || '', shopName: user.shopName || '', distributorId: user.distributorId || '', isEnabled: user.isEnabled
+                city: user.city || '', shopName: user.shopName || '', distributorId: user.distributorId || '', phone: user.phone || '', isEnabled: user.isEnabled
             });
         } else {
-            setUserForm({ username: '', password: '', email: '', name: '', city: '', shopName: '', distributorId: '', isEnabled: true });
+            setUserForm({ username: '', password: '', email: '', name: '', city: '', shopName: '', distributorId: '', phone: '', isEnabled: true });
         }
         setShowUserModal(true);
     };
@@ -568,6 +747,7 @@ export default function AdminDashboard() {
         const payload = {
             name: userForm.name,
             city: userForm.city,
+            phone: userForm.phone,   // WhatsApp number (used for order notifications)
             isEnabled: userForm.isEnabled,
             role: userModalType  // EXPLICIT: DISTRIBUTOR or DEALER
         };
@@ -603,7 +783,7 @@ export default function AdminDashboard() {
             setShowUserModal(false);
             if (userModalType === 'DISTRIBUTOR') fetchDistributors(); else fetchDealers();
             // Reset form
-            setUserForm({ name: '', username: '', password: '', email: '', shopName: '', city: '', distributorId: '', isEnabled: true });
+            setUserForm({ name: '', username: '', password: '', email: '', shopName: '', city: '', distributorId: '', phone: '', isEnabled: true });
         } catch (error) {
             console.error("User Operation Failed:", error);
             console.error("Response:", error.response?.data);  // DEBUG LOG
@@ -1065,65 +1245,90 @@ export default function AdminDashboard() {
         };
     }, [orders, safeAnalytics]);
 
+    const menuItems = [
+        { id: 'home', label: 'Home', icon: Home },
+        { id: 'production', label: 'Production', icon: Factory, hideFor: ['DISTRIBUTOR'] },
+        { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+        { id: 'reports', label: 'Reports', icon: FileSpreadsheet, hideFor: ['DISTRIBUTOR'] },
+        { id: 'orders', label: 'Orders', icon: ShoppingBag },
+        { id: 'stock', label: 'Stock', icon: Package, hideFor: ['DISTRIBUTOR'] },
+        { id: 'network', label: 'Network', icon: Users },
+        { id: 'masters', label: 'Catalogue', icon: Layers },
+        { id: 'whatsnew', label: "What's New", icon: Bell }
+    ].filter(item => !item.hideFor || !item.hideFor.includes(user?.role));
+
     return (
-        <div className="min-h-screen bg-gray-100 font-sans pt-20">
-            {/* === FUTURISTIC HEADER === */}
-            <div className="fixed top-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-md shadow-sm z-[100] flex items-center justify-between px-6 lg:px-8 border-b border-white/50 transition-all duration-300">
-                <div className="flex items-center gap-4">
-                    <div className="bg-indigo-600 p-2.5 rounded-xl shadow-lg shadow-indigo-200">
-                        <div className="text-white font-black text-xl tracking-tighter">Z</div>
-                    </div>
-                    <div>
-                        <h1 className="text-xl font-black text-gray-900 tracking-tight">Z-ON DOOR</h1>
-                        <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-[0.2em] bg-indigo-50 px-2 py-0.5 rounded-md">Admin Panel</span>
-                    </div>
-                </div>
+        <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
+            {/* SHARED SIDEBAR RAIL */}
+            <Sidebar
+                isOpen={isSidebarOpen}
+                toggle={() => setIsSidebarOpen(!isSidebarOpen)}
+                isMobile={isMobile}
+                user={user}
+                roleLabel="Admin Panel"
+                menuItems={menuItems}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                logout={logout}
+            />
 
-                <div className="flex items-center gap-3">
-                    {/* Notification Bell */}
-                    <div className="relative">
-                        <button
-                            onClick={() => setShowNotifications(!showNotifications)}
-                            className="p-2 lg:p-3 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all text-gray-400 hover:text-indigo-600 relative group active:scale-95"
-                        >
-                            <Bell size={20} strokeWidth={2.5} className="group-hover:animate-swing" />
-                            {unreadCount > 0 && (
-                                <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white ring-1 ring-red-100 animate-pulse" />
-                            )}
-                        </button>
+            {/* MAIN CONTENT AREA */}
+            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                {/* TOP HEADER - STICKY */}
+                <header className="bg-white/80 backdrop-blur-md shadow-sm z-20 px-6 h-16 flex items-center justify-between border-b border-gray-100 shrink-0">
+                    <div className="flex items-center gap-4">
+                        {/* Mobile Menu Toggle */}
+                        {isMobile && (
+                            <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-gray-600">
+                                <Menu size={24} />
+                            </button>
+                        )}
+                        {/* Breadcrumb or Title */}
+                        <div className="flex flex-col">
+                            <h2 className="text-lg font-black text-gray-900 leading-none">{menuItems.find(i => i.id === activeTab)?.label || 'Dashboard'}</h2>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' })}</span>
+                        </div>
+                    </div>
 
-                        {/* Notification Dropdown */}
-                        {showNotifications && (
-                            <div className="absolute right-0 top-full mt-4 w-80 md:w-96 bg-white rounded-3xl shadow-2xl shadow-indigo-100 ring-1 ring-gray-100 p-2 z-[150] origin-top-right animate-in fade-in zoom-in-95 duration-200">
-                                <div className="p-4 border-b border-gray-50 flex justify-between items-center">
-                                    <h3 className="font-bold text-gray-900">Notifications</h3>
-                                    <button onClick={() => { api.put('/notifications/read-all'); setNotifications(notifications.map(n => ({ ...n, isRead: true }))); }} className="text-[10px] font-bold text-indigo-500 hover:text-indigo-700 bg-indigo-50 px-2 py-1 rounded-lg transition-colors">Mark all read</button>
-                                </div>
-                                {/* Filter Tabs */}
-                                <div className="px-4 py-2 border-b border-gray-50 flex gap-2 overflow-x-auto no-scrollbar">
-                                    {['ALL', 'NEW_ORDER', 'READY', 'CANCELLED'].map(filter => (
-                                        <button
-                                            key={filter}
-                                            onClick={() => setNotificationFilter(filter)}
-                                            className={`whitespace-nowrap px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wide transition-all ${notificationFilter === filter
-                                                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                    <div className="flex items-center gap-3">
+                        {/* Notification Bell */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowNotifications(!showNotifications)}
+                                className="p-2 rounded-xl bg-gray-50 border border-gray-100 shadow-sm hover:text-red-600 relative group active:scale-95 transition-all text-gray-400"
+                            >
+                                <Bell size={20} strokeWidth={2.5} className="group-hover:animate-swing" />
+                                {unreadCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 border-2 border-white shadow-sm animate-pulse">
+                                        {unreadCount > 99 ? '99+' : unreadCount}
+                                    </span>
+                                )}
+                            </button>
+
+                            {/* Notification Dropdown */}
+                            {showNotifications && (
+                                <div className="absolute right-0 top-full mt-4 w-80 md:w-96 bg-white rounded-3xl shadow-2xl shadow-red-100 ring-1 ring-gray-100 p-2 z-[150] origin-top-right animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="p-4 border-b border-gray-50 flex justify-between items-center">
+                                        <h3 className="font-bold text-gray-900">Notifications</h3>
+                                        <button onClick={() => { api.put('/notifications/read-all'); setNotifications(notifications.map(n => ({ ...n, isRead: true }))); }} className="text-[10px] font-bold text-red-500 hover:text-red-700 bg-red-50 px-2 py-1 rounded-lg transition-colors">Mark all read</button>
+                                    </div>
+                                    {/* Filter Tabs */}
+                                    <div className="px-4 py-2 border-b border-gray-50 flex gap-2 overflow-x-auto no-scrollbar">
+                                        {['ALL', 'NEW_ORDER', 'READY', 'CANCELLED'].map(filter => (
+                                            <button
+                                                key={filter}
+                                                onClick={() => setNotificationFilter(filter)}
+                                                className={`whitespace-nowrap px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wide transition-all ${notificationFilter === filter
+                                                    ? 'bg-red-600 text-white shadow-md shadow-red-200'
                                                     : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
-                                                }`}
-                                        >
-                                            {filter.replace('_', ' ')}
-                                        </button>
-                                    ))}
-                                </div>
-                                <div className="max-h-[60vh] overflow-y-auto p-2 space-y-2 custom-scrollbar">
-                                    {notifications
-                                        .filter(n => {
-                                            if (notificationFilter === 'ALL') return true;
-                                            if (notificationFilter === 'NEW_ORDER') return n.title.toLowerCase().includes('new order');
-                                            if (notificationFilter === 'READY') return n.title.toLowerCase().includes('ready') || n.message.toLowerCase().includes('ready');
-                                            if (notificationFilter === 'CANCELLED') return n.title.toLowerCase().includes('cancel') || n.message.toLowerCase().includes('cancel');
-                                            return true;
-                                        })
-                                        .length > 0 ? notifications
+                                                    }`}
+                                            >
+                                                {filter.replace('_', ' ')}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="max-h-[60vh] overflow-y-auto p-2 space-y-2 custom-scrollbar">
+                                        {notifications
                                             .filter(n => {
                                                 if (notificationFilter === 'ALL') return true;
                                                 if (notificationFilter === 'NEW_ORDER') return n.title.toLowerCase().includes('new order');
@@ -1131,2227 +1336,2292 @@ export default function AdminDashboard() {
                                                 if (notificationFilter === 'CANCELLED') return n.title.toLowerCase().includes('cancel') || n.message.toLowerCase().includes('cancel');
                                                 return true;
                                             })
-                                            .map(n => (
-                                                <div key={n.id} onClick={() => { markAsRead(n.id, n.orderId); }} className={`p-4 rounded-2xl cursor-pointer transition-all border ${n.isRead ? 'bg-white border-transparent hover:bg-gray-50 opacity-60' : 'bg-indigo-50/30 border-indigo-100 hover:bg-indigo-50/60'}`}>
-                                                    <div className="flex gap-3">
-                                                        <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.type === 'SUCCESS' ? 'bg-emerald-500 shadow-lg shadow-emerald-200' : n.type === 'WARNING' ? 'bg-amber-500' : 'bg-indigo-500 shadow-lg shadow-indigo-200'}`} />
-                                                        <div>
-                                                            <div className="text-xs font-black text-gray-900 mb-0.5">{n.title}</div>
-                                                            <div className="text-xs font-medium text-gray-500 leading-relaxed mb-1">{n.message}</div>
-                                                            <div className="text-[9px] text-gray-300 font-bold uppercase tracking-widest">{new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                            .length > 0 ? notifications
+                                                .filter(n => {
+                                                    if (notificationFilter === 'ALL') return true;
+                                                    if (notificationFilter === 'NEW_ORDER') return n.title.toLowerCase().includes('new order');
+                                                    if (notificationFilter === 'READY') return n.title.toLowerCase().includes('ready') || n.message.toLowerCase().includes('ready');
+                                                    if (notificationFilter === 'CANCELLED') return n.title.toLowerCase().includes('cancel') || n.message.toLowerCase().includes('cancel');
+                                                    return true;
+                                                })
+                                                .map(n => (
+                                                    <div key={n.id} onClick={() => { markAsRead(n.id, n.orderId); }} className={`p-4 rounded-2xl cursor-pointer transition-all border ${n.isRead ? 'bg-white border-transparent hover:bg-gray-50 opacity-60' : 'bg-red-50/30 border-red-100 hover:bg-red-50/60'}`}>
+                                                        <div className="flex gap-3">
+                                                            <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.type === 'SUCCESS' ? 'bg-emerald-500 shadow-lg shadow-emerald-200' : n.type === 'WARNING' ? 'bg-amber-500' : 'bg-red-500 shadow-lg shadow-red-200'}`} />
+                                                            <div>
+                                                                <div className="text-xs font-black text-gray-900 mb-0.5">{n.title}</div>
+                                                                <div className="text-xs font-medium text-gray-500 leading-relaxed mb-1">{n.message}</div>
+                                                                <div className="text-[9px] text-gray-300 font-bold uppercase tracking-widest">{new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                                            </div>
                                                         </div>
                                                     </div>
+                                                )) : (
+                                            <div className="text-center py-12">
+                                                <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-300">
+                                                    <Bell size={20} />
                                                 </div>
-                                            )) : (
-                                        <div className="text-center py-12">
-                                            <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-300">
-                                                <Bell size={20} />
+                                                <div className="text-gray-300 text-xs font-bold">No notifications</div>
                                             </div>
-                                            <div className="text-gray-300 text-xs font-bold">No notifications</div>
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                    </div>
-                    <div className="hidden md:flex items-center gap-3 bg-gray-50/80 px-4 py-2 rounded-2xl border border-gray-100/50 hover:bg-white transition-all group cursor-default">
-                        <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center shadow-inner">
-                            <User size={16} strokeWidth={3} />
-                        </div>
-                        <div className="text-right">
-                            <div className="text-xs font-black text-gray-900 group-hover:text-indigo-700 transition-colors">{user?.name || 'Administrator'}</div>
-                            <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{user?.role || 'Super User'}</div>
+                            )}
                         </div>
                     </div>
-                </div>
-            </div>
+                </header>
 
-            {/* SIDEBAR NAVIGATION */}
-            <aside className="fixed left-0 top-20 h-[calc(100vh-5rem)] w-64 bg-white shadow-sm border-r border-gray-100 p-4 overflow-y-auto z-50">
-                <div className="space-y-2">
-                    <button
-                        onClick={() => setActiveTab('dealers')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all mb-2 ${activeTab === 'dealers' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
-                    >
-                        <User size={20} /> Dealers
-                    </button>
-
-
-
-                    {/* NEW: All Dashboard Tabs Below Worker Control */}
-                    <div className="pt-4 mt-4 border-t border-slate-100 space-y-2">
-                        {[
-                            { id: 'home', label: 'Home', icon: Home },
-                            { id: 'production', label: 'Production', icon: Factory, hideFor: ['DISTRIBUTOR'] },
-
-                            { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-                            { id: 'orders', label: 'Orders', icon: ShoppingBag },
-                            { id: 'distributors', label: 'Distributors', icon: Users, hideFor: ['DISTRIBUTOR'] },
-
-                            { id: 'masters', label: 'Masters', icon: Filter },
-                            { id: 'whatsnew', label: "What's New", icon: Bell }
-                        ].filter(tab => !tab.hideFor || !tab.hideFor.includes(user?.role)).map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all text-sm ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
-                            >
-                                <tab.icon size={18} /> {tab.label}
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="pt-4 mt-4 border-t border-slate-100">
-                        <button
-                            onClick={logout}
-                            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-red-400 hover:bg-red-50 hover:text-red-600 transition-all"
-                        >
-                            <LogOut size={20} /> Logout
-                        </button>
-                    </div>
-                </div>
-            </aside>
-
-            {/* MAIN CONTENT AREA */}
-            <div className="flex-1 ml-64 p-8">
-                {/* Header Content for Home Tab */}
-                {activeTab === 'home' && (
-                    <div className="space-y-8 animate-fade-in">
-                        {/* Header */}
-                        <div className="flex justify-between items-center mb-8">
-                            <div>
-                                <h1 className="text-3xl font-black text-slate-900 tracking-tight">Dashboard</h1>
-                                <p className="text-slate-500 font-bold mt-1">
-                                    Welcome back, {user?.name}
-                                </p>
-                            </div>
-
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => navigate('/profile')}
-                                    className="p-3 bg-white hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 rounded-xl transition-all shadow-sm border border-gray-100 hover:border-indigo-100 group"
-                                    title="Edit Profile"
-                                >
-                                    <Edit2 size={18} className="group-hover:scale-110 transition-transform" />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* ANALYTICS SECTION */}
-                        {analytics && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                {/* ... stats ... */}
-                            </div>
-                        )}
-
-                        {/* Use existing render logic for HOME tab content (stats, etc.) */}
-                        {/* We can leave the rendering of specific tabs to the existing big conditional blocks logic below */}
-                    </div>
-                )}
-
-                {/* Horizontal navigation removed - now in sidebar */}
-
-                <div className="max-w-7xl mx-auto px-4">
-                    {/* Global Controls Filter Bar */}
-                    {/* ... (Keep existing code) ... */}
-                    <div className="flex flex-col lg:flex-row justify-between items-center mb-8 gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                        {/* ... (Keep existing inputs) ... */}
-                    </div>
-
-                    {/* --- TAB CONTENT --- */}
+                {/* SCROLLABLE CONTENT */}
+                <main className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth">
+                    {/* Header Content for Home Tab */}
                     {activeTab === 'home' && (
-                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-10">
-                            {/* KPI CARDS - STYLIZED */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="bg-gradient-to-br from-indigo-50 to-white p-6 rounded-3xl shadow-sm border border-indigo-100/50 relative overflow-hidden group hover:shadow-xl hover:shadow-indigo-100/50 transition-all duration-500">
-                                    <div className="absolute -right-6 -top-6 bg-indigo-500/5 w-24 h-24 rounded-full group-hover:scale-150 transition-transform duration-700"></div>
-                                    <div className="flex justify-between items-start relative z-10">
-                                        <div>
-                                            <p className="text-indigo-900/60 text-xs font-black uppercase tracking-widest mb-1">Total Orders</p>
-                                            <h3 className="text-4xl font-black text-indigo-900 tracking-tighter tabular-nums">{computedMetrics.total}</h3>
-                                        </div>
-                                        <div className="bg-indigo-600 p-3 rounded-2xl shadow-lg shadow-indigo-200 text-white">
-                                            <ShoppingBag size={24} strokeWidth={2.5} />
-                                        </div>
-                                    </div>
-                                    <div className="mt-4 flex items-center gap-2 relative z-10">
-                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${computedMetrics.trend >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                                            {computedMetrics.trend >= 0 ? '↗' : '↘'} {Math.abs(computedMetrics.trend)}%
-                                        </span>
-                                        <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-tight">vs Last Week</span>
-                                    </div>
+                        <div className="space-y-8 animate-fade-in">
+                            {/* Header */}
+                            <div className="flex justify-between items-center mb-8">
+                                <div>
+                                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">Dashboard</h1>
+                                    <p className="text-slate-500 font-bold mt-1">
+                                        Welcome back, {user?.name}
+                                    </p>
                                 </div>
 
-                                <div className="bg-gradient-to-br from-orange-50 to-white p-6 rounded-3xl shadow-sm border border-orange-100/50 relative overflow-hidden group hover:shadow-xl hover:shadow-orange-100/50 transition-all duration-500">
-                                    <div className="absolute -right-6 -top-6 bg-orange-500/5 w-24 h-24 rounded-full group-hover:scale-150 transition-transform duration-700"></div>
-                                    <div className="flex justify-between items-start relative z-10">
-                                        <div>
-                                            <p className="text-orange-900/60 text-xs font-black uppercase tracking-widest mb-1">Pending Actions</p>
-                                            <h3 className="text-4xl font-black text-orange-600 tracking-tighter tabular-nums">{computedMetrics.pending}</h3>
-                                        </div>
-                                        <div className="bg-orange-500 p-3 rounded-2xl shadow-lg shadow-orange-200 text-white">
-                                            <Bell size={24} strokeWidth={2.5} />
-                                        </div>
-                                    </div>
-                                    <div className="mt-4 flex items-center gap-3 relative z-10">
-                                        {computedMetrics.critical > 0 && (
-                                            <div className="flex items-center gap-2 px-3 py-1 bg-red-100 rounded-full border border-red-200 animate-pulse">
-                                                <div className="w-1.5 h-1.5 bg-red-600 rounded-full"></div>
-                                                <span className="text-[10px] font-black text-red-700 uppercase tracking-wide">
-                                                    {computedMetrics.critical} CRITICAL
-                                                </span>
-                                            </div>
-                                        )}
-                                        <span className="text-[10px] text-orange-400 font-bold uppercase tracking-tight">
-                                            {Math.max(0, computedMetrics.pending - computedMetrics.critical)} Normal
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className="bg-gradient-to-br from-emerald-50 to-white p-6 rounded-3xl shadow-sm border border-emerald-100/50 relative overflow-hidden group hover:shadow-xl hover:shadow-emerald-100/50 transition-all duration-500">
-                                    <div className="absolute -right-6 -top-6 bg-emerald-500/5 w-24 h-24 rounded-full group-hover:scale-150 transition-transform duration-700"></div>
-                                    <div className="flex justify-between items-start relative z-10">
-                                        <div>
-                                            <p className="text-emerald-900/60 text-xs font-black uppercase tracking-widest mb-1">Completed</p>
-                                            <h3 className="text-4xl font-black text-emerald-600 tracking-tighter tabular-nums">{safeAnalytics.kpi.completedOrders}</h3>
-                                        </div>
-                                        <div className="bg-emerald-600 p-3 rounded-2xl shadow-lg shadow-emerald-200 text-white">
-                                            <CheckSquare size={24} strokeWidth={2.5} />
-                                        </div>
-                                    </div>
-                                    <div className="mt-4 flex items-center gap-2 relative z-10">
-                                        <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black px-2 py-0.5 rounded-full">SUCCESS</span>
-                                        <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-tight">Dispatched</span>
-                                    </div>
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => navigate('/profile')}
+                                        className="p-3 bg-white hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-xl transition-all shadow-sm border border-gray-100 hover:border-red-100 group"
+                                        title="Edit Profile"
+                                    >
+                                        <Edit2 size={18} className="group-hover:scale-110 transition-transform" />
+                                    </button>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                {/* CHART PANEL */}
-                                <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 lg:col-span-2 group">
-                                    <div className="flex justify-between items-center mb-8">
-                                        <div>
-                                            <h3 className="font-black text-xl text-gray-900 tracking-tight">Market Distribution</h3>
-                                            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Top Distributors by Volume</p>
-                                        </div>
-                                        <div className="bg-gray-50 p-2 rounded-xl border border-gray-100 group-hover:border-indigo-100 transition-colors">
-                                            <BarChart size={20} className="text-indigo-400" />
-                                        </div>
-                                    </div>
-                                    <div className="h-80 w-full">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart data={safeAnalytics.chartData}>
-                                                <defs>
-                                                    <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="0%" stopColor="#4f46e5" stopOpacity={1} />
-                                                        <stop offset="100%" stopColor="#818cf8" stopOpacity={0.8} />
-                                                    </linearGradient>
-                                                </defs>
-                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#64748b' }} dy={10} />
-                                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#64748b' }} dx={-10} />
-                                                <Tooltip
-                                                    cursor={{ fill: '#f8fafc', radius: 12 }}
-                                                    contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '12px' }}
-                                                />
-                                                <Bar dataKey="count" fill="url(#barGradient)" radius={[10, 10, 2, 2]} barSize={40} />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
+                            {/* ANALYTICS SECTION */}
+                            {analytics && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                    {/* ... stats ... */}
                                 </div>
+                            )}
 
-                                {/* RECENT FEED PANEL */}
-                                <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 flex flex-col group">
-                                    <div className="flex justify-between items-center mb-8">
-                                        <div>
-                                            <h3 className="font-black text-xl text-gray-900 tracking-tight">Activity Feed</h3>
-                                            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Real-time Order Updates</p>
-                                        </div>
-                                        <button onClick={() => setActiveTab('orders')} className="text-indigo-600 hover:text-indigo-700 font-black text-[10px] uppercase tracking-tighter bg-indigo-50 px-3 py-1.5 rounded-full transition-colors">View All</button>
-                                    </div>
-                                    <div className="space-y-4 flex-1 overflow-y-auto max-h-[320px] pr-2 no-scrollbar">
-                                        {safeAnalytics.recentOrders.length > 0 ? safeAnalytics.recentOrders.map(o => (
-                                            <div
-                                                key={o.id}
-                                                className="flex gap-4 items-center p-4 bg-gray-50/50 hover:bg-white rounded-2xl transition-all duration-300 border border-transparent hover:border-indigo-100 hover:shadow-lg hover:shadow-indigo-50 group/item cursor-pointer"
-                                                onClick={() => setSelectedOrder(o)}
-                                            >
-                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-inner transition-transform group-hover/item:rotate-6 ${o.status === 'RECEIVED' ? 'bg-yellow-100 text-yellow-600' : 'bg-indigo-100 text-indigo-600'
-                                                    }`}>
-                                                    {o.status === 'RECEIVED' ? <Download size={20} /> : <ShoppingBag size={20} />}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="font-black text-sm text-gray-800 truncate">Order #{o.id}</div>
-                                                    <div className="text-[11px] text-gray-500 font-bold truncate flex items-center gap-1">
-                                                        <User size={10} /> {o.User?.name}
-                                                    </div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <div className="text-[10px] font-black text-gray-400 mb-1">{new Date(o.createdAt).toLocaleDateString()}</div>
-                                                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-tighter shadow-sm ${o.status === 'RECEIVED' ? 'bg-yellow-400 text-yellow-900' : 'bg-indigo-600 text-white'
-                                                        }`}>
-                                                        {o.status}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        )) : (
-                                            <div className="flex flex-col items-center justify-center py-10 opacity-30 grayscale italic text-sm">No activity recorded...</div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+                            {/* Use existing render logic for HOME tab content (stats, etc.) */}
+                            {/* We can leave the rendering of specific tabs to the existing big conditional blocks logic below */}
                         </div>
                     )}
 
-                    {/* NEW: PRODUCTION DASHBOARD */}
-                    {activeTab === 'production' && (
-                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
-                            {/* Sub-tab Navigation */}
-                            <div className="flex gap-3 border-b pb-4">
-                                <button onClick={() => setProductionView('floor')} className={`px-6 py-3 rounded-t-xl font-bold transition-all ${productionView === 'floor' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Production Floor</button>
-                                <button onClick={() => setProductionView('workers')} className={`px-6 py-3 rounded-t-xl font-bold transition-all ${productionView === 'workers' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Worker Roster</button>
-                            </div>
+                    {/* Horizontal navigation removed - now in sidebar */}
 
-                            {/* PRODUCTION FLOOR SUB-TAB */}
-                            {productionView === 'floor' && (
-                                <>
-                                    <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6">
-                                        <div>
-                                            <h2 className="text-2xl font-black text-gray-900 tracking-tight">Production Floor</h2>
-                                            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Pending Manufacturer Orders</p>
+                    <div className="max-w-7xl mx-auto px-4">
+                        {/* Global Controls Filter Bar */}
+                        {/* ... (Keep existing code) ... */}
+                        <div className="flex flex-col lg:flex-row justify-between items-center mb-8 gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                            {/* ... (Keep existing inputs) ... */}
+                        </div>
+
+                        {/* --- TAB CONTENT --- */}
+                        {activeTab === 'home' && (
+                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-10">
+                                {/* KPI CARDS - STYLIZED */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="bg-gradient-to-br from-red-50 to-white p-6 rounded-3xl shadow-sm border border-red-100/50 relative overflow-hidden group hover:shadow-xl hover:shadow-red-100/50 transition-all duration-500">
+                                        <div className="absolute -right-6 -top-6 bg-red-500/5 w-24 h-24 rounded-full group-hover:scale-150 transition-transform duration-700"></div>
+                                        <div className="flex justify-between items-start relative z-10">
+                                            <div>
+                                                <p className="text-red-900/60 text-xs font-black uppercase tracking-widest mb-1">Total Orders</p>
+                                                <h3 className="text-4xl font-black text-red-900 tracking-tighter tabular-nums">{computedMetrics.total}</h3>
+                                            </div>
+                                            <div className="bg-red-600 p-3 rounded-2xl shadow-lg shadow-red-200 text-white">
+                                                <ShoppingBag size={24} strokeWidth={2.5} />
+                                            </div>
                                         </div>
-
-                                        <div className="relative group w-full md:w-72">
-                                            <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={16} />
-                                            <select
-                                                value={productionDistributorId}
-                                                onChange={(e) => setProductionDistributorId(e.target.value)}
-                                                className="w-full pl-12 pr-10 py-3 bg-indigo-50 border-none rounded-2xl text-[10px] font-black text-indigo-900 appearance-none focus:ring-4 ring-indigo-100 transition-all cursor-pointer uppercase tracking-widest"
-                                            >
-                                                <option value="">All Distributors</option>
-                                                {distributors.map(dist => (
-                                                    <option key={dist.id} value={dist.id}>{dist.name}</option>
-                                                ))}
-                                            </select>
-                                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-400 pointer-events-none" size={14} />
+                                        <div className="mt-4 flex items-center gap-2 relative z-10">
+                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${computedMetrics.trend >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                                {computedMetrics.trend >= 0 ? '↗' : '↘'} {Math.abs(computedMetrics.trend)}%
+                                            </span>
+                                            <span className="text-[10px] text-red-400 font-bold uppercase tracking-tight">vs Last Week</span>
                                         </div>
-
                                     </div>
 
-                                    {/* 1. Live Floor Stats (MOVED) */}
-                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                                        {['PVC_CUT', 'FOIL_PASTING', 'EMBOSS', 'DOOR_MAKING', 'PACKING'].map((code, idx) => {
-                                            const colors = [
-                                                'bg-blue-50 text-blue-700 border-blue-100',
-                                                'bg-purple-50 text-purple-700 border-purple-100',
-                                                'bg-pink-50 text-pink-700 border-pink-100',
-                                                'bg-orange-50 text-orange-700 border-orange-100',
-                                                'bg-emerald-50 text-emerald-700 border-emerald-100'
-                                            ];
-                                            const count = factoryStats ? (factoryStats[code] || 0) : 0;
-                                            return (
-                                                <button
-                                                    key={code}
-                                                    onClick={() => fetchStageDetails(code)}
-                                                    className={`p-4 rounded-3xl border ${colors[idx]} flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer`}
+                                    <div className="bg-gradient-to-br from-orange-50 to-white p-6 rounded-3xl shadow-sm border border-orange-100/50 relative overflow-hidden group hover:shadow-xl hover:shadow-orange-100/50 transition-all duration-500">
+                                        <div className="absolute -right-6 -top-6 bg-orange-500/5 w-24 h-24 rounded-full group-hover:scale-150 transition-transform duration-700"></div>
+                                        <div className="flex justify-between items-start relative z-10">
+                                            <div>
+                                                <p className="text-orange-900/60 text-xs font-black uppercase tracking-widest mb-1">Pending Actions</p>
+                                                <h3 className="text-4xl font-black text-orange-600 tracking-tighter tabular-nums">{computedMetrics.pending}</h3>
+                                            </div>
+                                            <div className="bg-orange-500 p-3 rounded-2xl shadow-lg shadow-orange-200 text-white">
+                                                <Bell size={24} strokeWidth={2.5} />
+                                            </div>
+                                        </div>
+                                        <div className="mt-4 flex items-center gap-3 relative z-10">
+                                            {computedMetrics.critical > 0 && (
+                                                <div className="flex items-center gap-2 px-3 py-1 bg-red-100 rounded-full border border-red-200 animate-pulse">
+                                                    <div className="w-1.5 h-1.5 bg-red-600 rounded-full"></div>
+                                                    <span className="text-[10px] font-black text-red-700 uppercase tracking-wide">
+                                                        {computedMetrics.critical} CRITICAL
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <span className="text-[10px] text-orange-400 font-bold uppercase tracking-tight">
+                                                {Math.max(0, computedMetrics.pending - computedMetrics.critical)} Normal
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-gradient-to-br from-emerald-50 to-white p-6 rounded-3xl shadow-sm border border-emerald-100/50 relative overflow-hidden group hover:shadow-xl hover:shadow-emerald-100/50 transition-all duration-500">
+                                        <div className="absolute -right-6 -top-6 bg-emerald-500/5 w-24 h-24 rounded-full group-hover:scale-150 transition-transform duration-700"></div>
+                                        <div className="flex justify-between items-start relative z-10">
+                                            <div>
+                                                <p className="text-emerald-900/60 text-xs font-black uppercase tracking-widest mb-1">Completed</p>
+                                                <h3 className="text-4xl font-black text-emerald-600 tracking-tighter tabular-nums">{safeAnalytics.kpi.completedOrders}</h3>
+                                            </div>
+                                            <div className="bg-emerald-600 p-3 rounded-2xl shadow-lg shadow-emerald-200 text-white">
+                                                <CheckSquare size={24} strokeWidth={2.5} />
+                                            </div>
+                                        </div>
+                                        <div className="mt-4 flex items-center gap-2 relative z-10">
+                                            <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black px-2 py-0.5 rounded-full">SUCCESS</span>
+                                            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-tight">Dispatched</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                    {/* CHART PANEL */}
+                                    <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 lg:col-span-2 group">
+                                        <div className="flex justify-between items-center mb-8">
+                                            <div>
+                                                <h3 className="font-black text-xl text-gray-900 tracking-tight">Market Distribution</h3>
+                                                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Top Distributors by Volume</p>
+                                            </div>
+                                            <div className="bg-gray-50 p-2 rounded-xl border border-gray-100 group-hover:border-red-100 transition-colors">
+                                                <BarChart size={20} className="text-red-400" />
+                                            </div>
+                                        </div>
+                                        <div className="h-80 w-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={safeAnalytics.chartData}>
+                                                    <defs>
+                                                        <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                                                            <stop offset="0%" stopColor="#E0312A" stopOpacity={1} />
+                                                            <stop offset="100%" stopColor="#f87171" stopOpacity={0.8} />
+                                                        </linearGradient>
+                                                    </defs>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#64748b' }} dy={10} />
+                                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#64748b' }} dx={-10} />
+                                                    <Tooltip
+                                                        cursor={{ fill: '#f8fafc', radius: 12 }}
+                                                        contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '12px' }}
+                                                    />
+                                                    <Bar dataKey="count" fill="url(#barGradient)" radius={[10, 10, 2, 2]} barSize={40} />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
+
+                                    {/* RECENT FEED PANEL */}
+                                    <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 flex flex-col group">
+                                        <div className="flex justify-between items-center mb-8">
+                                            <div>
+                                                <h3 className="font-black text-xl text-gray-900 tracking-tight">Activity Feed</h3>
+                                                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Real-time Order Updates</p>
+                                            </div>
+                                            <button onClick={() => setActiveTab('orders')} className="text-red-600 hover:text-red-700 font-black text-[10px] uppercase tracking-tighter bg-red-50 px-3 py-1.5 rounded-full transition-colors">View All</button>
+                                        </div>
+                                        <div className="space-y-4 flex-1 overflow-y-auto max-h-[320px] pr-2 no-scrollbar">
+                                            {safeAnalytics.recentOrders.length > 0 ? safeAnalytics.recentOrders.map(o => (
+                                                <div
+                                                    key={o.id}
+                                                    className="flex gap-4 items-center p-4 bg-gray-50/50 hover:bg-white rounded-2xl transition-all duration-300 border border-transparent hover:border-red-100 hover:shadow-lg hover:shadow-red-50 group/item cursor-pointer"
+                                                    onClick={() => setSelectedOrder(o)}
                                                 >
-                                                    <span className="text-3xl font-black mb-1">{count}</span>
-                                                    <span className="text-[10px] font-bold uppercase tracking-widest opacity-80">{code.replace('_', ' ')}</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-
-                                    {/* 2. INTELLIGENCE WIDGETS (Worker & Materials) */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150">
-
-                                        {/* TOP WORKERS */}
-                                        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col h-full">
-                                            <div className="flex justify-between items-center mb-6">
-                                                <div>
-                                                    <h3 className="font-black text-gray-900 text-lg">Top Performers</h3>
-                                                    <p className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Today's Activity</p>
-                                                </div>
-                                                <div className="bg-yellow-50 text-yellow-600 p-2 rounded-xl">
-                                                    <Trophy size={20} />
-                                                </div>
-                                            </div>
-                                            <div className="space-y-4 flex-1">
-                                                {workerLeaderboard.slice(0, 3).map((w, idx) => (
-                                                    <div key={idx} className="flex items-center gap-4 group">
-                                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shadow-inner
-                                                ${idx === 0 ? 'bg-yellow-100 text-yellow-700 ring-4 ring-yellow-50' :
-                                                                idx === 1 ? 'bg-gray-100 text-gray-700' : 'bg-orange-50 text-orange-700'}`}>
-                                                            {idx + 1}
-                                                        </div>
-                                                        <div className="flex-1">
-                                                            <div className="font-bold text-gray-900 text-sm group-hover:text-indigo-600 transition-colors">{w.name}</div>
-                                                            <div className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
-                                                                {w.role && <span className="bg-gray-100 px-1.5 py-0.5 rounded">{w.role.replace('_', ' ')}</span>}
-                                                            </div>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <div className="font-black text-gray-900">{w.count}</div>
-                                                            <div className="text-[9px] uppercase font-bold text-gray-400">Units</div>
+                                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-inner transition-transform group-hover/item:rotate-6 ${o.status === 'RECEIVED' ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600'
+                                                        }`}>
+                                                        {o.status === 'RECEIVED' ? <Download size={20} /> : <ShoppingBag size={20} />}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="font-black text-sm text-gray-800 truncate">Order #{o.id}</div>
+                                                        <div className="text-[11px] text-gray-500 font-bold truncate flex items-center gap-1">
+                                                            <User size={10} /> {o.User?.name}
                                                         </div>
                                                     </div>
-                                                ))}
-                                                {workerLeaderboard.length === 0 && <div className="text-center py-8 text-gray-300 italic font-bold text-xs">No activity today</div>}
-                                            </div>
-                                        </div>
-
-                                        {/* MATERIAL FORECAST */}
-                                        <div className="bg-gradient-to-br from-indigo-900 to-indigo-800 text-white p-6 rounded-[2rem] shadow-xl shadow-indigo-200 flex flex-col h-full relative overflow-hidden">
-                                            <div className="absolute top-0 right-0 p-32 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-                                            <div className="flex justify-between items-center mb-6 relative z-10">
-                                                <div>
-                                                    <h3 className="font-black text-white text-lg">Material Calc</h3>
-                                                    <p className="text-[10px] uppercase font-bold text-indigo-300 tracking-widest">Based on {materialEstimates?.pendingOrders || 0} Pending Orders</p>
-                                                </div>
-                                                <div className="bg-white/10 p-2 rounded-xl backdrop-blur-md">
-                                                    <Calculator size={20} />
-                                                </div>
-                                            </div>
-
-                                            {materialEstimates ? (
-                                                <div className="grid grid-cols-2 gap-4 relative z-10">
-                                                    <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm border border-white/5">
-                                                        <div className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest mb-1">PVC Rolls</div>
-                                                        <div className="text-2xl font-black">{materialEstimates.estimates.pvcRolls}</div>
-                                                        <div className="text-[9px] text-white/50">~3000 sqft/roll</div>
-                                                    </div>
-                                                    <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm border border-white/5">
-                                                        <div className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest mb-1">Glue Needed</div>
-                                                        <div className="text-2xl font-black">{materialEstimates.estimates.glueKg} <span className="text-sm opacity-50">kg</span></div>
-                                                        <div className="text-[9px] text-white/50">~0.5kg/door</div>
-                                                    </div>
-                                                    <div className="col-span-2 bg-white/5 p-3 rounded-2xl flex justify-between items-center px-6">
-                                                        <div className="text-xs font-bold text-indigo-200">Total Area</div>
-                                                        <div className="font-black text-xl">{materialEstimates.totalSqFt} <span className="text-sm font-bold text-indigo-300">sq.ft</span></div>
+                                                    <div className="text-right">
+                                                        <div className="text-[10px] font-black text-gray-400 mb-1">{new Date(o.createdAt).toLocaleDateString()}</div>
+                                                        <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-tighter shadow-sm ${o.status === 'RECEIVED' ? 'bg-yellow-400 text-yellow-900' : 'bg-red-600 text-white'
+                                                            }`}>
+                                                            {o.status}
+                                                        </span>
                                                     </div>
                                                 </div>
-                                            ) : (
-                                                <div className="flex-1 flex items-center justify-center text-indigo-300 font-bold text-xs animate-pulse">Calculating requirements...</div>
+                                            )) : (
+                                                <div className="flex flex-col items-center justify-center py-10 opacity-30 grayscale italic text-sm">No activity recorded...</div>
                                             )}
                                         </div>
                                     </div>
-                                    <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
-                                        <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
+                                </div>
+                            </div>
+                        )}
+
+                        {/* NEW: PRODUCTION DASHBOARD */}
+                        {activeTab === 'production' && (
+                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
+                                {/* Sub-tab Navigation */}
+                                <div className="flex gap-3 border-b pb-4">
+                                    <button onClick={() => setProductionView('floor')} className={`px-6 py-3 rounded-t-xl font-bold transition-all ${productionView === 'floor' ? 'bg-red-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Production Floor</button>
+                                    <button onClick={() => setProductionView('workers')} className={`px-6 py-3 rounded-t-xl font-bold transition-all ${productionView === 'workers' ? 'bg-red-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Worker Roster</button>
+                                    <button onClick={() => setProductionView('damage')} className={`px-6 py-3 rounded-t-xl font-bold transition-all ${productionView === 'damage' ? 'bg-red-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Damage & Returns</button>
+                                </div>
+
+                                {productionView === 'damage' && <DamageReturns />}
+
+                                {/* PRODUCTION FLOOR SUB-TAB */}
+                                {productionView === 'floor' && (
+                                    <>
+                                        <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6">
                                             <div>
-                                                <h2 className="text-xl font-black text-gray-900 tracking-tight">Live Production Tracking</h2>
-                                                <p className="text-xs text-gray-400 font-bold mt-1">Real-time status of every door on the floor.</p>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <select
-                                                    value={factoryGroupBy}
-                                                    onChange={e => setFactoryGroupBy(e.target.value)}
-                                                    className="bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl px-3 py-2 outline-none focus:ring-2 ring-indigo-100"
-                                                >
-                                                    <option value="ORDER">Group by Order</option>
-                                                    <option value="DESIGN">Group by Design</option>
-                                                    <option value="COLOR">Group by Color</option>
-                                                    <option value="DISTRIBUTOR">Group by Distributor</option>
-                                                </select>
-                                                <button onClick={fetchFactoryTracking} className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-gray-500">
-                                                    <RefreshCw size={14} />
-                                                </button>
-                                                <button onClick={handleCleanup} className="p-2 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 text-red-500" title="Cleanup Ghost Data">
-                                                    <Trash2 size={14} />
-                                                </button>
+                                                <h2 className="text-2xl font-black text-gray-900 tracking-tight">Production Floor</h2>
+                                                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Pending Manufacturer Orders</p>
                                             </div>
 
-                                            <div className="overflow-x-auto">
+                                            <div className="relative group w-full md:w-72">
+                                                <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-red-500" size={16} />
+                                                <select
+                                                    value={productionDistributorId}
+                                                    onChange={(e) => setProductionDistributorId(e.target.value)}
+                                                    className="w-full pl-12 pr-10 py-3 bg-red-50 border-none rounded-2xl text-[10px] font-black text-red-900 appearance-none focus:ring-4 ring-red-100 transition-all cursor-pointer uppercase tracking-widest"
+                                                >
+                                                    <option value="">All Distributors</option>
+                                                    {distributors.map(dist => (
+                                                        <option key={dist.id} value={dist.id}>{dist.name}</option>
+                                                    ))}
+                                                </select>
+                                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-red-400 pointer-events-none" size={14} />
+                                            </div>
+
+                                        </div>
+
+                                        {/* 1. Live Floor Stats (MOVED) */}
+                                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                            {['PVC_CUT', 'FOIL_PASTING', 'EMBOSS', 'DOOR_MAKING', 'PACKING'].map((code, idx) => {
+                                                const colors = [
+                                                    'bg-red-50 text-red-700 border-red-100',
+                                                    'bg-rose-50 text-rose-700 border-rose-100',
+                                                    'bg-pink-50 text-pink-700 border-pink-100',
+                                                    'bg-orange-50 text-orange-700 border-orange-100',
+                                                    'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                                ];
+                                                const count = factoryStats ? (factoryStats[code] || 0) : 0;
+                                                return (
+                                                    <button
+                                                        key={code}
+                                                        onClick={() => fetchStageDetails(code)}
+                                                        className={`p-4 rounded-3xl border ${colors[idx]} flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer`}
+                                                    >
+                                                        <span className="text-3xl font-black mb-1">{count}</span>
+                                                        <span className="text-[10px] font-bold uppercase tracking-widest opacity-80">{code.replace('_', ' ')}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* 2. INTELLIGENCE WIDGETS (Worker & Materials) */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150">
+
+                                            {/* TOP WORKERS */}
+                                            <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col h-full">
+                                                <div className="flex justify-between items-center mb-6">
+                                                    <div>
+                                                        <h3 className="font-black text-gray-900 text-lg">Top Performers</h3>
+                                                        <p className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Today's Activity</p>
+                                                    </div>
+                                                    <div className="bg-yellow-50 text-yellow-600 p-2 rounded-xl">
+                                                        <Trophy size={20} />
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-4 flex-1">
+                                                    {workerLeaderboard.slice(0, 3).map((w, idx) => (
+                                                        <div key={idx} className="flex items-center gap-4 group">
+                                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shadow-inner
+                                                ${idx === 0 ? 'bg-yellow-100 text-yellow-700 ring-4 ring-yellow-50' :
+                                                                    idx === 1 ? 'bg-gray-100 text-gray-700' : 'bg-orange-50 text-orange-700'}`}>
+                                                                {idx + 1}
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <div className="font-bold text-gray-900 text-sm group-hover:text-red-600 transition-colors">{w.name}</div>
+                                                                <div className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
+                                                                    {w.role && <span className="bg-gray-100 px-1.5 py-0.5 rounded">{w.role.replace('_', ' ')}</span>}
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <div className="font-black text-gray-900">{w.count}</div>
+                                                                <div className="text-[9px] uppercase font-bold text-gray-400">Units</div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    {workerLeaderboard.length === 0 && <div className="text-center py-8 text-gray-300 italic font-bold text-xs">No activity today</div>}
+                                                </div>
+                                            </div>
+
+                                            {/* MATERIAL FORECAST */}
+                                            <div className="bg-gradient-to-br from-red-900 to-red-800 text-white p-6 rounded-[2rem] shadow-xl shadow-red-200 flex flex-col h-full relative overflow-hidden">
+                                                <div className="absolute top-0 right-0 p-32 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                                                <div className="flex justify-between items-center mb-6 relative z-10">
+                                                    <div>
+                                                        <h3 className="font-black text-white text-lg">Material Calc</h3>
+                                                        <p className="text-[10px] uppercase font-bold text-red-300 tracking-widest">Based on {materialEstimates?.pendingOrders || 0} Pending Orders</p>
+                                                    </div>
+                                                    <div className="bg-white/10 p-2 rounded-xl backdrop-blur-md">
+                                                        <Calculator size={20} />
+                                                    </div>
+                                                </div>
+
+                                                {materialEstimates ? (
+                                                    <div className="grid grid-cols-2 gap-4 relative z-10">
+                                                        <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm border border-white/5">
+                                                            <div className="text-[10px] font-bold text-red-200 uppercase tracking-widest mb-1">PVC Rolls</div>
+                                                            <div className="text-2xl font-black">{materialEstimates.estimates.pvcRolls}</div>
+                                                            <div className="text-[9px] text-white/50">~3000 sqft/roll</div>
+                                                        </div>
+                                                        <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm border border-white/5">
+                                                            <div className="text-[10px] font-bold text-red-200 uppercase tracking-widest mb-1">Glue Needed</div>
+                                                            <div className="text-2xl font-black">{materialEstimates.estimates.glueKg} <span className="text-sm opacity-50">kg</span></div>
+                                                            <div className="text-[9px] text-white/50">~0.5kg/door</div>
+                                                        </div>
+                                                        <div className="col-span-2 bg-white/5 p-3 rounded-2xl flex justify-between items-center px-6">
+                                                            <div className="text-xs font-bold text-red-200">Total Area</div>
+                                                            <div className="font-black text-xl">{materialEstimates.totalSqFt} <span className="text-sm font-bold text-red-300">sq.ft</span></div>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex-1 flex items-center justify-center text-red-300 font-bold text-xs animate-pulse">Calculating requirements...</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
+                                            <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
+                                                <div>
+                                                    <h2 className="text-xl font-black text-gray-900 tracking-tight">Live Production Tracking</h2>
+                                                    <p className="text-xs text-gray-400 font-bold mt-1">Real-time status of every door on the floor.</p>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <select
+                                                        value={factoryGroupBy}
+                                                        onChange={e => setFactoryGroupBy(e.target.value)}
+                                                        className="bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl px-3 py-2 outline-none focus:ring-2 ring-red-100"
+                                                    >
+                                                        <option value="ORDER">Group by Order</option>
+                                                        <option value="DESIGN">Group by Design</option>
+                                                        <option value="COLOR">Group by Color</option>
+                                                        <option value="DISTRIBUTOR">Group by Distributor</option>
+                                                    </select>
+                                                    <button onClick={fetchFactoryTracking} className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-gray-500">
+                                                        <RefreshCw size={14} />
+                                                    </button>
+                                                    <button onClick={handleCleanup} className="p-2 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 text-red-500" title="Cleanup Ghost Data">
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+
+                                                <div className="overflow-x-auto">
+                                                    <table className="min-w-full text-left">
+                                                        <thead className="bg-gray-50/50 text-gray-400 font-black uppercase text-[10px] tracking-widest border-b border-gray-100">
+                                                            <tr>
+                                                                <th className="px-8 py-5">Group Name</th>
+                                                                <th className="px-6 py-5 text-center">Total Doors</th>
+                                                                <th className="px-6 py-5 text-center">PVC Cut</th>
+                                                                <th className="px-6 py-5 text-center">Foil</th>
+                                                                <th className="px-6 py-5 text-center">Emboss</th>
+                                                                <th className="px-6 py-5 text-center">Make</th>
+                                                                <th className="px-6 py-5 text-center">Pack</th>
+                                                                <th className="px-6 py-5 text-center">Completion</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-gray-50">
+                                                            {
+                                                                Object.entries(groupFactoryData(factoryTracking, factoryGroupBy)).map(([groupKey, group]) => (
+                                                                    <tr key={groupKey} className="hover:bg-red-50/30 transition-colors">
+                                                                        <td className="px-8 py-5">
+                                                                            <div className="font-black text-gray-900 text-sm">{groupKey}</div>
+                                                                            <div className="text-[10px] text-gray-400 font-bold">{group.items.length} items</div>
+                                                                        </td>
+                                                                        <td className="px-6 py-5 text-center font-black text-gray-700">{group.total}</td>
+                                                                        {['PVC_CUT', 'FOIL_PASTING', 'EMBOSS', 'DOOR_MAKING', 'PACKING'].map((stage, idx) => {
+                                                                            const count = group.stats[stage] || 0;
+                                                                            const isDone = count === group.total && group.total > 0;
+                                                                            return (
+                                                                                <td key={stage} className="px-6 py-5 text-center">
+                                                                                    <span className={`text-xs font-bold px-2 py-1 rounded-lg ${isDone ? 'bg-green-100 text-green-700' : count > 0 ? 'bg-red-50 text-red-600' : 'text-gray-300'}`}>
+                                                                                        {count}/{group.total}
+                                                                                    </span>
+                                                                                </td>
+                                                                            );
+                                                                        })}
+                                                                        <td className="px-6 py-5 text-center">
+                                                                            <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden mx-auto">
+                                                                                <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${(group.completed / group.total) * 100}%` }}></div>
+                                                                            </div>
+                                                                            <div className="text-[10px] font-bold text-gray-400 mt-1">{Math.round((group.completed / group.total) * 100)}%</div>
+                                                                        </td>
+                                                                    </tr>
+                                                                ))
+                                                            }
+                                                            {factoryTracking.length === 0 && (
+                                                                <tr><td colSpan="8" className="px-6 py-12 text-center text-gray-300 font-bold italic">No active production data</td></tr>
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
                                                 <table className="min-w-full text-left">
                                                     <thead className="bg-gray-50/50 text-gray-400 font-black uppercase text-[10px] tracking-widest border-b border-gray-100">
                                                         <tr>
-                                                            <th className="px-8 py-5">Group Name</th>
-                                                            <th className="px-6 py-5 text-center">Total Doors</th>
-                                                            <th className="px-6 py-5 text-center">PVC Cut</th>
-                                                            <th className="px-6 py-5 text-center">Foil</th>
-                                                            <th className="px-6 py-5 text-center">Emboss</th>
-                                                            <th className="px-6 py-5 text-center">Make</th>
-                                                            <th className="px-6 py-5 text-center">Pack</th>
-                                                            <th className="px-6 py-5 text-center">Completion</th>
+                                                            <th className="px-8 py-6">Order Ref</th>
+                                                            <th className="px-6 py-6">Dealer (Client)</th>
+                                                            <th className="px-6 py-6">Distributor</th>
+                                                            <th className="px-6 py-6">Items</th>
+                                                            <th className="px-6 py-6 h-10 w-10">Status</th>
+                                                            <th className="px-6 py-6">Action</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-gray-50">
-                                                        {
-                                                            Object.entries(groupFactoryData(factoryTracking, factoryGroupBy)).map(([groupKey, group]) => (
-                                                                <tr key={groupKey} className="hover:bg-indigo-50/30 transition-colors">
-                                                                    <td className="px-8 py-5">
-                                                                        <div className="font-black text-gray-900 text-sm">{groupKey}</div>
-                                                                        <div className="text-[10px] text-gray-400 font-bold">{group.items.length} items</div>
-                                                                    </td>
-                                                                    <td className="px-6 py-5 text-center font-black text-gray-700">{group.total}</td>
-                                                                    {['PVC_CUT', 'FOIL_PASTING', 'EMBOSS', 'DOOR_MAKING', 'PACKING'].map((stage, idx) => {
-                                                                        const count = group.stats[stage] || 0;
-                                                                        const isDone = count === group.total && group.total > 0;
-                                                                        return (
-                                                                            <td key={stage} className="px-6 py-5 text-center">
-                                                                                <span className={`text-xs font-bold px-2 py-1 rounded-lg ${isDone ? 'bg-green-100 text-green-700' : count > 0 ? 'bg-indigo-50 text-indigo-600' : 'text-gray-300'}`}>
-                                                                                    {count}/{group.total}
-                                                                                </span>
-                                                                            </td>
-                                                                        );
-                                                                    })}
-                                                                    <td className="px-6 py-5 text-center">
-                                                                        <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden mx-auto">
-                                                                            <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${(group.completed / group.total) * 100}%` }}></div>
+                                                        {productionOrders.length > 0 ? productionOrders.map(order => (
+                                                            <tr key={order.id} className="hover:bg-red-50/30 transition-colors group">
+                                                                <td className="px-8 py-5">
+                                                                    <div className="font-black text-gray-900">#{order.id}</div>
+                                                                    <div className="text-[10px] text-gray-400 font-bold">{new Date(order.createdAt).toLocaleDateString()}</div>
+                                                                </td>
+                                                                <td className="px-6 py-5">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-black text-xs">
+                                                                            {order.User?.name?.charAt(0)}
                                                                         </div>
-                                                                        <div className="text-[10px] font-bold text-gray-400 mt-1">{Math.round((group.completed / group.total) * 100)}%</div>
-                                                                    </td>
-                                                                </tr>
-                                                            ))
-                                                        }
-                                                        {factoryTracking.length === 0 && (
-                                                            <tr><td colSpan="8" className="px-6 py-12 text-center text-gray-300 font-bold italic">No active production data</td></tr>
+                                                                        <div>
+                                                                            <div className="font-bold text-gray-900 text-xs">{order.User?.name}</div>
+                                                                            <div className="text-[10px] text-gray-400">{order.User?.shopName}</div>
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-6 py-5">
+                                                                    <div className="text-xs font-bold text-red-600 bg-red-50 w-fit px-2 py-1 rounded-lg">
+                                                                        {distributors.find(d => d.id === order.distributorId)?.name || 'Unknown'}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-6 py-5">
+                                                                    <span className="font-black text-gray-700">{order.OrderItems?.length || 0} Doors</span>
+                                                                </td>
+                                                                <td className="px-6 py-5">
+                                                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tight flex items-center gap-1.5 w-fit ${order.status === 'RECEIVED' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+                                                                        }`}>
+                                                                        <span className={`w-1.5 h-1.5 rounded-full ${order.status === 'RECEIVED' ? 'bg-yellow-500' : 'bg-red-500'
+                                                                            }`}></span>
+                                                                        {order.status}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-6 py-5">
+                                                                    <button
+                                                                        onClick={() => setSelectedOrder(order)}
+                                                                        className="p-2 text-red-600 hover:bg-red-100 rounded-xl transition-all font-bold text-xs flex items-center gap-2"
+                                                                    >
+                                                                        <Eye size={16} /> View
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        )) : (
+                                                            <tr><td colSpan="6" className="px-6 py-20 text-center"><div className="text-gray-300 font-black uppercase tracking-[0.2em] italic">No Pending Orders Found</div></td></tr>
                                                         )}
                                                     </tbody>
                                                 </table>
                                             </div>
                                         </div>
-
-                                        <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
-                                            <table className="min-w-full text-left">
-                                                <thead className="bg-gray-50/50 text-gray-400 font-black uppercase text-[10px] tracking-widest border-b border-gray-100">
-                                                    <tr>
-                                                        <th className="px-8 py-6">Order Ref</th>
-                                                        <th className="px-6 py-6">Dealer (Client)</th>
-                                                        <th className="px-6 py-6">Distributor</th>
-                                                        <th className="px-6 py-6">Items</th>
-                                                        <th className="px-6 py-6 h-10 w-10">Status</th>
-                                                        <th className="px-6 py-6">Action</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-gray-50">
-                                                    {productionOrders.length > 0 ? productionOrders.map(order => (
-                                                        <tr key={order.id} className="hover:bg-indigo-50/30 transition-colors group">
-                                                            <td className="px-8 py-5">
-                                                                <div className="font-black text-gray-900">#{order.id}</div>
-                                                                <div className="text-[10px] text-gray-400 font-bold">{new Date(order.createdAt).toLocaleDateString()}</div>
-                                                            </td>
-                                                            <td className="px-6 py-5">
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-black text-xs">
-                                                                        {order.User?.name?.charAt(0)}
-                                                                    </div>
-                                                                    <div>
-                                                                        <div className="font-bold text-gray-900 text-xs">{order.User?.name}</div>
-                                                                        <div className="text-[10px] text-gray-400">{order.User?.shopName}</div>
-                                                                    </div>
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-6 py-5">
-                                                                <div className="text-xs font-bold text-indigo-600 bg-indigo-50 w-fit px-2 py-1 rounded-lg">
-                                                                    {distributors.find(d => d.id === order.distributorId)?.name || 'Unknown'}
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-6 py-5">
-                                                                <span className="font-black text-gray-700">{order.OrderItems?.length || 0} Doors</span>
-                                                            </td>
-                                                            <td className="px-6 py-5">
-                                                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tight flex items-center gap-1.5 w-fit ${order.status === 'RECEIVED' ? 'bg-yellow-100 text-yellow-700' : 'bg-indigo-100 text-indigo-700'
-                                                                    }`}>
-                                                                    <span className={`w-1.5 h-1.5 rounded-full ${order.status === 'RECEIVED' ? 'bg-yellow-500' : 'bg-indigo-500'
-                                                                        }`}></span>
-                                                                    {order.status}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-6 py-5">
-                                                                <button
-                                                                    onClick={() => setSelectedOrder(order)}
-                                                                    className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-all font-bold text-xs flex items-center gap-2"
-                                                                >
-                                                                    <Eye size={16} /> View
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    )) : (
-                                                        <tr><td colSpan="6" className="px-6 py-20 text-center"><div className="text-gray-300 font-black uppercase tracking-[0.2em] italic">No Pending Orders Found</div></td></tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    )}
-
-                    {/* ANALYTICS DASHBOARD TAB */}
-                    {activeTab === 'analytics' && (
-                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
-                            {/* Sub-tab Navigation */}
-                            <div className="flex gap-3 border-b pb-4 overflow-x-auto no-scrollbar">
-                                <button onClick={() => setAnalyticsView('dashboard')} className={`whitespace-nowrap px-6 py-3 rounded-t-xl font-bold transition-all ${analyticsView === 'dashboard' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Dashboard</button>
-                                {user?.role !== 'DISTRIBUTOR' && (
-                                    <button onClick={() => setAnalyticsView('materials')} className={`whitespace-nowrap px-6 py-3 rounded-t-xl font-bold transition-all ${analyticsView === 'materials' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Material Analysis</button>
+                                    </>
                                 )}
                             </div>
+                        )}
 
-                            {analyticsView === 'dashboard' && <AnalyticsDashboard />}
-                            {analyticsView === 'materials' && user?.role !== 'DISTRIBUTOR' && <MaterialAnalysis />}
-                        </div>
-                    )}
-
-                    {/* FACTORY MANAGEMENT TAB */}
-                    {activeTab === 'production' && productionView === 'workers' && (
-                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
-                            {/* 2. Worker Roster */}
-                            <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
-                                <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
-                                    <div>
-                                        <h2 className="text-xl font-black text-gray-900 tracking-tight">Worker Roster</h2>
-                                        <p className="text-xs text-gray-400 font-bold mt-1">Manage Factory Staff & Access</p>
-                                    </div>
-                                    <button
-                                        onClick={() => setShowAddWorker(true)}
-                                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wide shadow-lg shadow-indigo-200 transition-all flex items-center gap-2"
-                                    >
-                                        <Plus size={16} strokeWidth={3} /> Register Worker
-                                    </button>
-                                </div>
-
-                                <table className="min-w-full text-left">
-                                    <thead className="bg-gray-50 text-gray-400 font-black uppercase text-[10px] tracking-widest border-b border-gray-100">
-                                        <tr>
-                                            <th className="px-8 py-5">Worker Name</th>
-                                            <th className="px-6 py-5">Role / Station</th>
-                                            <th className="px-6 py-5">PIN Access</th>
-                                            <th className="px-6 py-5">Status</th>
-                                            <th className="px-6 py-5 text-right">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-50">
-                                        {workers.length > 0 ? workers.map(worker => (
-                                            <tr key={worker.id} className="hover:bg-indigo-50/30 transition-colors group">
-                                                <td className="px-8 py-4">
-                                                    <div className="font-black text-gray-900">{worker.name}</div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <span className="bg-indigo-50 text-indigo-700 font-bold text-[10px] uppercase px-2 py-1 rounded-lg border border-indigo-100">
-                                                        {worker.role.replace('_', ' ')}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <span className="text-gray-400 text-xs font-mono">****</span>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                                                        <span className="text-[10px] font-black text-green-600 uppercase">Active</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 text-right">
-                                                    <button
-                                                        onClick={() => handleDeleteWorker(worker.id)}
-                                                        className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        )) : (
-                                            <tr><td colSpan="5" className="px-6 py-20 text-center text-gray-300 font-black uppercase tracking-widest italic">No Workers Registered</td></tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-
-
-                            {/* FACTORY SETTINGS */}
-                            <div className="mt-6 flex justify-end">
-                                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3">
-                                    <div className="flex items-center justify-between gap-4">
-                                        <div>
-                                            <h3 className="text-xs font-black uppercase text-gray-400">Factory Geofence</h3>
-                                            <div className="font-bold text-gray-700 text-sm flex items-center gap-1">
-                                                <MapPin size={14} className={factoryLocation ? 'text-green-500' : 'text-red-400'} />
-                                                {factoryLocation ? `Set: ${factoryLocation.lat.toFixed(4)}, ${factoryLocation.lng.toFixed(4)}` : 'Not Set'}
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <button onClick={() => setShowManualGeo(!showManualGeo)} className="bg-gray-100 text-gray-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-gray-200">
-                                                {showManualGeo ? 'Cancel' : 'Manual'}
-                                            </button>
-                                            {!showManualGeo && (
-                                                <button onClick={handleSetLocation} className="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 active:scale-95 transition-all">
-                                                    {factoryLocation ? 'Update GPS' : 'Set GPS'}
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {showManualGeo && (
-                                        <div className="flex gap-2 items-center bg-gray-50 p-2 rounded-lg animate-in slide-in-from-top-2">
-                                            <input
-                                                type="number"
-                                                placeholder="Lat"
-                                                value={manualLat}
-                                                onChange={e => setManualLat(e.target.value)}
-                                                className="w-24 p-2 text-xs border rounded"
-                                            />
-                                            <input
-                                                type="number"
-                                                placeholder="Lng"
-                                                value={manualLng}
-                                                onChange={e => setManualLng(e.target.value)}
-                                                className="w-24 p-2 text-xs border rounded"
-                                            />
-                                            <button onClick={handleManualLocationSubmit} className="bg-green-600 text-white px-3 py-2 rounded text-xs font-bold hover:bg-green-700">
-                                                Save
-                                            </button>
-                                        </div>
+                        {/* ANALYTICS DASHBOARD TAB */}
+                        {activeTab === 'analytics' && (
+                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
+                                {/* Sub-tab Navigation */}
+                                <div className="flex gap-3 border-b pb-4 overflow-x-auto no-scrollbar">
+                                    <button onClick={() => setAnalyticsView('dashboard')} className={`whitespace-nowrap px-6 py-3 rounded-t-xl font-bold transition-all ${analyticsView === 'dashboard' ? 'bg-red-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Dashboard</button>
+                                    {user?.role !== 'DISTRIBUTOR' && (
+                                        <button onClick={() => setAnalyticsView('materials')} className={`whitespace-nowrap px-6 py-3 rounded-t-xl font-bold transition-all ${analyticsView === 'materials' ? 'bg-red-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Material Analysis</button>
                                     )}
                                 </div>
+
+                                {analyticsView === 'dashboard' && <AnalyticsDashboard />}
+                                {analyticsView === 'materials' && user?.role !== 'DISTRIBUTOR' && <MaterialAnalysis />}
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* Add Worker Modal */}
-                    {showAddWorker && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-indigo-900/20 backdrop-blur-sm animate-in fade-in duration-200">
-                            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-8 relative animate-in zoom-in-95 duration-200 border border-white/50">
-                                <button onClick={() => setShowAddWorker(false)} className="absolute right-6 top-6 text-gray-400 hover:text-gray-600 transition-colors"><X size={24} /></button>
-
-                                <div className="mb-8">
-                                    <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600 mb-4 shadow-inner">
-                                        <User size={24} />
-                                    </div>
-                                    <h2 className="text-2xl font-black text-gray-900">Add Staff</h2>
-                                    <p className="text-gray-500 text-sm mt-1">Create a new factory login.</p>
-                                </div>
-
-                                <form onSubmit={handleAddWorker} className="space-y-4">
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-1 block">Full Name</label>
-                                        <input
-                                            type="text"
-                                            value={newWorker.name}
-                                            onChange={e => setNewWorker({ ...newWorker, name: e.target.value })}
-                                            className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm font-bold text-gray-900 focus:ring-2 ring-indigo-500"
-                                            placeholder="e.g. Ramesh Kumar"
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-1 block">4-Digit PIN</label>
-                                        <input
-                                            type="text" // text to avoid spinners
-                                            pattern="\d{4}"
-                                            maxLength="4"
-                                            value={newWorker.pinCode}
-                                            onChange={e => setNewWorker({ ...newWorker, pinCode: e.target.value.replace(/\D/g, '') })}
-                                            className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm font-bold text-gray-900 focus:ring-2 ring-indigo-500 tracking-[0.5em] text-center"
-                                            placeholder="0000"
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-1 block">Assigned Station</label>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {['PVC_CUT', 'FOIL_PASTING', 'EMBOSS', 'DOOR_MAKING', 'PACKING'].map(role => (
-                                                <button
-                                                    type="button"
-                                                    key={role}
-                                                    onClick={() => setNewWorker({ ...newWorker, role })}
-                                                    className={`text-[10px] font-black uppercase py-3 rounded-xl border transition-all ${newWorker.role === role
-                                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200'
-                                                        : 'bg-white text-gray-400 border-gray-100 hover:border-indigo-100 hover:bg-gray-50'
-                                                        }`}
-                                                >
-                                                    {role.replace('_', ' ')}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-xl shadow-xl shadow-indigo-200 transition-all mt-4 active:scale-95">
-                                        CREATE ACCOUNT
-                                    </button>
-                                </form>
+                        {/* REPORTS TAB */}
+                        {activeTab === 'reports' && (
+                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-12">
+                                <ReportsDashboard />
                             </div>
-                        </div>
-                    )}
+                        )}
 
-
-                    {
-                        activeTab === 'orders' && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
-                                {/* --- WORKFLOW TABS --- */}
-                                <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-                                    {['ALL', 'PENDING', 'PRODUCTION', 'READY', 'HISTORY'].map(tab => (
-                                        <button
-                                            key={tab}
-                                            onClick={() => setActiveStatusTab(tab)}
-                                            className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all whitespace-nowrap ${activeStatusTab === tab
-                                                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 scale-105'
-                                                : 'bg-white text-gray-400 hover:bg-gray-50 hover:text-gray-600 border border-gray-100'
-                                                }`}
-                                        >
-                                            {tab === 'PENDING' ? '🔴 New Orders' :
-                                                tab === 'PRODUCTION' ? '🔵 In Production' :
-                                                    tab === 'READY' ? '🟢 Ready' :
-                                                        tab === 'HISTORY' ? '⚪ Dispatched' : 'All Orders'}
-                                        </button>
-                                    ))}
-                                </div>
-                                {/* Bulk Action Alert Bar */}
-                                <div className="bg-indigo-600 rounded-3xl p-4 flex justify-between items-center shadow-2xl shadow-indigo-200 animate-in slide-in-from-top-4">
-                                    <div className="flex items-center gap-4 px-4 text-white">
-                                        <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
-                                            <CheckSquare size={20} className="text-white" />
-                                        </div>
-                                        <span className="font-black text-sm tracking-tight">{selectedOrders.length} Orders Selected for Bulk Action</span>
-                                    </div>
-                                    <div className="flex gap-2 relative">
-                                        {(user?.role || '').toUpperCase() !== 'DISTRIBUTOR' && (
-                                            <button
-                                                onClick={() => setShowBulkAction(!showBulkAction)}
-                                                className="bg-white text-indigo-900 px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg flex items-center gap-2 hover:bg-indigo-50 transition-all"
-                                            >
-                                                Update Status <ChevronDown size={14} strokeWidth={3} />
-                                            </button>
-                                        )}
-                                        {showBulkAction && (
-                                            <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden py-2 animate-in fade-in slide-in-from-top-2">
-                                                {['PRODUCTION', 'READY', 'DISPATCHED'].map(s => (
-                                                    <button
-                                                        key={s}
-                                                        onClick={() => handleBulkStatusUpdate(s)}
-                                                        className="w-full text-left px-6 py-3 text-xs font-black text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors uppercase tracking-widest"
-                                                    >
-                                                        Set to {s}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                        <button
-                                            onClick={handleBulkDeleteOrders}
-                                            className="bg-red-500 hover:bg-red-600 text-white px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg flex items-center gap-2 transition-all"
-                                        >
-                                            <Trash2 size={14} /> Delete
-                                        </button>
-                                        <button onClick={() => setSelectedOrders([])} className="bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-2xl transition-all"><X size={18} /></button>
-                                    </div>
-                                </div>
-
-
-                                {/* --- SMART SEARCH BAR --- */}
-                                <div className="flex gap-4">
-                                    <div className="flex-1 bg-white p-4 rounded-[2rem] shadow-sm border border-gray-100 flex items-center gap-4">
-                                        <Search className="text-gray-400 ml-2" size={20} />
-                                        <input
-                                            type="text"
-                                            placeholder="Smart Search: Type Order ID, Dealer Name, Shop, or Distributor..."
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                            className="flex-1 bg-transparent border-none outline-none font-bold text-gray-700 placeholder-gray-300 h-full py-2"
-                                        />
-                                        {searchTerm && (
-                                            <button onClick={() => setSearchTerm('')} className="bg-gray-100 hover:bg-gray-200 p-2 rounded-full text-gray-500 transition-all">
-                                                <X size={14} />
-                                            </button>
-                                        )}
-                                    </div>
-
-                                    {/* Import Button */}
-                                    <div className="bg-white p-2 rounded-[2rem] shadow-sm border border-gray-100 flex items-center">
-                                        <button
-                                            onClick={() => document.getElementById('order-import-input').click()}
-                                            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest transition-all shadow-lg active:scale-95"
-                                        >
-                                            <FileSpreadsheet size={18} />
-                                            Import Excel
-                                        </button>
-                                        <input
-                                            type="file"
-                                            id="order-import-input"
-                                            accept=".xlsx, .xls"
-                                            className="hidden"
-                                            onChange={handleOrderImportFile}
-                                        />
-                                        <button
-                                            onClick={downloadOrderImportSample}
-                                            className="ml-2 p-3 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"
-                                            title="Download Sample Template"
-                                        >
-                                            <Download size={20} />
-                                        </button>
-                                    </div>
-                                </div>
-
+                        {/* FACTORY MANAGEMENT TAB */}
+                        {activeTab === 'production' && productionView === 'workers' && (
+                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
+                                {/* 2. Worker Roster */}
                                 <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
+                                    <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
+                                        <div>
+                                            <h2 className="text-xl font-black text-gray-900 tracking-tight">Worker Roster</h2>
+                                            <p className="text-xs text-gray-400 font-bold mt-1">Manage Factory Staff & Access</p>
+                                        </div>
+                                        <button
+                                            onClick={() => setShowAddWorker(true)}
+                                            className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wide shadow-lg shadow-red-200 transition-all flex items-center gap-2"
+                                        >
+                                            <Plus size={16} strokeWidth={3} /> Register Worker
+                                        </button>
+                                    </div>
+
                                     <table className="min-w-full text-left">
-                                        <thead className="bg-gray-50/50 text-gray-400 font-black uppercase text-[10px] tracking-widest border-b border-gray-100">
+                                        <thead className="bg-gray-50 text-gray-400 font-black uppercase text-[10px] tracking-widest border-b border-gray-100">
                                             <tr>
-                                                <th className="px-8 py-6 w-10">
-                                                    <input
-                                                        type="checkbox"
-                                                        onChange={e => {
-                                                            if (e.target.checked) setSelectedOrders(orders.map(o => o.id));
-                                                            else setSelectedOrders([]);
-                                                        }}
-                                                        checked={selectedOrders.length === orders.length && orders.length > 0}
-                                                        className="rounded-lg border-gray-200 text-indigo-600 focus:ring-indigo-500 w-5 h-5 cursor-pointer"
-                                                    />
-                                                </th>
-                                                <th className="px-6 py-6 font-black">Order Reference</th>
-                                                <th className="px-6 py-6 font-black">Client (Dealer)</th>
-                                                <th className="px-6 py-6 font-black">Item Count</th>
-                                                <th className="px-6 py-6 font-black">Current Status</th>
-                                                <th className="px-6 py-6 font-black">Action</th>
+                                                <th className="px-8 py-5">Worker Name</th>
+                                                <th className="px-6 py-5">Role / Station</th>
+                                                <th className="px-6 py-5">PIN Access</th>
+                                                <th className="px-6 py-5">Status</th>
+                                                <th className="px-6 py-5 text-right">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-50">
-                                            {filteredOrders.length > 0 ? filteredOrders.map(order => (
-                                                <tr key={order.id} className={`hover:bg-indigo-50/30 transition-colors group ${order.isEdited ? 'bg-orange-50/50' : ''} ${selectedOrders.includes(order.id) ? 'bg-indigo-50' : ''}`}>
-                                                    <td className="px-8 py-5 align-middle">
-                                                        <div className="flex items-center justify-center">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={selectedOrders.includes(order.id)}
-                                                                onChange={() => toggleOrderSelection(order.id)}
-                                                                className="rounded-lg border-gray-200 text-indigo-600 focus:ring-indigo-500 w-5 h-5 cursor-pointer shadow-sm transition-all"
-                                                            />
-                                                        </div>
+                                            {workers.length > 0 ? workers.map(worker => (
+                                                <tr key={worker.id} className="hover:bg-red-50/30 transition-colors group">
+                                                    <td className="px-8 py-4">
+                                                        <div className="font-black text-gray-900">{worker.name}</div>
                                                     </td>
-                                                    <td className="px-6 py-5">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="font-black text-gray-900 cursor-pointer hover:text-indigo-600 transition-colors" onClick={() => setSelectedOrder(order)}>#{order.id}</div>
-                                                            {order.isEdited && <span className="text-[9px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-black tracking-tighter shadow-sm animate-pulse">REVISED</span>}
-                                                        </div>
-                                                        <div className="flex items-center gap-1.5">
-                                                            <div className="text-[10px] text-gray-400 font-bold uppercase">{new Date(order.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-                                                            {getOrderAge(order.createdAt) > 7 && ['RECEIVED', 'PRODUCTION'].includes(order.status) && (
-                                                                <span className="text-[9px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md font-black tracking-tighter border border-red-200">CRITICAL</span>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-5">
-                                                        <div className="font-black text-gray-900 text-sm tracking-tight truncate max-w-[150px]">{order.User?.name}</div>
-                                                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1 mt-0.5"><Home size={10} className="opacity-50" /> {order.User?.shopName}</div>
-                                                    </td>
-                                                    <td className="px-6 py-5">
-                                                        <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest">{order.OrderItems?.length} Units</span>
-                                                    </td>
-                                                    <td className="px-6 py-5">
-                                                        <span className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tight shadow-sm flex items-center w-fit gap-1.5 whitespace-nowrap ${order.status === 'RECEIVED' ? 'bg-yellow-400 text-yellow-900 ring-4 ring-yellow-50' :
-                                                            order.status === 'PRODUCTION' ? 'bg-indigo-600 text-white ring-4 ring-indigo-50' :
-                                                                order.status === 'READY' ? 'bg-emerald-600 text-white ring-4 ring-emerald-50' :
-                                                                    order.status === 'DISPATCHED' ? 'bg-purple-600 text-white ring-4 ring-purple-50' :
-                                                                        'bg-red-500 text-white ring-4 ring-red-50'
-                                                            }`}>
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-white opacity-60"></span>
-                                                            {order.status}
+                                                    <td className="px-6 py-4">
+                                                        <span className="bg-red-50 text-red-700 font-bold text-[10px] uppercase px-2 py-1 rounded-lg border border-red-100">
+                                                            {worker.role.replace('_', ' ')}
                                                         </span>
                                                     </td>
-                                                    <td className="px-6 py-5">
-                                                        <div className="flex items-center gap-2">
-                                                            {order.status !== 'CANCELLED' ? (
-                                                                <div className="flex gap-1">
-                                                                    {(user?.role || '').toUpperCase() === 'DISTRIBUTOR' ? (
-                                                                        // Distributor View Only - No Status Buttons
-                                                                        null
-                                                                    ) : (
-                                                                        // Admin / Manufacturer Status Controls
-                                                                        <>
-                                                                            {order.status === 'RECEIVED' && (
-                                                                                <button onClick={() => updateStatus(order.id, 'PRODUCTION')} className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md transition-all">
-                                                                                    Start Production
-                                                                                </button>
-                                                                            )}
-                                                                            {order.status === 'PRODUCTION' && (
-                                                                                <button onClick={() => updateStatus(order.id, 'READY')} className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md transition-all">
-                                                                                    Mark Ready
-                                                                                </button>
-                                                                            )}
-                                                                            {order.status === 'READY' && (
-                                                                                <button onClick={() => updateStatus(order.id, 'DISPATCHED')} className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md transition-all">
-                                                                                    Dispatch
-                                                                                </button>
-                                                                            )}
-                                                                            {['DISPATCHED', 'DELAYED'].includes(order.status) && (
-                                                                                <div className="relative group/select">
-                                                                                    <select
-                                                                                        value={order.status}
-                                                                                        onChange={(e) => updateStatus(order.id, e.target.value)}
-                                                                                        className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-[10px] font-black uppercase tracking-widest cursor-pointer group-hover/select:bg-white group-hover/select:shadow-lg transition-all outline-none text-gray-700 ring-1 ring-black/5"
-                                                                                    >
-                                                                                        <option value="RECEIVED">📥 Received</option>
-                                                                                        <option value="PRODUCTION">🔧 Production</option>
-                                                                                        <option value="READY">✅ Ready</option>
-                                                                                        <option value="DISPATCHED">🚚 Dispatched</option>
-                                                                                        <option value="DELAYED">⏳ Delayed</option>
-                                                                                        <option value="CANCELLED">❌ Cancel</option>
-                                                                                    </select>
-                                                                                </div>
-                                                                            )}
-                                                                        </>
-                                                                    )}
-                                                                </div>
-                                                            ) : (
-                                                                <span className="text-red-500 font-black text-[10px] uppercase tracking-widest bg-red-50 px-3 py-1 rounded-xl opacity-60 italic">Voided</span>
-                                                            )}
-                                                            <button
-                                                                onClick={() => handlePrintOrder(order)}
-                                                                className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                                                                title="Print Invoice / Gate Pass"
-                                                            >
-                                                                <Printer size={16} />
-                                                            </button>
-
-                                                            {(user?.role || '').toUpperCase() !== 'DISTRIBUTOR' && (
-                                                                <button
-                                                                    onClick={() => handleDeleteOrder(order.id)}
-                                                                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                                                    title="Delete Order"
-                                                                >
-                                                                    <Trash2 size={16} />
-                                                                </button>
-                                                            )}
+                                                    <td className="px-6 py-4">
+                                                        <span className="text-gray-400 text-xs font-mono">****</span>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                                                            <span className="text-[10px] font-black text-green-600 uppercase">Active</span>
                                                         </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <button
+                                                            onClick={() => handleDeleteWorker(worker.id)}
+                                                            className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             )) : (
-                                                <tr><td colSpan="6" className="px-6 py-20 text-center"><div className="text-gray-300 font-black uppercase tracking-[0.2em] italic">No Orders Detected</div></td></tr>
+                                                <tr><td colSpan="5" className="px-6 py-20 text-center text-gray-300 font-black uppercase tracking-widest italic">No Workers Registered</td></tr>
                                             )}
                                         </tbody>
                                     </table>
                                 </div>
-                            </div>
-                        )
-                    }
 
-                    {
-                        activeTab === 'distributors' && user?.role === 'MANUFACTURER' && (
-                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
-                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                    <div>
-                                        <h2 className="text-2xl font-black text-gray-900 tracking-tight">Distributor Network</h2>
-                                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Manage partners and authorizations</p>
-                                    </div>
-                                    <div className="flex gap-2 w-full sm:w-auto">
-                                        <button onClick={() => { setBulkUploadType('DISTRIBUTOR'); setShowBulkUpload(true); }} className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-2xl font-black shadow-lg shadow-emerald-100 flex items-center justify-center gap-2 text-xs transition-all active:scale-95 uppercase tracking-widest"><Upload size={16} /> Bulk</button>
-                                        <button onClick={() => openUserModal('DISTRIBUTOR')} className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-2xl font-black shadow-lg shadow-indigo-100 flex items-center justify-center gap-2 transition-all active:scale-95 uppercase tracking-widest text-xs">+ Register New</button>
-                                    </div>
-                                </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {distributors.length > 0 ? distributors.map(d => (
-                                        <div key={d.id} className="bg-white p-6 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 relative overflow-hidden group hover:border-indigo-200 transition-all duration-300">
-                                            <div className={`absolute top-0 left-0 w-1.5 h-full ${d.isEnabled ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
-                                            <div className="flex justify-between items-start mb-6">
-                                                <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center text-2xl shadow-inner group-hover:bg-indigo-50 transition-colors">
-                                                    🏢
-                                                </div>
-                                                <div className="flex gap-1">
-                                                    <button onClick={() => openUserModal('DISTRIBUTOR', d)} className="p-2.5 bg-gray-50 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"><Edit2 size={16} /></button>
-                                                    <button onClick={() => handleDeleteUser(d.id)} className="p-2.5 bg-gray-50 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={16} /></button>
-                                                </div>
-                                            </div>
+                                {/* FACTORY SETTINGS */}
+                                <div className="mt-6 flex justify-end">
+                                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3">
+                                        <div className="flex items-center justify-between gap-4">
                                             <div>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <h3 className="font-black text-gray-900 text-lg leading-tight truncate">{d.name}</h3>
-                                                    <span className={`w-2 h-2 rounded-full ${d.isEnabled ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-red-500'}`}></span>
+                                                <h3 className="text-xs font-black uppercase text-gray-400">Factory Geofence</h3>
+                                                <div className="font-bold text-gray-700 text-sm flex items-center gap-1">
+                                                    <MapPin size={14} className={factoryLocation ? 'text-green-500' : 'text-red-400'} />
+                                                    {factoryLocation ? `Set: ${factoryLocation.lat.toFixed(4)}, ${factoryLocation.lng.toFixed(4)}` : 'Not Set'}
                                                 </div>
-                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-4 flex items-center gap-1"><Home size={10} /> {d.shopName || 'Wholesale Partner'}</p>
-
-                                                <div className="space-y-3 pt-4 border-t border-gray-50">
-                                                    <div className="flex justify-between items-center text-xs">
-                                                        <span className="text-gray-400 font-bold">Region</span>
-                                                        <span className="text-gray-700 font-black truncate max-w-[120px]">{d.city}</span>
-                                                    </div>
-                                                    <div className="flex justify-between items-center text-xs">
-                                                        <span className="text-gray-400 font-bold">Volume</span>
-                                                        <div className="flex gap-1">
-                                                            <span className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded-lg font-black text-[10px]">{d.orderCount || 0} Total</span>
-                                                            <span className="bg-amber-50 text-amber-700 px-2 py-1 rounded-lg font-black text-[10px]">{d.pendingOrderCount || 0} Pend.</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <button onClick={() => toggleUserStatus(d.id, !d.isEnabled)} className={`mt-6 w-full py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${d.isEnabled ? 'bg-red-50 text-red-600 hover:bg-red-600 hover:text-white' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white'
-                                                }`}>
-                                                {d.isEnabled ? 'Suspend Access' : 'Restore Access'}
-                                            </button>
-                                        </div>
-                                    )) : (
-                                        <div className="col-span-full py-20 text-center opacity-30 grayscale italic text-sm">No partners detected...</div>
-                                    )}
-                                </div>
-                            </div>
-                        )
-                    }
-
-                    {
-                        activeTab === 'dealers' && (
-                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
-                                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 w-full lg:w-auto">
-                                        <div>
-                                            <h2 className="text-2xl font-black text-gray-900 tracking-tight">Dealer Directory</h2>
-                                            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Client database and assignments</p>
-                                        </div>
-                                        <div className="w-px h-10 bg-gray-100 hidden sm:block"></div>
-                                        <div className="relative group w-full sm:w-64">
-                                            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={16} />
-                                            <select
-                                                value={distributorFilter}
-                                                onChange={(e) => setDistributorFilter(e.target.value)}
-                                                className="w-full pl-12 pr-10 py-3 bg-indigo-50 border-none rounded-2xl text-[10px] font-black text-indigo-900 appearance-none focus:ring-4 ring-indigo-100 transition-all cursor-pointer uppercase tracking-widest"
-                                            >
-                                                <option value="">All Partners</option>
-                                                {distributors.map(dist => (
-                                                    <option key={dist.id} value={dist.id}>{dist.name}</option>
-                                                ))}
-                                            </select>
-                                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-400 pointer-events-none" size={14} />
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2 w-full lg:w-auto">
-                                        <button onClick={() => { setBulkUploadType('DEALER'); setShowBulkUpload(true); }} className="flex-1 lg:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-2xl font-black shadow-lg shadow-emerald-100 flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-widest">
-                                            <Upload size={18} /> Bulk
-                                        </button>
-                                        <button onClick={() => openUserModal('DEALER')} className="flex-1 lg:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-black shadow-lg shadow-indigo-100 flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-widest">
-                                            <Plus size={18} /> New Dealer
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-12">
-                                    {filteredDealers.length > 0 ? filteredDealers.map(dealer => (
-                                        <div key={dealer.id} className="bg-white p-6 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 relative group hover:border-indigo-200 transition-all duration-300">
-                                            <div className="flex justify-between items-start mb-6">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 font-black text-xl shadow-inner group-hover:scale-110 transition-transform">
-                                                        {dealer.name.charAt(0)}
-                                                    </div>
-                                                    <div>
-                                                        <h3 className="font-black text-gray-900 text-lg leading-tight truncate max-w-[150px]">{dealer.name}</h3>
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className={`w - 1.5 h - 1.5 rounded - full ${dealer.isEnabled ? 'bg-emerald-500' : 'bg-red-500'} `}></span>
-                                                            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{dealer.isEnabled ? 'Active Client' : 'Restricted'}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button onClick={() => openUserModal('DEALER', dealer)} className="p-2.5 bg-gray-50 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"><Edit2 size={16} /></button>
-                                                    <button onClick={() => handleDeleteUser(dealer.id)} className="p-2.5 bg-gray-50 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={16} /></button>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-4">
-                                                <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
-                                                    <div className="flex items-center gap-3 mb-2">
-                                                        <Home size={14} className="text-gray-400" />
-                                                        <span className="text-xs font-black text-gray-700 truncate">{dealer.shopName || 'General Store'}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-3">
-                                                        <Filter size={14} className="text-gray-400" />
-                                                        <span className="text-xs font-bold text-gray-500">{dealer.city || 'Regional Area'}</span>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex justify-between items-center px-2">
-                                                    <div>
-                                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-0.5">Assigned To</p>
-                                                        <p className="text-xs font-black text-indigo-600">@{dealer.Distributor?.name || 'Unassigned'}</p>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-0.5">Status</p>
-                                                        <button
-                                                            onClick={() => toggleUserStatus(dealer.id, !dealer.isEnabled)}
-                                                            className={`text-[10px] font-black uppercase px-3 py-1 rounded-full transition-all ${dealer.isEnabled ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-red-100 text-red-700 hover:bg-red-200'
-                                                                }`}
-                                                        >
-                                                            {dealer.isEnabled ? 'Enabled' : 'Disabled'}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )) : (
-                                        <div className="col-span-full py-20 text-center opacity-30 grayscale italic text-sm">No clients detected...</div>
-                                    )}
-                                </div>
-                            </div>
-                        )
-                    }
-
-
-
-                    {/* MATERIAL ANALYSIS TAB */}
-
-
-
-                    {
-                        activeTab === 'masters' && (
-                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-12">
-                                {/* Masters Sub-tab Navigation */}
-                                <div className="flex gap-3 border-b pb-4 overflow-x-auto no-scrollbar">
-                                    <button onClick={() => setMastersView('designs')} className={`whitespace-nowrap px-6 py-3 rounded-t-xl font-bold transition-all ${mastersView === 'designs' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Designs</button>
-                                    <button onClick={() => setMastersView('colors')} className={`whitespace-nowrap px-6 py-3 rounded-t-xl font-bold transition-all ${mastersView === 'colors' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Colors</button>
-                                    <button onClick={() => setMastersView('specs')} className={`whitespace-nowrap px-6 py-3 rounded-t-xl font-bold transition-all ${mastersView === 'specs' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Specifications</button>
-                                </div>
-
-                                {/* DESIGNS SUB-TAB */}
-                                {mastersView === 'designs' && (
-                                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
-                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                            <div>
-                                                <h2 className="text-2xl font-black text-gray-900 tracking-tight">Design Portfolio</h2>
-                                                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Digital catalog and product inventory</p>
-                                            </div>
-                                            <div className="flex gap-2 w-full sm:w-auto">
-                                                <button onClick={handleAutoCategorize} className="flex-1 sm:flex-none bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-5 py-3 rounded-2xl font-black shadow-sm flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-widest border border-indigo-200">
-                                                    <Wand2 size={16} /> Auto-Fix
-                                                </button>
-                                                <button onClick={() => setShowBulkDesigns(true)} className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-2xl font-black shadow-lg shadow-emerald-100 flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-widest">
-                                                    <Upload size={16} /> Bulk
-                                                </button>
-                                                <button onClick={() => setShowAddDesign(true)} className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-black shadow-lg shadow-indigo-100 flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-widest">
-                                                    <Plus size={18} /> New
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8">
-                                            {designs.map(d => (
-                                                <div key={d.id} className={`group relative bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-100/50 hover:-translate-y-2 ${!d.isEnabled ? 'grayscale opacity-60' : ''}`}>
-                                                    <div className="aspect-[3/4.5] bg-gray-50 relative flex items-center justify-center overflow-hidden">
-                                                        {d.imageUrl ? (
-                                                            <img
-                                                                src={getImageUrl(d.imageUrl)}
-                                                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                                                alt={d.designNumber}
-                                                            />
-                                                        ) : (
-                                                            <ImageIcon size={48} className="text-gray-200" />
-                                                        )}
-
-                                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-[2px]">
-                                                            <button onClick={() => openEditDesign(d)} className="bg-white/90 hover:bg-white text-indigo-600 p-3 rounded-2xl shadow-xl transition-all active:scale-90"><Edit2 size={18} /></button>
-                                                            <button onClick={() => handleDeleteDesign(d.id)} className="bg-white/90 hover:bg-white text-red-600 p-3 rounded-2xl shadow-xl transition-all active:scale-90"><Trash2 size={18} /></button>
-                                                        </div>
-
-                                                        <div className="absolute top-4 left-4 flex flex-col gap-2">
-                                                            <span className="bg-white/90 backdrop-blur-md text-gray-900 text-[10px] px-3 py-1.5 rounded-full font-black shadow-lg uppercase tracking-widest border border-white/50">
-                                                                {d.DoorType?.name || 'Standard'}
-                                                            </span>
-                                                            {d.isTrending && (
-                                                                <span className="bg-yellow-400 text-yellow-900 text-[10px] px-3 py-1.5 rounded-full font-black shadow-lg uppercase tracking-widest border border-yellow-200 animate-pulse">
-                                                                    🔥 Trending
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="p-6">
-                                                        <div className="flex justify-between items-start mb-1">
-                                                            <h3 className="font-black text-gray-900 text-lg tracking-tight">#{d.designNumber}</h3>
-                                                            {!d.isEnabled && <span className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Inactive</span>}
-                                                        </div>
-                                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
-                                                            {d.category || 'Premium Collection'} • {d.DoorType?.thickness || '32mm'}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* COLORS SUB-TAB */}
-                                {mastersView === 'colors' && (
-                                    <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-                                            <div>
-                                                <h2 className="text-2xl font-black text-gray-900 tracking-tight">Foil Color Spectrum</h2>
-                                                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Laminate texture and finish definitions</p>
                                             </div>
                                             <div className="flex gap-2">
-                                                <button onClick={() => setShowBulkColors(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-2xl font-black shadow-lg shadow-emerald-100 flex items-center gap-2 transition-all active:scale-95 text-[10px] uppercase tracking-widest"><Upload size={14} /> Bulk</button>
-                                                <button onClick={() => setShowAddColor(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-2xl font-black shadow-lg shadow-indigo-100 flex items-center gap-2 transition-all active:scale-95 text-[10px] uppercase tracking-widest">+ New Foil</button>
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-6 gap-4">
-                                            {colors.map(c => (
-                                                <div key={c.id} className={`relative group aspect-square rounded-3xl overflow-hidden border border-gray-100 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-100/30 ${!c.isEnabled ? 'grayscale opacity-50' : ''}`}>
-                                                    {c.imageUrl ? (
-                                                        <img src={getImageUrl(c.imageUrl)} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <div className="w-full h-full shadow-inner" style={{ backgroundColor: c.hexCode }}></div>
-                                                    )}
-
-                                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 backdrop-blur-sm">
-                                                        <div className="flex gap-2">
-                                                            <button onClick={() => setEditingColor({ ...c, imageFile: null })} className="bg-white/90 hover:bg-white text-indigo-600 p-2 rounded-xl shadow-lg transition-all active:scale-90"><Edit2 size={14} /></button>
-                                                            <button onClick={() => handleDeleteColor(c.id)} className="bg-white/90 hover:bg-white text-red-600 p-2 rounded-xl shadow-lg transition-all active:scale-90"><Trash2 size={14} /></button>
-                                                        </div>
-                                                        <span className="text-[10px] text-white font-black uppercase tracking-widest">{c.name}</span>
-                                                    </div>
-
-                                                    <div className="absolute bottom-3 left-3 right-3 bg-white/90 backdrop-blur-md px-2 py-1 rounded-lg text-[9px] font-black text-center truncate shadow-sm group-hover:opacity-0 transition-opacity border border-white/50">
-                                                        {c.name}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* SPECIFICATIONS SUB-TAB */}
-                                {mastersView === 'specs' && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 h-min">
-                                            <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-1">Architecture</h2>
-                                            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-8">Structural specifications</p>
-
-                                            <div className="flex gap-2 mb-6">
-                                                <input type="text" placeholder="Type (e.g. WPC)" className="w-full bg-gray-50 rounded-xl px-3 py-2 font-bold text-sm" value={newDoorType.name} onChange={e => setNewDoorType({ ...newDoorType, name: e.target.value })} />
-                                                <input type="text" placeholder="Thick (e.g. 28mm)" className="w-full bg-gray-50 rounded-xl px-3 py-2 font-bold text-sm" value={newDoorType.thickness} onChange={e => setNewDoorType({ ...newDoorType, thickness: e.target.value })} />
-                                                <button onClick={handleAddDoorType} className="bg-indigo-600 text-white rounded-xl p-3 shadow-lg hover:bg-indigo-700 active:scale-95 transition-all"><Plus size={16} /></button>
-                                            </div>
-                                            <div className="space-y-3">
-                                                {doors.map(d => (
-                                                    <div key={d.id} className="flex justify-between items-center p-5 bg-gray-50/50 rounded-2xl border border-gray-100 group hover:border-indigo-100 hover:bg-indigo-50/30 transition-all">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-lg shadow-sm group-hover:scale-110 transition-transform">🚪</div>
-                                                            <div>
-                                                                <span className="block text-xs font-black text-gray-900 uppercase tracking-tight">{d.name}</span>
-                                                                <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Standard Type</span>
-                                                            </div>
-                                                        </div>
-                                                        <span className="font-black text-xs text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-colors">{d.thickness}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 h-min">
-                                            <div className="flex justify-between items-center mb-6">
-                                                <div>
-                                                    <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-1">Sheet Sizes</h2>
-                                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Raw Material Dimensions</p>
-                                                </div>
-                                                <div className="flex bg-gray-100 p-1 rounded-xl">
-                                                    <button onClick={() => setSheetTypeView('PVC')} className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${sheetTypeView === 'PVC' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>PVC</button>
-                                                    <button onClick={() => setSheetTypeView('WPC')} className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${sheetTypeView === 'WPC' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>WPC</button>
-                                                </div>
-                                            </div>
-
-
-                                            <div className="flex gap-2 mb-6">
-                                                <input type="number" placeholder="W" className="w-20 bg-gray-50 rounded-xl px-3 py-2 font-bold text-sm" value={newSheet.width} onChange={e => setNewSheet({ ...newSheet, width: e.target.value })} />
-                                                <span className="self-center text-gray-400 font-black">x</span>
-                                                <input type="number" placeholder="H" className="w-20 bg-gray-50 rounded-xl px-3 py-2 font-bold text-sm" value={newSheet.height} onChange={e => setNewSheet({ ...newSheet, height: e.target.value })} />
-                                                <button onClick={handleAddSheet} className="bg-indigo-600 text-white rounded-xl p-3 shadow-lg hover:bg-indigo-700 active:scale-95 transition-all"><Plus size={16} /></button>
-                                            </div>
-
-                                            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                                                {sheets.filter(s => s.materialType === sheetTypeView).map(s => (
-                                                    <div key={s.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors group">
-                                                        <span className="font-black text-gray-700">{s.width} x {s.height}</span>
-                                                        <button onClick={() => handleDeleteSheet(s.id)} className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={14} /></button>
-                                                    </div>
-                                                ))}
-                                                {sheets.length === 0 && <div className="text-center text-xs text-gray-400 italic py-4">No sizes defined. Using defaults.</div>}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )
-                    }
-
-                    {/* What's New Tab - Social Feed for Admin */}
-                    {
-                        activeTab === 'whatsnew' && (
-                            <div className="max-w-2xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-1000 pb-20">
-                                {/* Create Post Header */}
-                                <div className="text-center space-y-2">
-                                    <h2 className="text-3xl font-black text-gray-900 tracking-tight">Post Broadcast</h2>
-                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Share updates with your entire network</p>
-                                </div>
-
-                                {/* Create Post Card */}
-                                <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-gray-200/60 p-8 border border-gray-50 transform hover:scale-[1.01] transition-all duration-500">
-                                    <div className="flex items-center gap-4 mb-8">
-                                        <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 animate-pulse">
-                                            <Bell size={20} />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-black text-gray-900 leading-none">Global Announcement</h3>
-                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Compose your message</p>
-                                        </div>
-                                    </div>
-
-                                    <form onSubmit={handleCreatePost} className="space-y-6">
-                                        <input
-                                            type="text"
-                                            placeholder="Brief Title (e.g. New Door Series Launch)"
-                                            className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 placeholder:text-gray-300 focus:ring-4 ring-indigo-50 transition-all"
-                                            value={newPost.title}
-                                            onChange={e => setNewPost({ ...newPost, title: e.target.value })}
-                                        />
-                                        <textarea
-                                            placeholder="Describe your update in detail..."
-                                            className="w-full bg-gray-50 border-none rounded-2xl p-6 text-sm font-medium text-gray-600 placeholder:text-gray-300 min-h-[150px] resize-none focus:ring-4 ring-indigo-50 transition-all"
-                                            value={newPost.content}
-                                            onChange={e => setNewPost({ ...newPost, content: e.target.value })}
-                                            required
-                                        />
-
-                                        <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between bg-gray-50/50 p-4 rounded-[2rem] border border-gray-100">
-                                            <div className="flex gap-4">
-                                                <div className="relative">
-                                                    <select
-                                                        className="pl-4 pr-10 py-2.5 bg-white border-none rounded-xl text-[10px] font-black text-gray-700 appearance-none focus:ring-4 ring-indigo-100 transition-all cursor-pointer uppercase tracking-widest shadow-sm"
-                                                        value={newPost.postType}
-                                                        onChange={e => setNewPost({ ...newPost, postType: e.target.value })}
-                                                    >
-                                                        <option value="announcement">📢 Broadcast</option>
-                                                        <option value="new_design">🚪 Design</option>
-                                                        <option value="promotion">🎉 Promo</option>
-                                                        <option value="update">📋 System</option>
-                                                    </select>
-                                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={12} />
-                                                </div>
-
-                                                <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2.5 rounded-xl shadow-sm hover:bg-indigo-50 transition-colors border-none group">
-                                                    <ImageIcon size={16} className="text-indigo-500 group-hover:scale-110 transition-transform" />
-                                                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Add Media</span>
-                                                    <input type="file" accept="image/*" className="hidden" onChange={e => setNewPost({ ...newPost, image: e.target.files[0] })} />
-                                                </label>
-                                            </div>
-
-                                            {newPost.image && (
-                                                <div className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-4 py-2.5 rounded-xl border border-emerald-100 animate-in zoom-in">
-                                                    ✓ {newPost.image.name.length > 15 ? newPost.image.name.substring(0, 15) + '...' : newPost.image.name}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-[1.5rem] font-black shadow-xl shadow-indigo-100 transition-all active:scale-[0.98] uppercase tracking-[0.2em] text-xs">
-                                            Publish Update
-                                        </button>
-                                    </form>
-                                </div>
-
-                                {/* Posts Feed Section */}
-                                <div className="space-y-10 relative">
-                                    <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-indigo-100/50 via-gray-100 to-transparent -translate-x-1/2 hidden sm:block"></div>
-
-                                    {posts.length === 0 ? (
-                                        <div className="text-center bg-white p-12 rounded-[3rem] border border-dashed border-gray-200">
-                                            <div className="text-gray-200 mb-4 flex justify-center"><Bell size={48} /></div>
-                                            <p className="text-gray-400 font-bold uppercase tracking-widest text-xs italic">Awaiting your first broadcast...</p>
-                                        </div>
-                                    ) : posts.map((post, idx) => (
-                                        <div key={post.id} className={`relative sm:w-[90%] ${idx % 2 === 0 ? 'sm:mr-auto' : 'sm:ml-auto'} group`}>
-                                            <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 overflow-hidden border border-gray-100 hover:border-indigo-200 transition-all duration-500">
-                                                {post.imageUrl && (
-                                                    <div className="h-64 bg-gray-50 overflow-hidden relative">
-                                                        <img src={getImageUrl(post.imageUrl)} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt="Post" />
-                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-                                                    </div>
+                                                <button onClick={() => setShowManualGeo(!showManualGeo)} className="bg-gray-100 text-gray-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-gray-200">
+                                                    {showManualGeo ? 'Cancel' : 'Manual'}
+                                                </button>
+                                                {!showManualGeo && (
+                                                    <button onClick={handleSetLocation} className="bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-red-700 active:scale-95 transition-all">
+                                                        {factoryLocation ? 'Update GPS' : 'Set GPS'}
+                                                    </button>
                                                 )}
-                                                <div className="p-8">
-                                                    <div className="flex justify-between items-start mb-6">
-                                                        <span className={`text-[10px] font-black px-4 py-2 rounded-full uppercase tracking-widest shadow-sm ring-1 ring-inset ${post.postType === 'announcement' ? 'bg-indigo-50 text-indigo-700 ring-indigo-200' :
-                                                            post.postType === 'new_design' ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' :
-                                                                post.postType === 'promotion' ? 'bg-amber-50 text-amber-700 ring-amber-200' :
-                                                                    'bg-gray-50 text-gray-700 ring-gray-200'
-                                                            }`}>
-                                                            {post.postType.replace('_', ' ')}
-                                                        </span>
-                                                        <button onClick={() => handleDeletePost(post.id)} className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100">
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </div>
-
-                                                    {post.title && <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-3 leading-tight uppercase">{post.title}</h3>}
-                                                    <p className="text-gray-500 text-sm leading-relaxed font-medium whitespace-pre-wrap">{post.content}</p>
-
-                                                    <div className="mt-8 pt-6 border-t border-gray-50 flex justify-between items-center">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center text-[10px] font-black text-indigo-600 italic">Z</div>
-                                                            <span className="text-[10px] font-black text-indigo-900 uppercase tracking-widest">Admin Team</span>
-                                                        </div>
-                                                        <div className="text-[10px] font-bold text-gray-300 uppercase tracking-widest flex items-center gap-1.5">
-                                                            <Calendar size={12} /> {new Date(post.createdAt).toLocaleDateString()}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )
-                    }
-
-                    {/* IMPORT PROGRESS OVERLAY */}
-                    {
-                        importStatus.active && (
-                            <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-xl flex items-center justify-center p-8 animate-in fade-in duration-500">
-                                <div className="text-center max-w-md w-full">
-                                    <div className="relative w-32 h-32 mx-auto mb-12">
-                                        <div className="absolute inset-0 bg-indigo-500/30 rounded-full animate-ping"></div>
-                                        <div className="absolute inset-0 bg-indigo-500/20 rounded-full animate-pulse-slow"></div>
-                                        <div className="relative bg-white rounded-full w-full h-full flex items-center justify-center shadow-2xl shadow-indigo-500/50">
-                                            <FileSpreadsheet size={48} className="text-indigo-600 animate-bounce" />
-                                        </div>
-                                        {/* Rotating Ring */}
-                                        <div className="absolute -inset-4 border-4 border-t-indigo-500 border-r-transparent border-b-indigo-500 border-l-transparent rounded-full animate-spin-slow opacity-60"></div>
-                                    </div>
-
-                                    <h2 className="text-4xl font-black text-white tracking-tight mb-4 animate-in slide-in-from-bottom-4 duration-700">{importStatus.text}</h2>
-                                    {importStatus.total > 0 && <p className="text-indigo-200 font-bold uppercase tracking-[0.3em] animate-pulse">Processing {importStatus.total} Rows</p>}
-
-                                    <div className="mt-12 w-full bg-white/10 h-2 rounded-full overflow-hidden backdrop-blur-sm">
-                                        <div
-                                            className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-300 ease-out shadow-[0_0_20px_rgba(99,102,241,0.5)]"
-                                            style={{ width: `${importStatus.progress || 5}%` }}
-                                        ></div>
-                                    </div>
-                                    <p className="mt-4 text-white/50 font-mono text-xs">{importStatus.progress}% Complete</p>
-                                </div>
-                            </div>
-                        )
-                    }
-
-                    {/* MODALS */}
-                    {/* 1. USER MODAL */}
-                    {
-                        showUserModal && (
-                            <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
-                                <div className="bg-white rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl animate-in zoom-in duration-300 border border-gray-100 relative overflow-hidden">
-                                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
-                                    <div className="flex justify-between items-center mb-8">
-                                        <div>
-                                            <h3 className="text-2xl font-black text-gray-900 tracking-tight">{editingUser ? 'Update' : 'Initialize'} Partner</h3>
-                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Configure {userModalType.toLowerCase()} credentials</p>
-                                        </div>
-                                        <button onClick={() => setShowUserModal(false)} className="p-2 hover:bg-gray-100 rounded-2xl transition-all text-gray-400"><X /></button>
-                                    </div>
-
-                                    <form onSubmit={handleUserSubmit} className="space-y-6">
-                                        <div className="space-y-1.5">
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Legal Name</label>
-                                            <input type="text" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 focus:ring-4 ring-indigo-50 transition-all" value={userForm.name} onChange={e => setUserForm({ ...userForm, name: e.target.value })} required />
-                                        </div>
-
-                                        {/* DISTRIBUTOR SPECIFIC */}
-                                        {userModalType === 'DISTRIBUTOR' && (
-                                            <>
-                                                <div className="space-y-1.5">
-                                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Universal Username</label>
-                                                    <input type="text" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 focus:ring-4 ring-indigo-50 transition-all disabled:opacity-50" value={userForm.username} onChange={e => setUserForm({ ...userForm, username: e.target.value })} disabled={!!editingUser} required />
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{editingUser ? 'New Password (Optional)' : 'Secure Password'}</label>
-                                                    <input type="password" title="Set a secure password" size="20" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 focus:ring-4 ring-indigo-50 transition-all" value={userForm.password} onChange={e => setUserForm({ ...userForm, password: e.target.value })} placeholder={editingUser ? "Leave empty to keep current" : "Min. 6 characters"} />
-                                                </div>
-                                            </>
-                                        )}
-
-                                        {/* DEALER SPECIFIC */}
-                                        {userModalType === 'DEALER' && (
-                                            <>
-                                                <div className="space-y-1.5">
-                                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Authorized Google Email</label>
-                                                    <input type="email" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 focus:ring-4 ring-indigo-50 transition-all" value={userForm.email} onChange={e => setUserForm({ ...userForm, email: e.target.value })} required placeholder="partner@gmail.com" />
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Establishment Name</label>
-                                                    <input type="text" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 focus:ring-4 ring-indigo-50 transition-all" value={userForm.shopName} onChange={e => setUserForm({ ...userForm, shopName: e.target.value })} placeholder="e.g. Premium Hardware Hub" />
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Reporting Distributor</label>
-                                                    <div className="relative">
-                                                        <select className="w-full bg-gray-50 border-none rounded-2xl p-4 text-[11px] font-black text-indigo-900 appearance-none focus:ring-4 ring-indigo-50 transition-all cursor-pointer uppercase tracking-widest" value={userForm.distributorId} onChange={e => setUserForm({ ...userForm, distributorId: e.target.value })} required>
-                                                            <option value="">Select Primary Partner...</option>
-                                                            {distributors.filter(d => d.isEnabled).map(d => <option key={d.id} value={d.id}>{d.name} (@{d.username})</option>)}
-                                                        </select>
-                                                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-400 pointer-events-none" size={14} />
-                                                    </div>
-                                                </div>
-                                            </>
-                                        )}
-
-                                        <div className="space-y-1.5">
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">City / Region</label>
-                                            <input type="text" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 focus:ring-4 ring-indigo-50 transition-all" value={userForm.city} onChange={e => setUserForm({ ...userForm, city: e.target.value })} />
-                                        </div>
-
-                                        <div className="flex items-center gap-3 bg-gray-50/50 p-4 rounded-2xl border border-gray-100 group transition-all hover:bg-indigo-50/30">
-                                            <input type="checkbox" checked={userForm.isEnabled} onChange={e => setUserForm({ ...userForm, isEnabled: e.target.checked })} className="w-5 h-5 rounded-lg border-gray-200 text-indigo-600 focus:ring-indigo-500" />
-                                            <label className="text-xs font-black text-gray-600 uppercase tracking-widest group-hover:text-indigo-900 transition-colors">Grant System Authorization</label>
-                                        </div>
-
-                                        <div className="flex gap-4 pt-4">
-                                            <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-black shadow-lg shadow-indigo-100 transition-all active:scale-95 uppercase tracking-widest text-[10px]">Confirm Protocol</button>
-                                            <button type="button" onClick={() => setShowUserModal(false)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-500 py-4 rounded-2xl font-black transition-all active:scale-95 uppercase tracking-widest text-[10px]">Abort</button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        )
-                    }
-
-                    {
-                        selectedOrder && (
-                            <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-500" onClick={() => setSelectedOrder(null)}>
-                                <div className="bg-white rounded-[3rem] shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in duration-300" onClick={e => e.stopPropagation()}>
-                                    <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-indigo-900 px-10 py-8 text-white flex justify-between items-center shrink-0 border-b border-white/10">
-                                        <div>
-                                            <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60 mb-1">Manifest Document</p>
-                                            <h2 className="text-3xl font-black tracking-tight">Order #{selectedOrder.id}</h2>
-                                        </div>
-                                        <button onClick={() => setSelectedOrder(null)} className="bg-white/10 hover:bg-white/20 p-3 rounded-2xl transition-all"><X /></button>
-                                    </div>
-
-                                    <div className="p-10 overflow-y-auto flex-1 bg-gray-50/30">
-                                        <div className="flex flex-col md:flex-row gap-8 mb-10">
-                                            <div className="flex-1 bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
-                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Client Information</p>
-                                                <div className="space-y-3">
-                                                    <div className="flex justify-between items-center"><span className="text-xs font-bold text-gray-500">Authorized Dealer</span><span className="text-xs font-black text-gray-900">{selectedOrder.Dealer?.name}</span></div>
-                                                    <div className="flex justify-between items-center"><span className="text-xs font-bold text-gray-500">Establishment</span><span className="text-xs font-black text-gray-900">{selectedOrder.Dealer?.shopName}</span></div>
-                                                    <div className="flex justify-between items-center"><span className="text-xs font-bold text-gray-500">Region</span><span className="text-xs font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">{selectedOrder.Dealer?.city}</span></div>
-                                                </div>
-                                            </div>
-                                            <div className="flex-1 bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
-                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Order Metadata</p>
-                                                <div className="space-y-3">
-                                                    <div className="flex justify-between items-center"><span className="text-xs font-bold text-gray-500">Timestamp</span><span className="text-xs font-black text-gray-900">{new Date(selectedOrder.createdAt).toLocaleString()}</span></div>
-                                                    <div className="flex justify-between items-center"><span className="text-xs font-bold text-gray-500">Item Quantity</span><span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">{selectedOrder.OrderItems?.length || 0} Products</span></div>
-                                                    <div className="flex justify-between items-center"><span className="text-xs font-bold text-gray-500">Current Status</span><span className={`text - xs font - black px - 2 py - 1 rounded - lg uppercase ${selectedOrder.status === 'READY' ? 'bg-emerald-500 text-white' :
-                                                        selectedOrder.status === 'PENDING' ? 'bg-amber-500 text-white' :
-                                                            'bg-indigo-600 text-white'
-                                                        }`}>{selectedOrder.status}</span></div>
-                                                </div>
                                             </div>
                                         </div>
 
-                                        <div className="space-y-6">
-                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2">Bill of Materials</p>
-                                            {selectedOrder.OrderItems?.map((item, i) => (
-                                                <div key={i} className="group flex flex-col sm:flex-row gap-8 p-8 bg-white border border-gray-100 rounded-[2.5rem] shadow-sm hover:shadow-xl transition-all duration-500">
-                                                    <div className="w-full sm:w-32 aspect-[3/4.5] bg-gray-100 rounded-3xl overflow-hidden shadow-inner group-hover:scale-105 transition-transform duration-700">
-                                                        {item.designImageSnapshot ? (
-                                                            <img src={getImageUrl(item.designImageSnapshot)} className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            <div className="flex items-center justify-center h-full text-gray-300"><ImageIcon size={32} /></div>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex-1 flex flex-col justify-center">
-                                                        <div className="flex justify-between items-start mb-6">
-                                                            <div>
-                                                                <h4 className="text-2xl font-black text-gray-900 tracking-tight mb-2 uppercase">{item.designNameSnapshot}</h4>
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="w-4 h-4 rounded-full shadow-sm" style={{ backgroundColor: item.colorHexSnapshot || '#EEE' }}></div>
-                                                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{item.colorNameSnapshot} Finish</span>
-                                                                </div>
-                                                            </div>
-                                                            <div className="text-right">
-                                                                <span className="text-4xl font-black text-indigo-500/20 group-hover:text-indigo-500/100 transition-colors">x{item.quantity}</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="grid grid-cols-2 gap-4">
-                                                            <div className="bg-gray-50 p-4 rounded-2xl flex flex-col border border-gray-100/50">
-                                                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Architecture</span>
-                                                                <span className="text-xs font-black text-gray-900">{item.doorTypeNameSnapshot}</span>
-                                                            </div>
-                                                            <div className="bg-gray-50 p-4 rounded-2xl flex flex-col border border-gray-100/50">
-                                                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Dimensions</span>
-                                                                <span className="text-xs font-black text-gray-900">{item.width}" × {item.height}"</span>
-                                                            </div>
-                                                            {/* Extra Options */}
-                                                            {(item.hasLock || item.hasVent) && (
-                                                                <div className="col-span-2 flex gap-2">
-                                                                    {item.hasLock && (
-                                                                        <div className="bg-orange-50 text-orange-600 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider border border-orange-100 flex items-center gap-2">
-                                                                            <Lock size={12} strokeWidth={3} /> Lock Cut
-                                                                        </div>
-                                                                    )}
-                                                                    {item.hasVent && (
-                                                                        <div className="bg-cyan-50 text-cyan-600 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider border border-cyan-100 flex items-center gap-2">
-                                                                            <Wind size={12} strokeWidth={3} /> Ventilation
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                            {/* Remarks */}
-                                                            {item.remarks && (
-                                                                <div className="col-span-2 bg-yellow-50 p-3 rounded-xl border border-yellow-100 text-yellow-800 text-xs font-bold flex items-start gap-2">
-                                                                    <span className="uppercase text-[10px] bg-yellow-100 px-2 py-0.5 rounded text-yellow-900/60 tracking-widest">Note</span>
-                                                                    {item.remarks}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="px-10 py-6 bg-white border-t border-gray-100 flex justify-end gap-3 shrink-0">
-                                        <button onClick={() => setSelectedOrder(null)} className="px-8 py-3 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all">Close Manifest</button>
-                                        <button onClick={() => window.print()} className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all active:scale-95 flex items-center gap-2"><Download size={14} /> Print Order</button>
-                                    </div>
-                                </div>
-                            </div>
-                        )
-                    }
-                    {
-                        (showAddColor || editingColor) && (
-                            <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
-                                <div className="bg-white rounded-[2.5rem] p-10 max-w-sm w-full shadow-2xl animate-in zoom-in duration-300 border border-gray-100">
-                                    <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-2">{editingColor ? 'Edit' : 'Create'} Shade</h3>
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-8">Spectrum Definition Protocol</p>
-
-                                    <form onSubmit={editingColor ? handleUpdateColorReal : handleAddColorReal} className="space-y-6">
-                                        <div className="space-y-1.5">
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Color Display Name</label>
-                                            <input type="text" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 focus:ring-4 ring-indigo-50 transition-all" placeholder="e.g. Royal Teak"
-                                                value={editingColor ? editingColor.name : newColor.name}
-                                                onChange={e => editingColor ? setEditingColor({ ...editingColor, name: e.target.value }) : setNewColor({ ...newColor, name: e.target.value })} required />
-                                        </div>
-
-                                        <div className="space-y-1.5">
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Hexadecimal Index</label>
-                                            <div className="relative">
-                                                <input type="text" className="w-full bg-gray-50 border-none rounded-2xl p-4 pl-12 text-sm font-black font-mono text-gray-700 focus:ring-4 ring-indigo-50 transition-all uppercase" placeholder="#000000"
-                                                    value={(editingColor ? editingColor.hexCode : newColor.hexCode) || ''}
-                                                    onChange={e => editingColor ? setEditingColor({ ...editingColor, hexCode: e.target.value }) : setNewColor({ ...newColor, hexCode: e.target.value })} />
-                                                <div className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 rounded-lg border border-white/50 shadow-sm" style={{ backgroundColor: (editingColor ? editingColor.hexCode : newColor.hexCode) || '#EEE' }}></div>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-1.5">
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Visual Sample (Optional)</label>
-                                            <label className="flex items-center justify-center gap-2 cursor-pointer bg-gray-50 hover:bg-indigo-50 border-2 border-dashed border-gray-100 hover:border-indigo-200 rounded-2xl p-4 transition-all group">
-                                                <Upload size={18} className="text-gray-400 group-hover:text-indigo-600" />
-                                                <span className="text-xs font-black text-gray-500 group-hover:text-indigo-900 uppercase tracking-widest">Select Image</span>
-                                                <input type="file" accept="image/*" className="hidden"
-                                                    onChange={e => editingColor
-                                                        ? setEditingColor({ ...editingColor, imageFile: e.target.files[0] })
-                                                        : setNewColor({ ...newColor, image: e.target.files[0] })} />
-                                            </label>
-                                            {(editingColor?.imageUrl || (editingColor?.imageFile || newColor.image)) && (
-                                                <div className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 flex items-center gap-1 mt-2">
-                                                    ✓ Digital texture assets detected
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="flex gap-4 pt-4">
-                                            <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-black shadow-lg shadow-indigo-100 transition-all active:scale-95 uppercase tracking-widest text-[10px]">Registry Save</button>
-                                            <button type="button" onClick={() => { setShowAddColor(false); setEditingColor(null) }} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-500 py-4 rounded-2xl font-black transition-all active:scale-95 uppercase tracking-widest text-[10px]">Cancel</button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        )
-                    }
-                    {
-                        (showAddDesign || editingDesign) && (
-                            <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto backdrop-blur-md animate-in fade-in duration-300">
-                                <div className="bg-white rounded-[3rem] p-10 max-w-xl w-full my-8 shadow-2xl animate-in zoom-in duration-300 border border-gray-100 relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 -z-10 translate-x-8 translate-y-8 blur-3xl opacity-50"></div>
-
-                                    <div className="flex justify-between items-center mb-8">
-                                        <div>
-                                            <h3 className="text-2xl font-black text-gray-900 tracking-tight">{editingDesign ? 'Modify' : 'Draft'} Architecture</h3>
-                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Design Master Database Entry</p>
-                                        </div>
-                                        <button onClick={() => { setShowAddDesign(false); setEditingDesign(null) }} className="p-2 hover:bg-gray-100 rounded-2xl transition-all text-gray-400"><X /></button>
-                                    </div>
-
-                                    <form onSubmit={editingDesign ? handleUpdateDesignReal : handleAddDesignReal} className="space-y-6">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                            <div className="space-y-1.5">
-                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Design Serial #</label>
-                                                <input type="text" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-black text-gray-900 focus:ring-4 ring-indigo-50 transition-all" placeholder="e.g. Z-101" required
-                                                    value={editingDesign ? editingDesign.designNumber : newDesign.designNumber}
-                                                    onChange={e => editingDesign ? setEditingDesign({ ...editingDesign, designNumber: e.target.value }) : setNewDesign({ ...newDesign, designNumber: e.target.value })} />
-                                            </div>
-
-                                            <div className="space-y-1.5">
-                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Architectural Type</label>
-                                                <div className="relative">
-                                                    <select className="w-full bg-gray-50 border-none rounded-2xl p-4 text-[11px] font-black text-indigo-900 appearance-none focus:ring-4 ring-indigo-50 transition-all cursor-pointer uppercase tracking-widest" required
-                                                        value={editingDesign ? editingDesign.doorTypeId : newDesign.doorTypeId}
-                                                        onChange={e => editingDesign ? setEditingDesign({ ...editingDesign, doorTypeId: e.target.value }) : setNewDesign({ ...newDesign, doorTypeId: e.target.value })}>
-                                                        <option value="">Select Structure...</option>
-                                                        {doors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                                                    </select>
-                                                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-400 pointer-events-none" size={14} />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-1.5">
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Collection / Category</label>
-                                            <input type="text" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 focus:ring-4 ring-indigo-50 transition-all" placeholder="e.g. Luxury Oak Series"
-                                                value={editingDesign ? (editingDesign.category || '') : newDesign.category}
-                                                onChange={e => editingDesign ? setEditingDesign({ ...editingDesign, category: e.target.value }) : setNewDesign({ ...newDesign, category: e.target.value })} />
-                                        </div>
-
-                                        <div className="space-y-1.5">
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Master Render Asset</label>
-                                            <label className="flex items-center justify-center flex-col gap-3 cursor-pointer bg-gray-50 hover:bg-indigo-50 border-2 border-dashed border-gray-100 hover:border-indigo-200 rounded-[2rem] p-8 transition-all group overflow-hidden relative">
-                                                {/* Preview Thumbnail */}
-                                                {(editingDesign?.imageFile || newDesign.image) ? (
-                                                    <div className="flex items-center gap-4 animate-in zoom-in">
-                                                        <div className="w-12 h-16 bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100"><img src={URL.createObjectURL(editingDesign?.imageFile || newDesign.image)} className="w-full h-full object-cover" /></div>
-                                                        <span className="text-xs font-black text-indigo-600 uppercase">Asset Buffered</span>
-                                                    </div>
-                                                ) : editingDesign?.imageUrl ? (
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="w-12 h-16 bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100"><img src={getImageUrl(editingDesign.imageUrl)} className="w-full h-full object-cover" /></div>
-                                                        <span className="text-xs font-black text-emerald-600 uppercase">Current Asset: ✓</span>
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-gray-300 shadow-sm group-hover:text-indigo-500 transition-colors"><Upload size={24} /></div>
-                                                        <div className="text-center">
-                                                            <span className="text-[10px] font-black text-gray-500 group-hover:text-indigo-900 uppercase tracking-widest block">Upload Portrait CAD/Render</span>
-                                                            <span className="text-[9px] font-bold text-gray-300 uppercase mt-1">PNG/JPG • Max 5MB</span>
-                                                        </div>
-                                                    </>
-                                                )}
-                                                <input type="file" accept="image/*" className="hidden"
-                                                    onChange={e => editingDesign
-                                                        ? setEditingDesign({ ...editingDesign, imageFile: e.target.files[0] })
-                                                        : setNewDesign({ ...newDesign, image: e.target.files[0] })} />
-                                            </label>
-                                        </div>
-
-                                        <div className="flex items-center gap-3 bg-gray-50/50 p-6 rounded-[1.5rem] border border-gray-100 group transition-all hover:bg-amber-50/30">
-                                            <input type="checkbox"
-                                                checked={editingDesign ? editingDesign.isTrending : newDesign.isTrending}
-                                                onChange={e => editingDesign ? setEditingDesign({ ...editingDesign, isTrending: e.target.checked }) : setNewDesign({ ...newDesign, isTrending: e.target.checked })}
-                                                className="w-6 h-6 rounded-lg border-gray-200 text-amber-500 focus:ring-amber-500" />
-                                            <div className="flex flex-col">
-                                                <label className="text-xs font-black text-gray-700 uppercase tracking-widest">Trending Visibility</label>
-                                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Prioritize in Dealer Gallery</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex gap-4 pt-6">
-                                            <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-black shadow-lg shadow-indigo-100 transition-all active:scale-95 uppercase tracking-widest text-[10px]">Execute Save</button>
-                                            <button type="button" onClick={() => { setShowAddDesign(false); setEditingDesign(null) }} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-500 py-4 rounded-2xl font-black transition-all active:scale-95 uppercase tracking-widest text-[10px]">Abort</button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        )
-                    }
-
-                    {/* BULK UPLOAD MODAL */}
-                    {
-                        showBulkUpload && (
-                            <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
-                                <div className="bg-white rounded-[3rem] p-12 max-w-xl w-full shadow-2xl relative overflow-hidden animate-in zoom-in duration-300 border border-gray-100">
-                                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-lime-400 to-emerald-500"></div>
-
-                                    <button onClick={() => setShowBulkUpload(false)} className="absolute top-8 right-8 p-2 hover:bg-gray-100 rounded-2xl transition-all text-gray-400">
-                                        <X size={24} />
-                                    </button>
-
-                                    <div className="text-center">
-                                        <div className="bg-lime-50 w-20 h-20 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-inner border border-lime-100/50">
-                                            <FileSpreadsheet className="text-lime-600 w-10 h-10 animate-bounce" />
-                                        </div>
-
-                                        <h2 className="text-3xl font-black text-gray-900 tracking-tight leading-tight uppercase">Batch Import</h2>
-                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-2 mb-10">Protocols for {bulkUploadType.toLowerCase()} network expansion</p>
-
-                                        <div className="flex flex-col gap-4 mb-10">
-                                            {/* Download Sample */}
-                                            <button
-                                                onClick={downloadSample}
-                                                className="flex items-center justify-between px-8 py-5 bg-gray-50 hover:bg-white border-2 border-dashed border-gray-100 hover:border-indigo-500 rounded-[2rem] transition-all group"
-                                            >
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-gray-400 group-hover:text-indigo-600 shadow-sm transition-colors border border-gray-100"><Download size={20} /></div>
-                                                    <div className="text-left">
-                                                        <span className="block text-[10px] font-black text-gray-600 uppercase tracking-widest group-hover:text-indigo-900 transition-colors">Digital Blueprint</span>
-                                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Download XLSX Template</span>
-                                                    </div>
-                                                </div>
-                                                <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-gray-300 group-hover:text-indigo-500 shadow-sm">→</div>
-                                            </button>
-
-                                            <div className="flex items-center gap-4 px-2">
-                                                <div className="flex-1 h-px bg-gray-100"></div>
-                                                <span className="text-[9px] font-black text-gray-300 uppercase tracking-[0.3em]">OR SOURCE ASSET</span>
-                                                <div className="flex-1 h-px bg-gray-100"></div>
-                                            </div>
-
-                                            {/* Upload File */}
-                                            <div className="relative">
+                                        {showManualGeo && (
+                                            <div className="flex gap-2 items-center bg-gray-50 p-2 rounded-lg animate-in slide-in-from-top-2">
                                                 <input
-                                                    type="file"
-                                                    accept=".xlsx, .xls, .csv"
-                                                    onChange={handleFileUpload}
-                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                                    type="number"
+                                                    placeholder="Lat"
+                                                    value={manualLat}
+                                                    onChange={e => setManualLat(e.target.value)}
+                                                    className="w-24 p-2 text-xs border rounded"
                                                 />
-                                                <div className="flex items-center justify-center gap-3 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-5 rounded-[2rem] shadow-xl shadow-indigo-100 transition-all active:scale-95 uppercase tracking-widest text-[11px]">
-                                                    <Upload size={20} className="animate-pulse" />
-                                                    Initialize Data Stream
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="bg-gray-50/80 p-6 rounded-[2rem] border border-gray-100 text-left">
-                                            <div className="flex items-center gap-2 mb-4">
-                                                <div className="w-2 h-2 bg-indigo-500 rounded-full animate-ping"></div>
-                                                <p className="text-[10px] font-black text-indigo-900 uppercase tracking-widest">Required Data Mapping:</p>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                {bulkUploadType === 'DISTRIBUTOR' ? (
-                                                    <>
-                                                        <div className="flex flex-col gap-2">
-                                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Identity</span>
-                                                            <ul className="text-[10px] font-bold text-gray-600 space-y-1"><li>• Legal Name</li><li>• Shop Identifier</li></ul>
-                                                        </div>
-                                                        <div className="flex flex-col gap-2">
-                                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Credentials</span>
-                                                            <ul className="text-[10px] font-bold text-gray-600 space-y-1"><li>• Master Username</li><li>• Secure Password</li></ul>
-                                                        </div>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <div className="flex flex-col gap-2">
-                                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Entity</span>
-                                                            <ul className="text-[10px] font-bold text-gray-600 space-y-1"><li>• Dealer Name</li><li>• Shop Label</li></ul>
-                                                        </div>
-                                                        <div className="flex flex-col gap-2">
-                                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Routing</span>
-                                                            <ul className="text-[10px] font-bold text-gray-600 space-y-1"><li>• Google Auth Email</li><li>• Parent Distributor ID</li></ul>
-                                                        </div>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )
-                    }
-
-                    {/* === IMPORT ORDERS MODAL === */}
-                    {
-                        showImportOrders && (
-                            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200] backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                                <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8 relative animate-in zoom-in-95 duration-300">
-                                    <button onClick={() => setShowImportOrders(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-full transition-all">
-                                        <X size={20} />
-                                    </button>
-
-                                    <div className="text-center mb-6">
-                                        <div className="bg-blue-100 text-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                            <Upload size={32} />
-                                        </div>
-                                        <h3 className="text-2xl font-black text-gray-900">Import Orders from Excel</h3>
-                                        <p className="text-gray-500 text-sm mt-1">Upload historical orders or bulk import new orders</p>
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        {/* Step 1: Download Sample */}
-                                        <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
-                                            <div className="flex items-center justify-between">
-                                                <div>
-                                                    <p className="font-bold text-gray-700">Step 1: Download Sample</p>
-                                                    <p className="text-xs text-gray-500">Get the correct format template</p>
-                                                </div>
-                                                <button onClick={downloadOrderImportSample} className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-2">
-                                                    <Download size={14} /> Sample
+                                                <input
+                                                    type="number"
+                                                    placeholder="Lng"
+                                                    value={manualLng}
+                                                    onChange={e => setManualLng(e.target.value)}
+                                                    className="w-24 p-2 text-xs border rounded"
+                                                />
+                                                <button onClick={handleManualLocationSubmit} className="bg-green-600 text-white px-3 py-2 rounded text-xs font-bold hover:bg-green-700">
+                                                    Save
                                                 </button>
                                             </div>
-                                        </div>
-
-                                        {/* Step 2: Upload File */}
-                                        <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
-                                            <div className="flex items-center justify-between mb-3">
-                                                <div>
-                                                    <p className="font-bold text-blue-700">Step 2: Upload Your File</p>
-                                                    <p className="text-xs text-blue-600/70">Excel .xlsx or .xls format</p>
-                                                </div>
-                                            </div>
-                                            <label className="block w-full bg-white border-2 border-dashed border-blue-200 hover:border-blue-400 rounded-xl p-6 text-center cursor-pointer transition-all hover:bg-blue-50/50">
-                                                <Upload size={24} className="mx-auto text-blue-400 mb-2" />
-                                                <span className="text-sm font-bold text-blue-600">Click to select file</span>
-                                                <input type="file" accept=".xlsx,.xls" onChange={handleOrderImportFile} className="hidden" />
-                                            </label>
-                                        </div>
-
-                                        {/* Required Columns Info */}
-                                        <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
-                                            <p className="text-xs font-bold text-amber-700 uppercase tracking-widest mb-2">Column Inventory:</p>
-                                            <div className="grid grid-cols-3 gap-2 text-[10px] font-bold text-amber-800">
-                                                <span>orderId (Optional)</span>
-                                                <span>dealerEmail</span>
-                                                <span>designNumber</span>
-                                                <span>colorName</span>
-                                                <span>width</span>
-                                                <span>height</span>
-                                                <span>quantity</span>
-                                                <span>status</span>
-                                                <span>orderDate</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )
-                    }
-
-                    {/* Bulk Upload Designs Modal */}
-                    {
-                        showBulkDesigns && (
-                            <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 animate-in fade-in">
-                                <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95">
-                                    <div className="flex justify-between items-center mb-6">
-                                        <h3 className="text-xl font-black text-gray-900">Bulk Upload Designs</h3>
-                                        <button onClick={() => setShowBulkDesigns(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
-                                    </div>
-                                    <div className="space-y-4">
-                                        <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
-                                            <div className="flex items-center justify-between">
-                                                <div>
-                                                    <p className="font-bold text-gray-700">Step 1: Download Sample</p>
-                                                    <p className="text-xs text-gray-500">Template with columns: designNumber, category, doorType</p>
-                                                </div>
-                                                <button onClick={downloadDesignSample} className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-2">
-                                                    <Download size={14} /> Sample
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div className="bg-indigo-50 rounded-2xl p-4 border border-indigo-100">
-                                            <p className="font-bold text-indigo-700 mb-2">Step 2: Upload Your File</p>
-                                            <label className="block w-full bg-white border-2 border-dashed border-indigo-200 hover:border-indigo-400 rounded-xl p-6 text-center cursor-pointer transition-all">
-                                                <Upload size={24} className="mx-auto text-indigo-400 mb-2" />
-                                                <span className="text-sm font-bold text-indigo-600">Click to upload Excel</span>
-                                                <p className="text-xs text-gray-400 mt-1">Photos can be uploaded later via Edit</p>
-                                                <input type="file" accept=".xlsx,.xls" onChange={handleBulkDesignUpload} className="hidden" />
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )
-                    }
-
-                    {/* Bulk Upload Foil Colors Modal */}
-                    {
-                        showBulkColors && (
-                            <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 animate-in fade-in">
-                                <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95">
-                                    <div className="flex justify-between items-center mb-6">
-                                        <h3 className="text-xl font-black text-gray-900">Bulk Upload Foil Colors</h3>
-                                        <button onClick={() => setShowBulkColors(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
-                                    </div>
-                                    <div className="space-y-4">
-                                        <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
-                                            <div className="flex items-center justify-between">
-                                                <div>
-                                                    <p className="font-bold text-gray-700">Step 1: Download Sample</p>
-                                                    <p className="text-xs text-gray-500">Template with column: name</p>
-                                                </div>
-                                                <button onClick={downloadFoilColorSample} className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-2">
-                                                    <Download size={14} /> Sample
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
-                                            <p className="font-bold text-emerald-700 mb-2">Step 2: Upload Your File</p>
-                                            <label className="block w-full bg-white border-2 border-dashed border-emerald-200 hover:border-emerald-400 rounded-xl p-6 text-center cursor-pointer transition-all">
-                                                <Upload size={24} className="mx-auto text-emerald-400 mb-2" />
-                                                <span className="text-sm font-bold text-emerald-600">Click to upload Excel</span>
-                                                <p className="text-xs text-gray-400 mt-1">Texture photos can be uploaded later</p>
-                                                <input type="file" accept=".xlsx,.xls" onChange={handleBulkFoilColorUpload} className="hidden" />
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )
-                    }
-                    {/* ORDER DETAILS MODAL (COMPACT EXCEL STYLE) */}
-                    {selectedOrder && (
-                        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                            <div className="bg-white rounded-lg shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col animate-in zoom-in-95 duration-200 overflow-hidden">
-
-                                {/* Actions Header */}
-                                <div className="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
-                                    <h3 className="font-bold text-gray-700">Order Details</h3>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => window.print()} className="bg-white border border-gray-300 text-gray-700 px-3 py-1 rounded text-xs font-bold hover:bg-gray-50 flex items-center gap-2">
-                                            <Printer size={14} /> Print
-                                        </button>
-                                        <button onClick={() => setSelectedOrder(null)} className="text-gray-500 hover:text-red-500 transition-colors">
-                                            <X size={24} />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* EXCEL SHEET CONTAINER */}
-                                <div className="flex-1 overflow-y-auto p-8 bg-gray-100 font-sans">
-
-                                    <div className="bg-white border-2 border-black max-w-4xl mx-auto text-sm text-black">
-                                        {/* HEADER ROW 1 */}
-                                        <div className="flex border-b-2 border-black">
-                                            <div className="w-24 p-2 font-black border-r-2 border-black bg-blue-50/50 flex items-center">OD NO.</div>
-                                            <div className="w-24 p-2 font-bold border-r-2 border-black flex items-center justify-center text-lg">{selectedOrder.id}</div>
-
-                                            <div className="w-32 p-2 font-black border-r-2 border-black bg-blue-50/50 flex items-center">DEALER NAME</div>
-                                            <div className="flex-1 p-2 font-bold border-r-2 border-black flex items-center justify-center uppercase text-indigo-900">{selectedOrder.User?.name}</div>
-
-                                            <div className="w-24 p-2 font-black border-r-2 border-black bg-blue-50/50 flex items-center">OD DATE</div>
-                                            <div className="w-32 p-2 font-bold flex items-center justify-center">{new Date(selectedOrder.createdAt).toLocaleDateString()}</div>
-                                        </div>
-
-                                        {/* TABLE HEADER */}
-                                        <div className="grid grid-cols-12 border-b-2 border-black text-center font-black bg-blue-100">
-                                            <div className="col-span-2 p-2 border-r border-black flex items-center justify-center">Foil</div>
-                                            <div className="col-span-2 p-2 border-r border-black flex items-center justify-center">Design No</div>
-                                            <div className="col-span-1 p-2 border-r border-black flex items-center justify-center">Sr. No</div>
-                                            <div className="col-span-1 p-2 border-r border-black flex items-center justify-center">Width</div>
-                                            <div className="col-span-1 p-2 border-r border-black flex items-center justify-center">Height</div>
-                                            <div className="col-span-3 p-2 border-r border-black flex items-center justify-center">Remark</div>
-                                            <div className="col-span-1 p-2 border-r border-black flex items-center justify-center">Lock</div>
-                                            <div className="col-span-1 p-2 flex items-center justify-center">Vent</div>
-                                        </div>
-
-                                        {/* TABLE ROWS */}
-                                        <div className="divide-y divide-black">
-                                            {(() => {
-                                                let srNo = 1;
-                                                return selectedOrder.OrderItems?.map((item) => {
-                                                    const rows = [];
-                                                    for (let i = 0; i < item.quantity; i++) {
-                                                        rows.push(
-                                                            <div key={`${item.id}-${i}`} className="grid grid-cols-12 text-center font-bold relative group">
-                                                                <div className="col-span-2 p-1 border-r border-black flex items-center justify-center border-t-0 text-xs">{item.colorNameSnapshot}</div>
-                                                                <div className="col-span-2 p-1 border-r border-black flex items-center justify-center text-xs">{item.designNameSnapshot}</div>
-                                                                <div className="col-span-1 p-1 border-r border-black flex items-center justify-center bg-gray-50">{srNo++}</div>
-                                                                <div className="col-span-1 p-1 border-r border-black flex items-center justify-center">{item.width}</div>
-                                                                <div className="col-span-1 p-1 border-r border-black flex items-center justify-center">{item.height}</div>
-                                                                <div className="col-span-3 p-1 border-r border-black flex items-center justify-center text-[10px] text-gray-500 italic">{item.remarks}</div>
-                                                                <div className="col-span-1 p-1 border-r border-black flex items-center justify-center"></div>
-                                                                <div className="col-span-1 p-1 flex items-center justify-center"></div>
-                                                                <div className="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity"></div>
-                                                            </div>
-                                                        );
-                                                    }
-                                                    return rows;
-                                                });
-                                            })()}
-                                        </div>
-
-                                        {/* Empty Rows Filler */}
-                                        {[...Array(Math.max(0, 5 - (selectedOrder.OrderItems?.reduce((acc, i) => acc + i.quantity, 0) || 0)))].map((_, i) => (
-                                            <div key={`empty-${i}`} className="grid grid-cols-12 h-8 border-t border-black">
-                                                <div className="col-span-2 border-r border-black"></div>
-                                                <div className="col-span-2 border-r border-black"></div>
-                                                <div className="col-span-1 border-r border-black"></div>
-                                                <div className="col-span-1 border-r border-black"></div>
-                                                <div className="col-span-1 border-r border-black"></div>
-                                                <div className="col-span-3 border-r border-black"></div>
-                                                <div className="col-span-1 border-r border-black"></div>
-                                                <div className="col-span-1"></div>
-                                            </div>
-                                        ))}
-
-                                        {/* Footer */}
-                                        <div className="border-t-2 border-black bg-gray-50 flex justify-between p-2">
-                                            <div className="text-xs font-bold">Total Items: {selectedOrder.OrderItems?.reduce((acc, i) => acc + i.quantity, 0)}</div>
-                                            <div className="text-xs font-bold uppercase">Status: {selectedOrder.status}</div>
-                                        </div>
-                                    </div>
-
-                                    {/* Action Buttons */}
-                                    <div className="max-w-4xl mx-auto mt-4 flex justify-end">
-                                        {selectedOrder.status === 'RECEIVED' && (
-                                            <button
-                                                onClick={async () => {
-                                                    try {
-                                                        await api.put(`/orders/${selectedOrder.id}/status`, { status: 'PRODUCTION' });
-                                                        toast.success('Sent to Production');
-                                                        setSelectedOrder(null);
-                                                        fetchOrders();
-                                                    } catch (e) { toast.error('Action failed'); }
-                                                }}
-                                                className="px-6 py-2 bg-indigo-600 text-white font-bold rounded shadow-lg hover:bg-indigo-700 uppercase tracking-wider text-xs"
-                                            >
-                                                Start Production
-                                            </button>
                                         )}
                                     </div>
-
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* Stage Details Modal */}
-                    {
-                        selectedStage && (
-                            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                                <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-200">
-                                    <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                                        <div>
-                                            <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">{selectedStage.replace('_', ' ')} LIST</h2>
-                                            <p className="text-xs text-gray-400 font-bold mt-1">{stageUnits.length} Doors Pending</p>
+                        {/* Add Worker Modal */}
+                        {showAddWorker && (
+                            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-red-900/20 backdrop-blur-sm animate-in fade-in duration-200">
+                                <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-8 relative animate-in zoom-in-95 duration-200 border border-white/50">
+                                    <button onClick={() => setShowAddWorker(false)} className="absolute right-6 top-6 text-gray-400 hover:text-gray-600 transition-colors"><X size={24} /></button>
+
+                                    <div className="mb-8">
+                                        <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center text-red-600 mb-4 shadow-inner">
+                                            <User size={24} />
                                         </div>
-                                        <button onClick={() => setSelectedStage(null)} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X size={24} /></button>
+                                        <h2 className="text-2xl font-black text-gray-900">Add Staff</h2>
+                                        <p className="text-gray-500 text-sm mt-1">Create a new factory login.</p>
                                     </div>
 
-                                    <div className="overflow-y-auto flex-1 p-6">
+                                    <form onSubmit={handleAddWorker} className="space-y-4">
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-1 block">Full Name</label>
+                                            <input
+                                                type="text"
+                                                value={newWorker.name}
+                                                onChange={e => setNewWorker({ ...newWorker, name: e.target.value })}
+                                                className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm font-bold text-gray-900 focus:ring-2 ring-red-500"
+                                                placeholder="e.g. Ramesh Kumar"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-1 block">4-Digit PIN</label>
+                                            <input
+                                                type="text" // text to avoid spinners
+                                                pattern="\d{4}"
+                                                maxLength="4"
+                                                value={newWorker.pinCode}
+                                                onChange={e => setNewWorker({ ...newWorker, pinCode: e.target.value.replace(/\D/g, '') })}
+                                                className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm font-bold text-gray-900 focus:ring-2 ring-red-500 tracking-[0.5em] text-center"
+                                                placeholder="0000"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-1 block">Assigned Station</label>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {['PVC_CUT', 'FOIL_PASTING', 'EMBOSS', 'DOOR_MAKING', 'PACKING'].map(role => (
+                                                    <button
+                                                        type="button"
+                                                        key={role}
+                                                        onClick={() => setNewWorker({ ...newWorker, role })}
+                                                        className={`text-[10px] font-black uppercase py-3 rounded-xl border transition-all ${newWorker.role === role
+                                                            ? 'bg-red-600 text-white border-red-600 shadow-lg shadow-red-200'
+                                                            : 'bg-white text-gray-400 border-gray-100 hover:border-red-100 hover:bg-gray-50'
+                                                            }`}
+                                                    >
+                                                        {role.replace('_', ' ')}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white font-black py-4 rounded-xl shadow-xl shadow-red-200 transition-all mt-4 active:scale-95">
+                                            CREATE ACCOUNT
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
+
+
+                        {
+                            activeTab === 'orders' && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
+                                    {/* --- WORKFLOW TABS --- */}
+                                    <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                                        {['ALL', 'PENDING', 'PRODUCTION', 'READY', 'HISTORY'].map(tab => (
+                                            <button
+                                                key={tab}
+                                                onClick={() => setActiveStatusTab(tab)}
+                                                className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all whitespace-nowrap ${activeStatusTab === tab
+                                                    ? 'bg-red-600 text-white shadow-lg shadow-red-200 scale-105'
+                                                    : 'bg-white text-gray-400 hover:bg-gray-50 hover:text-gray-600 border border-gray-100'
+                                                    }`}
+                                            >
+                                                {tab === 'PENDING' ? '🔴 New Orders' :
+                                                    tab === 'PRODUCTION' ? '🔵 In Production' :
+                                                        tab === 'READY' ? '🟢 Ready' :
+                                                            tab === 'HISTORY' ? '⚪ Dispatched' : 'All Orders'}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Lead-time setting: auto expected ready date for new orders */}
+                                    <div className="flex items-center gap-3 bg-white border border-gray-100 rounded-2xl px-4 py-3 w-fit shadow-sm">
+                                        <Calendar size={16} className="text-red-600" />
+                                        <span className="text-xs font-black text-gray-600 uppercase tracking-widest">Standard Lead Time</span>
+                                        <input type="number" min="0" max="365" defaultValue={leadDays} key={leadDays}
+                                            onBlur={(e) => { const v = parseInt(e.target.value); if (v !== leadDays) saveLeadDays(v); }}
+                                            className="w-16 bg-gray-50 rounded-lg px-2 py-1.5 text-sm font-black text-gray-800 text-center" />
+                                        <span className="text-xs font-bold text-gray-400">days → auto-sets expected ready date on new orders</span>
+                                    </div>
+                                    {/* Bulk Action Alert Bar */}
+                                    <div className="bg-red-600 rounded-3xl p-4 flex justify-between items-center shadow-2xl shadow-red-200 animate-in slide-in-from-top-4">
+                                        <div className="flex items-center gap-4 px-4 text-white">
+                                            <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
+                                                <CheckSquare size={20} className="text-white" />
+                                            </div>
+                                            <span className="font-black text-sm tracking-tight">{selectedOrders.length} Orders Selected for Bulk Action</span>
+                                        </div>
+                                        <div className="flex gap-2 relative">
+                                            {(user?.role || '').toUpperCase() !== 'DISTRIBUTOR' && (
+                                                <button
+                                                    onClick={() => setShowBulkAction(!showBulkAction)}
+                                                    className="bg-white text-red-900 px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg flex items-center gap-2 hover:bg-red-50 transition-all"
+                                                >
+                                                    Update Status <ChevronDown size={14} strokeWidth={3} />
+                                                </button>
+                                            )}
+                                            {showBulkAction && (
+                                                <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden py-2 animate-in fade-in slide-in-from-top-2">
+                                                    {['PRODUCTION', 'READY', 'DISPATCHED'].map(s => (
+                                                        <button
+                                                            key={s}
+                                                            onClick={() => handleBulkStatusUpdate(s)}
+                                                            className="w-full text-left px-6 py-3 text-xs font-black text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors uppercase tracking-widest"
+                                                        >
+                                                            Set to {s}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <button
+                                                onClick={handleBulkDeleteOrders}
+                                                className="bg-red-500 hover:bg-red-600 text-white px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg flex items-center gap-2 transition-all"
+                                            >
+                                                <Trash2 size={14} /> Delete
+                                            </button>
+                                            <button onClick={() => setSelectedOrders([])} className="bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-2xl transition-all"><X size={18} /></button>
+                                        </div>
+                                    </div>
+
+
+                                    {/* --- SMART SEARCH BAR --- */}
+                                    <div className="flex gap-4">
+                                        <div className="flex-1 bg-white p-4 rounded-[2rem] shadow-sm border border-gray-100 flex items-center gap-4">
+                                            <Search className="text-gray-400 ml-2" size={20} />
+                                            <input
+                                                type="text"
+                                                placeholder="Smart Search: Type Order ID, Dealer Name, Shop, or Distributor..."
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                className="flex-1 bg-transparent border-none outline-none font-bold text-gray-700 placeholder-gray-300 h-full py-2"
+                                            />
+                                            {searchTerm && (
+                                                <button onClick={() => setSearchTerm('')} className="bg-gray-100 hover:bg-gray-200 p-2 rounded-full text-gray-500 transition-all">
+                                                    <X size={14} />
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {/* Import Button */}
+                                        <div className="bg-white p-2 rounded-[2rem] shadow-sm border border-gray-100 flex items-center">
+                                            <button
+                                                onClick={() => document.getElementById('order-import-input').click()}
+                                                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest transition-all shadow-lg active:scale-95"
+                                            >
+                                                <FileSpreadsheet size={18} />
+                                                Import Excel
+                                            </button>
+                                            <input
+                                                type="file"
+                                                id="order-import-input"
+                                                accept=".xlsx, .xls"
+                                                className="hidden"
+                                                onChange={handleOrderImportFile}
+                                            />
+                                            <button
+                                                onClick={downloadOrderImportSample}
+                                                className="ml-2 p-3 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"
+                                                title="Download Sample Template"
+                                            >
+                                                <Download size={20} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
                                         <table className="min-w-full text-left">
-                                            <thead className="bg-gray-50 text-gray-400 font-black uppercase text-[10px] tracking-widest border-b border-gray-100 sticky top-0">
+                                            <thead className="bg-gray-50/50 text-gray-400 font-black uppercase text-[10px] tracking-widest border-b border-gray-100">
                                                 <tr>
-                                                    <th className="px-6 py-4">Unit Code</th>
-                                                    <th className="px-6 py-4">Design</th>
-                                                    <th className="px-6 py-4">Color</th>
-                                                    <th className="px-6 py-4">Order Ref</th>
-                                                    {/* <th className="px-6 py-4">Actions</th> */}
+                                                    <th className="px-8 py-6 w-10">
+                                                        <input
+                                                            type="checkbox"
+                                                            onChange={e => {
+                                                                if (e.target.checked) setSelectedOrders(orders.map(o => o.id));
+                                                                else setSelectedOrders([]);
+                                                            }}
+                                                            checked={selectedOrders.length === orders.length && orders.length > 0}
+                                                            className="rounded-lg border-gray-200 text-red-600 focus:ring-red-500 w-5 h-5 cursor-pointer"
+                                                        />
+                                                    </th>
+                                                    <th className="px-6 py-6 font-black">Order Reference</th>
+                                                    <th className="px-6 py-6 font-black">Client (Dealer)</th>
+                                                    <th className="px-6 py-6 font-black">Item Count</th>
+                                                    <th className="px-6 py-6 font-black">Current Status</th>
+                                                    <th className="px-6 py-6 font-black">Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-gray-50">
-                                                {stageUnits.length > 0 ? stageUnits.map(unit => (
-                                                    <tr key={unit.id} className="hover:bg-indigo-50/30 transition-colors">
-                                                        <td className="px-6 py-4 font-mono text-xs font-bold text-gray-600">{unit.uniqueCode}</td>
-                                                        <td className="px-6 py-4 font-bold text-gray-900 text-sm">{unit.OrderItem?.Design?.designNumber || 'N/A'}</td>
-                                                        <td className="px-6 py-4 font-bold text-gray-700 text-xs">{unit.OrderItem?.Color?.name || 'N/A'}</td>
-                                                        <td className="px-6 py-4">
-                                                            <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-[10px] font-black uppercase">Order #{unit.OrderItem?.orderId}</span>
+                                                {filteredOrders.length > 0 ? filteredOrders.map(order => (
+                                                    <tr key={order.id} className={`hover:bg-red-50/30 transition-colors group ${order.isEdited ? 'bg-orange-50/50' : ''} ${selectedOrders.includes(order.id) ? 'bg-red-50' : ''}`}>
+                                                        <td className="px-8 py-5 align-middle">
+                                                            <div className="flex items-center justify-center">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={selectedOrders.includes(order.id)}
+                                                                    onChange={() => toggleOrderSelection(order.id)}
+                                                                    className="rounded-lg border-gray-200 text-red-600 focus:ring-red-500 w-5 h-5 cursor-pointer shadow-sm transition-all"
+                                                                />
+                                                            </div>
                                                         </td>
-                                                        {/* <td className="px-6 py-4">
-                                                <button className="text-[10px] font-bold text-indigo-600 border border-indigo-200 px-3 py-1 rounded-lg hover:bg-indigo-50">Override</button>
-                                            </td> */}
+                                                        <td className="px-6 py-5">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="font-black text-gray-900 cursor-pointer hover:text-red-600 transition-colors" onClick={() => setSelectedOrder(order)}>#{order.id}</div>
+                                                                {order.isEdited && <span className="text-[9px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-black tracking-tighter shadow-sm animate-pulse">REVISED</span>}
+                                                            </div>
+                                                            {order.siteName && <div className="text-[11px] font-black text-red-700 mt-0.5 flex items-center gap-1">📍 {order.siteName}</div>}
+                                                            <div className="flex items-center gap-1.5">
+                                                                <div className="text-[10px] text-gray-400 font-bold uppercase">{new Date(order.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                                                                {getOrderAge(order.createdAt) > 7 && ['RECEIVED', 'PRODUCTION'].includes(order.status) && (
+                                                                    <span className="text-[9px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md font-black tracking-tighter border border-red-200">CRITICAL</span>
+                                                                )}
+                                                            </div>
+                                                            {['RECEIVED', 'PRODUCTION', 'READY'].includes(order.status) && (
+                                                                <button onClick={() => updateExpectedDate(order)} title="Click to change expected ready date"
+                                                                    className={`mt-1 text-[9px] font-black px-1.5 py-0.5 rounded-md border flex items-center gap-1 w-fit transition-all hover:scale-105 ${isOverdue(order) ? 'bg-red-50 text-red-600 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
+                                                                    <Calendar size={9} />
+                                                                    {order.expectedDate ? `${isOverdue(order) ? 'OVERDUE' : 'READY BY'} ${new Date(order.expectedDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : 'SET DATE'}
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-6 py-5">
+                                                            <div className="font-black text-gray-900 text-sm tracking-tight truncate max-w-[150px]">{order.User?.name}</div>
+                                                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1 mt-0.5"><Home size={10} className="opacity-50" /> {order.User?.shopName}</div>
+                                                        </td>
+                                                        <td className="px-6 py-5">
+                                                            <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest">{order.OrderItems?.length} Units</span>
+                                                        </td>
+                                                        <td className="px-6 py-5">
+                                                            <span className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tight shadow-sm flex items-center w-fit gap-1.5 whitespace-nowrap ${order.status === 'RECEIVED' ? 'bg-yellow-400 text-yellow-900 ring-4 ring-yellow-50' :
+                                                                order.status === 'PRODUCTION' ? 'bg-red-600 text-white ring-4 ring-red-50' :
+                                                                    order.status === 'READY' ? 'bg-emerald-600 text-white ring-4 ring-emerald-50' :
+                                                                        order.status === 'DISPATCHED' ? 'bg-rose-600 text-white ring-4 ring-rose-50' :
+                                                                            'bg-red-500 text-white ring-4 ring-red-50'
+                                                                }`}>
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-white opacity-60"></span>
+                                                                {order.status}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-5">
+                                                            <div className="flex items-center gap-2">
+                                                                {order.status !== 'CANCELLED' ? (
+                                                                    <div className="flex gap-1">
+                                                                        {(user?.role || '').toUpperCase() === 'DISTRIBUTOR' ? (
+                                                                            // Distributor View Only - No Status Buttons
+                                                                            null
+                                                                        ) : (
+                                                                            // Admin / Manufacturer Status Controls
+                                                                            <>
+                                                                                {order.status === 'RECEIVED' && (
+                                                                                    <button onClick={() => updateStatus(order.id, 'PRODUCTION')} className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md transition-all">
+                                                                                        Start Production
+                                                                                    </button>
+                                                                                )}
+                                                                                {order.status === 'PRODUCTION' && (
+                                                                                    <button onClick={() => updateStatus(order.id, 'READY')} className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md transition-all">
+                                                                                        Mark Ready
+                                                                                    </button>
+                                                                                )}
+                                                                                {order.status === 'READY' && (
+                                                                                    <button onClick={() => openDispatch(order)} className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md transition-all">
+                                                                                        Dispatch + Challan
+                                                                                    </button>
+                                                                                )}
+                                                                                {['DISPATCHED', 'DELAYED'].includes(order.status) && (
+                                                                                    <div className="relative group/select">
+                                                                                        <select
+                                                                                            value={order.status}
+                                                                                            onChange={(e) => updateStatus(order.id, e.target.value)}
+                                                                                            className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-[10px] font-black uppercase tracking-widest cursor-pointer group-hover/select:bg-white group-hover/select:shadow-lg transition-all outline-none text-gray-700 ring-1 ring-black/5"
+                                                                                        >
+                                                                                            <option value="RECEIVED">📥 Received</option>
+                                                                                            <option value="PRODUCTION">🔧 Production</option>
+                                                                                            <option value="READY">✅ Ready</option>
+                                                                                            <option value="DISPATCHED">🚚 Dispatched</option>
+                                                                                            <option value="DELAYED">⏳ Delayed</option>
+                                                                                            <option value="CANCELLED">❌ Cancel</option>
+                                                                                        </select>
+                                                                                    </div>
+                                                                                )}
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-red-500 font-black text-[10px] uppercase tracking-widest bg-red-50 px-3 py-1 rounded-xl opacity-60 italic">Voided</span>
+                                                                )}
+                                                                <button
+                                                                    onClick={() => handlePrintOrder(order)}
+                                                                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                                    title="Print Invoice / Gate Pass"
+                                                                >
+                                                                    <Printer size={16} />
+                                                                </button>
+                                                                {order.status === 'DISPATCHED' && (
+                                                                    <button
+                                                                        onClick={() => handlePrintChallan(order)}
+                                                                        className="p-2 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all"
+                                                                        title="Print Delivery Challan"
+                                                                    >
+                                                                        <FileSpreadsheet size={16} />
+                                                                    </button>
+                                                                )}
+
+                                                                {(user?.role || '').toUpperCase() !== 'DISTRIBUTOR' && (
+                                                                    <button
+                                                                        onClick={() => handleDeleteOrder(order.id)}
+                                                                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                                        title="Delete Order"
+                                                                    >
+                                                                        <Trash2 size={16} />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </td>
                                                     </tr>
                                                 )) : (
-                                                    <tr><td colSpan="5" className="px-6 py-20 text-center text-gray-300 font-black uppercase tracking-widest italic">No Items in this stage</td></tr>
+                                                    <tr><td colSpan="6" className="px-6 py-20 text-center"><div className="text-gray-300 font-black uppercase tracking-[0.2em] italic">No Orders Detected</div></td></tr>
                                                 )}
                                             </tbody>
                                         </table>
                                     </div>
                                 </div>
+                            )
+                        }
+
+                        {
+
+                            activeTab === 'network' && (
+                                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-12">
+                                    {console.log('RENDER NETWORK TAB', { networkView, distributors: distributors.length, dealers: dealers.length, role: user?.role })}
+                                    {/* Network Sub-tab Navigation */}
+                                    <div className="flex gap-3 border-b pb-4 overflow-x-auto no-scrollbar">
+                                        {(user?.role === 'MANUFACTURER' || user?.role === 'ADMIN') && (
+                                            <button onClick={() => setNetworkView('distributors')} className={`whitespace-nowrap px-6 py-3 rounded-t-xl font-bold transition-all ${networkView === 'distributors' ? 'bg-red-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Distributors</button>
+                                        )}
+                                        <button onClick={() => setNetworkView('dealers')} className={`whitespace-nowrap px-6 py-3 rounded-t-xl font-bold transition-all ${networkView === 'dealers' ? 'bg-red-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Dealers</button>
+                                    </div>
+
+                                    {/* DISTRIBUTORS SUB-TAB - Only for MANUFACTURER/ADMIN */}
+                                    {networkView === 'distributors' && (user?.role === 'MANUFACTURER' || user?.role === 'ADMIN') && (
+                                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
+                                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                                <div>
+                                                    <h2 className="text-2xl font-black text-gray-900 tracking-tight">Distributor Network</h2>
+                                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">
+                                                        Manage partners and authorizations <span className="text-red-400">({distributors.length})</span>
+                                                    </p>
+                                                </div>
+                                                <div className="flex gap-2 w-full sm:w-auto">
+                                                    <button onClick={() => { fetchDistributors(); toast.success('Refreshing...'); }} className="bg-white hover:bg-gray-50 text-red-600 px-4 py-2.5 rounded-2xl font-black shadow-sm border border-red-100 flex items-center justify-center gap-2 text-xs transition-all active:scale-95 uppercase tracking-widest"><RefreshCw size={16} /> Refresh</button>
+                                                    <button onClick={() => { setBulkUploadType('DISTRIBUTOR'); setShowBulkUpload(true); }} className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-2xl font-black shadow-lg shadow-emerald-100 flex items-center justify-center gap-2 text-xs transition-all active:scale-95 uppercase tracking-widest"><Upload size={16} /> Bulk</button>
+                                                    <button onClick={() => openUserModal('DISTRIBUTOR')} className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-2xl font-black shadow-lg shadow-red-100 flex items-center justify-center gap-2 transition-all active:scale-95 uppercase tracking-widest text-xs">+ Register New</button>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                {distributors.length > 0 ? distributors.map(d => (
+                                                    <div key={d.id} className="bg-white p-6 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 relative overflow-hidden group hover:border-red-200 transition-all duration-300">
+                                                        <div className={`absolute top-0 left-0 w-1.5 h-full ${d.isEnabled ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
+                                                        <div className="flex justify-between items-start mb-6">
+                                                            <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center text-2xl shadow-inner group-hover:bg-red-50 transition-colors">
+                                                                🏢
+                                                            </div>
+                                                            <div className="flex gap-1">
+                                                                <button onClick={() => openUserModal('DISTRIBUTOR', d)} className="p-2.5 bg-gray-50 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"><Edit2 size={16} /></button>
+                                                                <button onClick={() => handleDeleteUser(d.id)} className="p-2.5 bg-gray-50 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={16} /></button>
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <h3 className="font-black text-gray-900 text-lg leading-tight truncate">{d.name}</h3>
+                                                                <span className={`w-2 h-2 rounded-full ${d.isEnabled ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-red-500'}`}></span>
+                                                            </div>
+                                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-4 flex items-center gap-1"><Home size={10} /> {d.shopName || 'Wholesale Partner'}</p>
+
+                                                            <div className="space-y-3 pt-4 border-t border-gray-50">
+                                                                <div className="flex justify-between items-center text-xs">
+                                                                    <span className="text-gray-400 font-bold">Region</span>
+                                                                    <span className="text-gray-700 font-black truncate max-w-[120px]">{d.city}</span>
+                                                                </div>
+                                                                <div className="flex justify-between items-center text-xs">
+                                                                    <span className="text-gray-400 font-bold">Volume</span>
+                                                                    <div className="flex gap-1">
+                                                                        <span className="bg-red-50 text-red-700 px-2 py-1 rounded-lg font-black text-[10px]">{d.orderCount || 0} Total</span>
+                                                                        <span className="bg-amber-50 text-amber-700 px-2 py-1 rounded-lg font-black text-[10px]">{d.pendingOrderCount || 0} Pend.</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <button onClick={() => toggleUserStatus(d.id, !d.isEnabled)} className={`mt-6 w-full py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${d.isEnabled ? 'bg-red-50 text-red-600 hover:bg-red-600 hover:text-white' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white'
+                                                            }`}>
+                                                            {d.isEnabled ? 'Suspend Access' : 'Restore Access'}
+                                                        </button>
+                                                    </div>
+                                                )) : (
+                                                    <div className="col-span-full py-20 text-center opacity-30 grayscale italic text-sm">No partners detected...</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* DEALERS SUB-TAB */}
+                                    {networkView === 'dealers' && (
+                                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
+                                            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 w-full lg:w-auto">
+                                                    <div>
+                                                        <h2 className="text-2xl font-black text-gray-900 tracking-tight">Dealer Directory</h2>
+                                                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">
+                                                            Clients <span className="text-red-400">({filteredDealers.length}/{dealers.length})</span>
+                                                        </p>
+                                                    </div>
+                                                    <div className="w-px h-10 bg-gray-100 hidden sm:block"></div>
+                                                    <div className="relative group w-full sm:w-64">
+                                                        <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-red-500" size={16} />
+                                                        <select
+                                                            value={distributorFilter}
+                                                            onChange={(e) => setDistributorFilter(e.target.value)}
+                                                            className="w-full pl-12 pr-10 py-3 bg-red-50 border-none rounded-2xl text-[10px] font-black text-red-900 appearance-none focus:ring-4 ring-red-100 transition-all cursor-pointer uppercase tracking-widest"
+                                                        >
+                                                            <option value="">All Partners</option>
+                                                            {distributors.map(dist => (
+                                                                <option key={dist.id} value={dist.id}>{dist.name}</option>
+                                                            ))}
+                                                        </select>
+                                                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-red-400 pointer-events-none" size={14} />
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2 w-full lg:w-auto">
+                                                    <button onClick={() => { fetchDealers(); toast.success('Refreshing...'); }} className="flex-1 lg:flex-none bg-white hover:bg-gray-50 text-red-600 px-5 py-3 rounded-2xl font-black shadow-sm border border-red-100 flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-widest">
+                                                        <RefreshCw size={18} /> Refresh
+                                                    </button>
+                                                    <button onClick={() => { setBulkUploadType('DEALER'); setShowBulkUpload(true); }} className="flex-1 lg:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-2xl font-black shadow-lg shadow-emerald-100 flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-widest">
+                                                        <Upload size={18} /> Bulk
+                                                    </button>
+                                                    <button onClick={() => openUserModal('DEALER')} className="flex-1 lg:flex-none bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-2xl font-black shadow-lg shadow-red-100 flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-widest">
+                                                        <Plus size={18} /> New Dealer
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-12">
+                                                {filteredDealers.length > 0 ? filteredDealers.map(dealer => (
+                                                    <div key={dealer.id} className="bg-white p-6 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 relative group hover:border-red-200 transition-all duration-300">
+                                                        <div className="flex justify-between items-start mb-6">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 font-black text-xl shadow-inner group-hover:scale-110 transition-transform">
+                                                                    {dealer.name.charAt(0)}
+                                                                </div>
+                                                                <div>
+                                                                    <h3 className="font-black text-gray-900 text-lg leading-tight truncate max-w-[150px]">{dealer.name}</h3>
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <span className={`w-1.5 h-1.5 rounded-full ${dealer.isEnabled ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+                                                                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{dealer.isEnabled ? 'Active Client' : 'Restricted'}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <button onClick={() => openUserModal('DEALER', dealer)} className="p-2.5 bg-gray-50 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"><Edit2 size={16} /></button>
+                                                                <button onClick={() => handleDeleteUser(dealer.id)} className="p-2.5 bg-gray-50 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={16} /></button>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="space-y-4">
+                                                            <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                                                                <div className="flex items-center gap-3 mb-2">
+                                                                    <Home size={14} className="text-gray-400" />
+                                                                    <span className="text-xs font-black text-gray-700 truncate">{dealer.shopName || 'General Store'}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-3">
+                                                                    <Filter size={14} className="text-gray-400" />
+                                                                    <span className="text-xs font-bold text-gray-500">{dealer.city || 'Regional Area'}</span>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex justify-between items-center px-2">
+                                                                <div>
+                                                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-0.5">Assigned To</p>
+                                                                    <p className="text-xs font-black text-red-600">@{dealer.Distributor?.name || 'Unassigned'}</p>
+                                                                </div>
+                                                                <div className="text-right">
+                                                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-0.5">Status</p>
+                                                                    <button
+                                                                        onClick={() => toggleUserStatus(dealer.id, !dealer.isEnabled)}
+                                                                        className={`text-[10px] font-black uppercase px-3 py-1 rounded-full transition-all ${dealer.isEnabled ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-red-100 text-red-700 hover:bg-red-200'
+                                                                            }`}
+                                                                    >
+                                                                        {dealer.isEnabled ? 'Enabled' : 'Disabled'}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )) : (
+                                                    <div className="col-span-full py-20 text-center opacity-30 grayscale italic text-sm">No clients detected...</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        }
+
+
+
+                        {/* MATERIAL ANALYSIS TAB */}
+
+
+
+                        {
+                            activeTab === 'masters' && (
+                                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-12">
+                                    {/* Masters Sub-tab Navigation */}
+                                    <div className="flex gap-3 border-b pb-4 overflow-x-auto no-scrollbar">
+                                        <button onClick={() => setMastersView('designs')} className={`whitespace-nowrap px-6 py-3 rounded-t-xl font-bold transition-all ${mastersView === 'designs' ? 'bg-red-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Designs</button>
+                                        <button onClick={() => setMastersView('colors')} className={`whitespace-nowrap px-6 py-3 rounded-t-xl font-bold transition-all ${mastersView === 'colors' ? 'bg-red-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Colors</button>
+                                        <button onClick={() => setMastersView('specs')} className={`whitespace-nowrap px-6 py-3 rounded-t-xl font-bold transition-all ${mastersView === 'specs' ? 'bg-red-600 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Types & Sheets</button>
+                                    </div>
+
+                                    {/* DESIGNS SUB-TAB */}
+                                    {mastersView === 'designs' && (
+                                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
+                                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                                <div>
+                                                    <h2 className="text-2xl font-black text-gray-900 tracking-tight">Design Portfolio</h2>
+                                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Digital catalog and product inventory</p>
+                                                </div>
+                                                <div className="flex gap-2 w-full sm:w-auto">
+                                                    <button onClick={handleAutoCategorize} className="flex-1 sm:flex-none bg-red-50 hover:bg-red-100 text-red-600 px-5 py-3 rounded-2xl font-black shadow-sm flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-widest border border-red-200">
+                                                        <Wand2 size={16} /> Auto-Fix
+                                                    </button>
+                                                    <button onClick={() => setShowBulkDesigns(true)} className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-2xl font-black shadow-lg shadow-emerald-100 flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-widest">
+                                                        <Upload size={16} /> Bulk
+                                                    </button>
+                                                    <button onClick={() => setShowAddDesign(true)} className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-2xl font-black shadow-lg shadow-red-100 flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-widest">
+                                                        <Plus size={18} /> New
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8">
+                                                {designs.map(d => (
+                                                    <div key={d.id} className={`group relative bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-red-100/50 hover:-translate-y-2 ${!d.isEnabled ? 'grayscale opacity-60' : ''}`}>
+                                                        <div className="aspect-[3/4.5] bg-gray-50 relative flex items-center justify-center overflow-hidden">
+                                                            {d.imageUrl ? (
+                                                                <img
+                                                                    src={getImageUrl(d.imageUrl)}
+                                                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                                                    alt={d.designNumber}
+                                                                />
+                                                            ) : (
+                                                                <ImageIcon size={48} className="text-gray-200" />
+                                                            )}
+
+                                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-[2px]">
+                                                                <button onClick={() => openEditDesign(d)} className="bg-white/90 hover:bg-white text-red-600 p-3 rounded-2xl shadow-xl transition-all active:scale-90"><Edit2 size={18} /></button>
+                                                                <button onClick={() => handleDeleteDesign(d.id)} className="bg-white/90 hover:bg-white text-red-600 p-3 rounded-2xl shadow-xl transition-all active:scale-90"><Trash2 size={18} /></button>
+                                                            </div>
+
+                                                            <div className="absolute top-4 left-4 flex flex-col gap-2">
+                                                                <span className="bg-white/90 backdrop-blur-md text-gray-900 text-[10px] px-3 py-1.5 rounded-full font-black shadow-lg uppercase tracking-widest border border-white/50">
+                                                                    {d.DoorType?.name || 'Standard'}
+                                                                </span>
+                                                                {d.isTrending && (
+                                                                    <span className="bg-yellow-400 text-yellow-900 text-[10px] px-3 py-1.5 rounded-full font-black shadow-lg uppercase tracking-widest border border-yellow-200 animate-pulse">
+                                                                        🔥 Trending
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="p-6">
+                                                            <div className="flex justify-between items-start mb-1">
+                                                                <h3 className="font-black text-gray-900 text-lg tracking-tight">#{d.designNumber}</h3>
+                                                                {!d.isEnabled && <span className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Inactive</span>}
+                                                            </div>
+                                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
+                                                                {d.category || 'Premium Collection'} • {d.DoorType?.thickness || '32mm'}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* COLORS SUB-TAB */}
+                                    {mastersView === 'colors' && (
+                                        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+                                                <div>
+                                                    <h2 className="text-2xl font-black text-gray-900 tracking-tight">Foil Color Spectrum</h2>
+                                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Laminate texture and finish definitions</p>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => setShowBulkColors(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-2xl font-black shadow-lg shadow-emerald-100 flex items-center gap-2 transition-all active:scale-95 text-[10px] uppercase tracking-widest"><Upload size={14} /> Bulk</button>
+                                                    <button onClick={() => setShowAddColor(true)} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-2xl font-black shadow-lg shadow-red-100 flex items-center gap-2 transition-all active:scale-95 text-[10px] uppercase tracking-widest">+ New Foil</button>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-6 gap-4">
+                                                {colors.map(c => (
+                                                    <div key={c.id} className={`relative group aspect-square rounded-3xl overflow-hidden border border-gray-100 transition-all duration-300 hover:shadow-xl hover:shadow-red-100/30 ${!c.isEnabled ? 'grayscale opacity-50' : ''}`}>
+                                                        {c.imageUrl ? (
+                                                            <img src={getImageUrl(c.imageUrl)} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <div className="w-full h-full shadow-inner" style={{ backgroundColor: c.hexCode }}></div>
+                                                        )}
+
+                                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 backdrop-blur-sm">
+                                                            <div className="flex gap-2">
+                                                                <button onClick={() => setEditingColor({ ...c, imageFile: null })} className="bg-white/90 hover:bg-white text-red-600 p-2 rounded-xl shadow-lg transition-all active:scale-90"><Edit2 size={14} /></button>
+                                                                <button onClick={() => handleDeleteColor(c.id)} className="bg-white/90 hover:bg-white text-red-600 p-2 rounded-xl shadow-lg transition-all active:scale-90"><Trash2 size={14} /></button>
+                                                            </div>
+                                                            <span className="text-[10px] text-white font-black uppercase tracking-widest">{c.name}</span>
+                                                        </div>
+
+                                                        <div className="absolute bottom-3 left-3 right-3 bg-white/90 backdrop-blur-md px-2 py-1 rounded-lg text-[9px] font-black text-center truncate shadow-sm group-hover:opacity-0 transition-opacity border border-white/50">
+                                                            {c.name}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* SPECIFICATIONS SUB-TAB */}
+                                    {mastersView === 'specs' && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                            <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 h-min">
+                                                <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-1">Door Types</h2>
+                                                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-8">PVC · WPC · HPL · Add new types here</p>
+
+                                                <div className="flex gap-2 mb-6">
+                                                    <input type="text" placeholder="Type (e.g. WPC)" className="w-full bg-gray-50 rounded-xl px-3 py-2 font-bold text-sm" value={newDoorType.name} onChange={e => setNewDoorType({ ...newDoorType, name: e.target.value })} />
+                                                    <input type="text" placeholder="Thick (e.g. 28mm)" className="w-full bg-gray-50 rounded-xl px-3 py-2 font-bold text-sm" value={newDoorType.thickness} onChange={e => setNewDoorType({ ...newDoorType, thickness: e.target.value })} />
+                                                    <button onClick={handleAddDoorType} className="bg-red-600 text-white rounded-xl p-3 shadow-lg hover:bg-red-700 active:scale-95 transition-all"><Plus size={16} /></button>
+                                                </div>
+                                                <div className="space-y-3">
+                                                    {doors.map(d => (
+                                                        <div key={d.id} className={`flex justify-between items-center p-5 rounded-2xl border group transition-all ${d.isEnabled ? 'bg-gray-50/50 border-gray-100 hover:border-red-100 hover:bg-red-50/30' : 'bg-red-50/30 border-red-100 opacity-60'}`}>
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-lg shadow-sm">🚪</div>
+                                                                <div>
+                                                                    <span className="block text-xs font-black text-gray-900 uppercase tracking-tight">{d.name}</span>
+                                                                    <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{d.thickness} {!d.isEnabled && '• DISABLED'}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-black text-xs text-red-600 bg-red-50 px-3 py-1.5 rounded-xl">{d.thickness}</span>
+                                                                <button onClick={() => handleToggleDoorType(d)} title={d.isEnabled ? 'Disable' : 'Enable'} className={`p-2 rounded-xl transition-all ${d.isEnabled ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}>
+                                                                    {d.isEnabled ? <Eye size={14} /> : <EyeOff size={14} />}
+                                                                </button>
+                                                                <button onClick={() => handleDeleteDoorType(d)} title="Delete" className="p-2 rounded-xl text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all">
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    {doors.length === 0 && <p className="text-center text-xs text-gray-400 italic py-4">No door types yet. Add your first one above.</p>}
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 h-min">
+                                                <div className="flex justify-between items-center mb-6">
+                                                    <div>
+                                                        <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-1">Sheet Sizes</h2>
+                                                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Raw Material Dimensions</p>
+                                                    </div>
+                                                    <div className="flex bg-gray-100 p-1 rounded-xl">
+                                                        <button onClick={() => setSheetTypeView('PVC')} className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${sheetTypeView === 'PVC' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>PVC</button>
+                                                        <button onClick={() => setSheetTypeView('WPC')} className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${sheetTypeView === 'WPC' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>WPC</button>
+                                                    </div>
+                                                </div>
+
+
+                                                <div className="flex gap-2 mb-6">
+                                                    <input type="number" placeholder="W" className="w-20 bg-gray-50 rounded-xl px-3 py-2 font-bold text-sm" value={newSheet.width} onChange={e => setNewSheet({ ...newSheet, width: e.target.value })} />
+                                                    <span className="self-center text-gray-400 font-black">x</span>
+                                                    <input type="number" placeholder="H" className="w-20 bg-gray-50 rounded-xl px-3 py-2 font-bold text-sm" value={newSheet.height} onChange={e => setNewSheet({ ...newSheet, height: e.target.value })} />
+                                                    <button onClick={handleAddSheet} className="bg-red-600 text-white rounded-xl p-3 shadow-lg hover:bg-red-700 active:scale-95 transition-all"><Plus size={16} /></button>
+                                                </div>
+
+                                                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                                    {sheets.filter(s => s.materialType === sheetTypeView).map(s => (
+                                                        <div key={s.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors group">
+                                                            <span className="font-black text-gray-700">{s.width} x {s.height}</span>
+                                                            <button onClick={() => handleDeleteSheet(s.id)} className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={14} /></button>
+                                                        </div>
+                                                    ))}
+                                                    {sheets.length === 0 && <div className="text-center text-xs text-gray-400 italic py-4">No sizes defined. Using defaults.</div>}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        }
+
+                        {/* What's New Tab - Social Feed for Admin */}
+                        {
+                            activeTab === 'whatsnew' && (
+                                <div className="max-w-2xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-1000 pb-20">
+                                    {/* Create Post Header */}
+                                    <div className="text-center space-y-2">
+                                        <h2 className="text-3xl font-black text-gray-900 tracking-tight">Post Broadcast</h2>
+                                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Share updates with your entire network</p>
+                                    </div>
+
+                                    {/* Create Post Card */}
+                                    <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-gray-200/60 p-8 border border-gray-50 transform hover:scale-[1.01] transition-all duration-500">
+                                        <div className="flex items-center gap-4 mb-8">
+                                            <div className="w-12 h-12 bg-red-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-red-200 animate-pulse">
+                                                <Bell size={20} />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-black text-gray-900 leading-none">Global Announcement</h3>
+                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Compose your message</p>
+                                            </div>
+                                        </div>
+
+                                        <form onSubmit={handleCreatePost} className="space-y-6">
+                                            <input
+                                                type="text"
+                                                placeholder="Brief Title (e.g. New Door Series Launch)"
+                                                className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 placeholder:text-gray-300 focus:ring-4 ring-red-50 transition-all"
+                                                value={newPost.title}
+                                                onChange={e => setNewPost({ ...newPost, title: e.target.value })}
+                                            />
+                                            <textarea
+                                                placeholder="Describe your update in detail..."
+                                                className="w-full bg-gray-50 border-none rounded-2xl p-6 text-sm font-medium text-gray-600 placeholder:text-gray-300 min-h-[150px] resize-none focus:ring-4 ring-red-50 transition-all"
+                                                value={newPost.content}
+                                                onChange={e => setNewPost({ ...newPost, content: e.target.value })}
+                                                required
+                                            />
+
+                                            <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between bg-gray-50/50 p-4 rounded-[2rem] border border-gray-100">
+                                                <div className="flex gap-4">
+                                                    <div className="relative">
+                                                        <select
+                                                            className="pl-4 pr-10 py-2.5 bg-white border-none rounded-xl text-[10px] font-black text-gray-700 appearance-none focus:ring-4 ring-red-100 transition-all cursor-pointer uppercase tracking-widest shadow-sm"
+                                                            value={newPost.postType}
+                                                            onChange={e => setNewPost({ ...newPost, postType: e.target.value })}
+                                                        >
+                                                            <option value="announcement">📢 Broadcast</option>
+                                                            <option value="new_design">🚪 Design</option>
+                                                            <option value="promotion">🎉 Promo</option>
+                                                            <option value="update">📋 System</option>
+                                                        </select>
+                                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={12} />
+                                                    </div>
+
+                                                    <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2.5 rounded-xl shadow-sm hover:bg-red-50 transition-colors border-none group">
+                                                        <ImageIcon size={16} className="text-red-500 group-hover:scale-110 transition-transform" />
+                                                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Add Media</span>
+                                                        <input type="file" accept="image/*" className="hidden" onChange={e => setNewPost({ ...newPost, image: e.target.files[0] })} />
+                                                    </label>
+                                                </div>
+
+                                                {newPost.image && (
+                                                    <div className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-4 py-2.5 rounded-xl border border-emerald-100 animate-in zoom-in">
+                                                        ✓ {newPost.image.name.length > 15 ? newPost.image.name.substring(0, 15) + '...' : newPost.image.name}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-[1.5rem] font-black shadow-xl shadow-red-100 transition-all active:scale-[0.98] uppercase tracking-[0.2em] text-xs">
+                                                Publish Update
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                    {/* Posts Feed Section */}
+                                    <div className="space-y-10 relative">
+                                        <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-red-100/50 via-gray-100 to-transparent -translate-x-1/2 hidden sm:block"></div>
+
+                                        {posts.length === 0 ? (
+                                            <div className="text-center bg-white p-12 rounded-[3rem] border border-dashed border-gray-200">
+                                                <div className="text-gray-200 mb-4 flex justify-center"><Bell size={48} /></div>
+                                                <p className="text-gray-400 font-bold uppercase tracking-widest text-xs italic">Awaiting your first broadcast...</p>
+                                            </div>
+                                        ) : posts.map((post, idx) => (
+                                            <div key={post.id} className={`relative sm:w-[90%] ${idx % 2 === 0 ? 'sm:mr-auto' : 'sm:ml-auto'} group`}>
+                                                <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 overflow-hidden border border-gray-100 hover:border-red-200 transition-all duration-500">
+                                                    {post.imageUrl && (
+                                                        <div className="h-64 bg-gray-50 overflow-hidden relative">
+                                                            <img src={getImageUrl(post.imageUrl)} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt="Post" />
+                                                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                                                        </div>
+                                                    )}
+                                                    <div className="p-8">
+                                                        <div className="flex justify-between items-start mb-6">
+                                                            <span className={`text-[10px] font-black px-4 py-2 rounded-full uppercase tracking-widest shadow-sm ring-1 ring-inset ${post.postType === 'announcement' ? 'bg-red-50 text-red-700 ring-red-200' :
+                                                                post.postType === 'new_design' ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' :
+                                                                    post.postType === 'promotion' ? 'bg-amber-50 text-amber-700 ring-amber-200' :
+                                                                        'bg-gray-50 text-gray-700 ring-gray-200'
+                                                                }`}>
+                                                                {post.postType.replace('_', ' ')}
+                                                            </span>
+                                                            <button onClick={() => handleDeletePost(post.id)} className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100">
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </div>
+
+                                                        {post.title && <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-3 leading-tight uppercase">{post.title}</h3>}
+                                                        <p className="text-gray-500 text-sm leading-relaxed font-medium whitespace-pre-wrap">{post.content}</p>
+
+                                                        <div className="mt-8 pt-6 border-t border-gray-50 flex justify-between items-center">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center text-[10px] font-black text-red-600 italic">Z</div>
+                                                                <span className="text-[10px] font-black text-red-900 uppercase tracking-widest">Admin Team</span>
+                                                            </div>
+                                                            <div className="text-[10px] font-bold text-gray-300 uppercase tracking-widest flex items-center gap-1.5">
+                                                                <Calendar size={12} /> {new Date(post.createdAt).toLocaleDateString()}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )
+                        }
+
+                        {/* IMPORT PROGRESS OVERLAY */}
+                        {
+                            importStatus.active && (
+                                <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-xl flex items-center justify-center p-8 animate-in fade-in duration-500">
+                                    <div className="text-center max-w-md w-full">
+                                        <div className="relative w-32 h-32 mx-auto mb-12">
+                                            <div className="absolute inset-0 bg-red-500/30 rounded-full animate-ping"></div>
+                                            <div className="absolute inset-0 bg-red-500/20 rounded-full animate-pulse-slow"></div>
+                                            <div className="relative bg-white rounded-full w-full h-full flex items-center justify-center shadow-2xl shadow-red-500/50">
+                                                <FileSpreadsheet size={48} className="text-red-600 animate-bounce" />
+                                            </div>
+                                            {/* Rotating Ring */}
+                                            <div className="absolute -inset-4 border-4 border-t-red-500 border-r-transparent border-b-red-500 border-l-transparent rounded-full animate-spin-slow opacity-60"></div>
+                                        </div>
+
+                                        <h2 className="text-4xl font-black text-white tracking-tight mb-4 animate-in slide-in-from-bottom-4 duration-700">{importStatus.text}</h2>
+                                        {importStatus.total > 0 && <p className="text-red-200 font-bold uppercase tracking-[0.3em] animate-pulse">Processing {importStatus.total} Rows</p>}
+
+                                        <div className="mt-12 w-full bg-white/10 h-2 rounded-full overflow-hidden backdrop-blur-sm">
+                                            <div
+                                                className="h-full bg-gradient-to-r from-red-500 via-rose-500 to-pink-500 transition-all duration-300 ease-out shadow-[0_0_20px_rgba(99,102,241,0.5)]"
+                                                style={{ width: `${importStatus.progress || 5}%` }}
+                                            ></div>
+                                        </div>
+                                        <p className="mt-4 text-white/50 font-mono text-xs">{importStatus.progress}% Complete</p>
+                                    </div>
+                                </div>
+                            )
+                        }
+
+                        {/* MODALS */}
+
+                        {/* DISPATCH + CHALLAN MODAL */}
+                        {dispatchOrder && (
+                            <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in" onClick={() => setDispatchOrder(null)}>
+                                <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in" onClick={e => e.stopPropagation()}>
+                                    <div className="flex items-center gap-2 mb-1"><MapPin className="text-rose-600" /><h3 className="text-xl font-black text-gray-900">Dispatch Order #{dispatchOrder.id}</h3></div>
+                                    <p className="text-xs text-gray-400 font-bold mb-6">Enter transport details for the delivery challan</p>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Vehicle Number</label>
+                                            <input className="w-full bg-gray-50 rounded-2xl p-4 text-sm font-bold mt-1" value={dispatchForm.vehicleNo} onChange={e => setDispatchForm({ ...dispatchForm, vehicleNo: e.target.value })} placeholder="e.g. GJ-05-AB-1234" />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Transport / Carrier Name</label>
+                                            <input className="w-full bg-gray-50 rounded-2xl p-4 text-sm font-bold mt-1" value={dispatchForm.transportName} onChange={e => setDispatchForm({ ...dispatchForm, transportName: e.target.value })} placeholder="e.g. Patel Transport" />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">L.R. Number (optional)</label>
+                                            <input className="w-full bg-gray-50 rounded-2xl p-4 text-sm font-bold mt-1" value={dispatchForm.lrNumber} onChange={e => setDispatchForm({ ...dispatchForm, lrNumber: e.target.value })} placeholder="Lorry receipt number" />
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-3 pt-6">
+                                        <button onClick={() => submitDispatch(true)} className="flex-1 bg-rose-600 hover:bg-rose-700 text-white py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg flex items-center justify-center gap-2"><Printer size={14} /> Dispatch & Print Challan</button>
+                                        <button onClick={() => submitDispatch(false)} className="flex-1 bg-gray-100 text-gray-600 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest">Dispatch Only</button>
+                                    </div>
+                                    <button onClick={() => setDispatchOrder(null)} className="w-full mt-3 text-gray-400 text-xs font-bold py-2">Cancel</button>
+                                </div>
                             </div>
-                        )
-                    }
+                        )}
+
+                        {/* 1. USER MODAL */}
+                        {
+                            showUserModal && (
+                                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
+                                    <div className="bg-white rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl animate-in zoom-in duration-300 border border-gray-100 relative overflow-hidden">
+                                        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-500 via-rose-500 to-pink-500"></div>
+                                        <div className="flex justify-between items-center mb-8">
+                                            <div>
+                                                <h3 className="text-2xl font-black text-gray-900 tracking-tight">{editingUser ? 'Update' : 'Initialize'} Partner</h3>
+                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Configure {userModalType.toLowerCase()} credentials</p>
+                                            </div>
+                                            <button onClick={() => setShowUserModal(false)} className="p-2 hover:bg-gray-100 rounded-2xl transition-all text-gray-400"><X /></button>
+                                        </div>
+
+                                        <form onSubmit={handleUserSubmit} className="space-y-6">
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Legal Name</label>
+                                                <input type="text" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 focus:ring-4 ring-red-50 transition-all" value={userForm.name} onChange={e => setUserForm({ ...userForm, name: e.target.value })} required />
+                                            </div>
+
+                                            {/* DISTRIBUTOR SPECIFIC */}
+                                            {userModalType === 'DISTRIBUTOR' && (
+                                                <>
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Universal Username</label>
+                                                        <input type="text" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 focus:ring-4 ring-red-50 transition-all disabled:opacity-50" value={userForm.username} onChange={e => setUserForm({ ...userForm, username: e.target.value })} disabled={!!editingUser} required />
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{editingUser ? 'New Password (Optional)' : 'Secure Password'}</label>
+                                                        <input type="password" title="Set a secure password" size="20" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 focus:ring-4 ring-red-50 transition-all" value={userForm.password} onChange={e => setUserForm({ ...userForm, password: e.target.value })} placeholder={editingUser ? "Leave empty to keep current" : "Min. 6 characters"} />
+                                                    </div>
+                                                </>
+                                            )}
+
+                                            {/* DEALER SPECIFIC */}
+                                            {userModalType === 'DEALER' && (
+                                                <>
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Authorized Google Email</label>
+                                                        <input type="email" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 focus:ring-4 ring-red-50 transition-all" value={userForm.email} onChange={e => setUserForm({ ...userForm, email: e.target.value })} required placeholder="partner@gmail.com" />
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Establishment Name</label>
+                                                        <input type="text" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 focus:ring-4 ring-red-50 transition-all" value={userForm.shopName} onChange={e => setUserForm({ ...userForm, shopName: e.target.value })} placeholder="e.g. Premium Hardware Hub" />
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Reporting Distributor</label>
+                                                        <div className="relative">
+                                                            <select className="w-full bg-gray-50 border-none rounded-2xl p-4 text-[11px] font-black text-red-900 appearance-none focus:ring-4 ring-red-50 transition-all cursor-pointer uppercase tracking-widest" value={userForm.distributorId} onChange={e => setUserForm({ ...userForm, distributorId: e.target.value })} required>
+                                                                <option value="">Select Primary Partner...</option>
+                                                                {distributors.filter(d => d.isEnabled).map(d => <option key={d.id} value={d.id}>{d.name} (@{d.username})</option>)}
+                                                            </select>
+                                                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-red-400 pointer-events-none" size={14} />
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            )}
+
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 flex items-center gap-1.5">
+                                                    <span className="text-emerald-600">●</span> WhatsApp Number
+                                                </label>
+                                                <input type="tel" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 focus:ring-4 ring-emerald-50 transition-all" value={userForm.phone} onChange={e => setUserForm({ ...userForm, phone: e.target.value })} placeholder="e.g. 9876543210 (with country code: 919876543210)" />
+                                                <p className="text-[10px] text-gray-400 font-medium ml-1">Order updates (received / ready / dispatched) are sent here automatically.</p>
+                                            </div>
+
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">City / Region</label>
+                                                <input type="text" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 focus:ring-4 ring-red-50 transition-all" value={userForm.city} onChange={e => setUserForm({ ...userForm, city: e.target.value })} />
+                                            </div>
+
+                                            <div className="flex items-center gap-3 bg-gray-50/50 p-4 rounded-2xl border border-gray-100 group transition-all hover:bg-red-50/30">
+                                                <input type="checkbox" checked={userForm.isEnabled} onChange={e => setUserForm({ ...userForm, isEnabled: e.target.checked })} className="w-5 h-5 rounded-lg border-gray-200 text-red-600 focus:ring-red-500" />
+                                                <label className="text-xs font-black text-gray-600 uppercase tracking-widest group-hover:text-red-900 transition-colors">Grant System Authorization</label>
+                                            </div>
+
+                                            <div className="flex gap-4 pt-4">
+                                                <button type="submit" className="flex-1 bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-black shadow-lg shadow-red-100 transition-all active:scale-95 uppercase tracking-widest text-[10px]">Confirm Protocol</button>
+                                                <button type="button" onClick={() => setShowUserModal(false)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-500 py-4 rounded-2xl font-black transition-all active:scale-95 uppercase tracking-widest text-[10px]">Abort</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            )
+                        }
+
+                        {
+                            selectedOrder && (
+                                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-500" onClick={() => setSelectedOrder(null)}>
+                                    <div className="bg-white rounded-[3rem] shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in duration-300" onClick={e => e.stopPropagation()}>
+                                        <div className="bg-gradient-to-r from-red-900 via-red-800 to-red-900 px-10 py-8 text-white flex justify-between items-center shrink-0 border-b border-white/10">
+                                            <div>
+                                                <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60 mb-1">Manifest Document</p>
+                                                <h2 className="text-3xl font-black tracking-tight">Order #{selectedOrder.id}</h2>
+                                            </div>
+                                            <button onClick={() => setSelectedOrder(null)} className="bg-white/10 hover:bg-white/20 p-3 rounded-2xl transition-all"><X /></button>
+                                        </div>
+
+                                        <div className="p-10 overflow-y-auto flex-1 bg-gray-50/30">
+                                            <div className="flex flex-col md:flex-row gap-8 mb-10">
+                                                <div className="flex-1 bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Client Information</p>
+                                                    <div className="space-y-3">
+                                                        <div className="flex justify-between items-center"><span className="text-xs font-bold text-gray-500">Authorized Dealer</span><span className="text-xs font-black text-gray-900">{selectedOrder.Dealer?.name}</span></div>
+                                                        <div className="flex justify-between items-center"><span className="text-xs font-bold text-gray-500">Establishment</span><span className="text-xs font-black text-gray-900">{selectedOrder.Dealer?.shopName}</span></div>
+                                                        <div className="flex justify-between items-center"><span className="text-xs font-bold text-gray-500">Region</span><span className="text-xs font-black text-red-600 bg-red-50 px-2 py-1 rounded-lg">{selectedOrder.Dealer?.city}</span></div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex-1 bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Order Metadata</p>
+                                                    <div className="space-y-3">
+                                                        <div className="flex justify-between items-center"><span className="text-xs font-bold text-gray-500">Timestamp</span><span className="text-xs font-black text-gray-900">{new Date(selectedOrder.createdAt).toLocaleString()}</span></div>
+                                                        <div className="flex justify-between items-center"><span className="text-xs font-bold text-gray-500">Item Quantity</span><span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">{selectedOrder.OrderItems?.length || 0} Products</span></div>
+                                                        <div className="flex justify-between items-center"><span className="text-xs font-bold text-gray-500">Current Status</span><span className={`text - xs font - black px - 2 py - 1 rounded - lg uppercase ${selectedOrder.status === 'READY' ? 'bg-emerald-500 text-white' :
+                                                            selectedOrder.status === 'PENDING' ? 'bg-amber-500 text-white' :
+                                                                'bg-red-600 text-white'
+                                                            }`}>{selectedOrder.status}</span></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-6">
+                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2">Bill of Materials</p>
+                                                {selectedOrder.OrderItems?.map((item, i) => (
+                                                    <div key={i} className="group flex flex-col sm:flex-row gap-8 p-8 bg-white border border-gray-100 rounded-[2.5rem] shadow-sm hover:shadow-xl transition-all duration-500">
+                                                        <div className="w-full sm:w-32 aspect-[3/4.5] bg-gray-100 rounded-3xl overflow-hidden shadow-inner group-hover:scale-105 transition-transform duration-700">
+                                                            {item.designImageSnapshot ? (
+                                                                <img src={getImageUrl(item.designImageSnapshot)} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <div className="flex items-center justify-center h-full text-gray-300"><ImageIcon size={32} /></div>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex-1 flex flex-col justify-center">
+                                                            <div className="flex justify-between items-start mb-6">
+                                                                <div>
+                                                                    <h4 className="text-2xl font-black text-gray-900 tracking-tight mb-2 uppercase">{item.designNameSnapshot}</h4>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-4 h-4 rounded-full shadow-sm" style={{ backgroundColor: item.colorHexSnapshot || '#EEE' }}></div>
+                                                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{item.colorNameSnapshot} Finish</span>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="text-right">
+                                                                    <span className="text-4xl font-black text-red-500/20 group-hover:text-red-500/100 transition-colors">x{item.quantity}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="grid grid-cols-2 gap-4">
+                                                                <div className="bg-gray-50 p-4 rounded-2xl flex flex-col border border-gray-100/50">
+                                                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Architecture</span>
+                                                                    <span className="text-xs font-black text-gray-900">{item.doorTypeNameSnapshot}</span>
+                                                                </div>
+                                                                <div className="bg-gray-50 p-4 rounded-2xl flex flex-col border border-gray-100/50">
+                                                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Dimensions</span>
+                                                                    <span className="text-xs font-black text-gray-900">{item.width}" × {item.height}"</span>
+                                                                </div>
+                                                                {/* Extra Options */}
+                                                                {(item.hasLock || item.hasVent) && (
+                                                                    <div className="col-span-2 flex gap-2">
+                                                                        {item.hasLock && (
+                                                                            <div className="bg-orange-50 text-orange-600 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider border border-orange-100 flex items-center gap-2">
+                                                                                <Lock size={12} strokeWidth={3} /> Lock Cut
+                                                                            </div>
+                                                                        )}
+                                                                        {item.hasVent && (
+                                                                            <div className="bg-red-50 text-red-600 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider border border-red-100 flex items-center gap-2">
+                                                                                <Wind size={12} strokeWidth={3} /> Ventilation
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                                {/* Remarks */}
+                                                                {item.remarks && (
+                                                                    <div className="col-span-2 bg-yellow-50 p-3 rounded-xl border border-yellow-100 text-yellow-800 text-xs font-bold flex items-start gap-2">
+                                                                        <span className="uppercase text-[10px] bg-yellow-100 px-2 py-0.5 rounded text-yellow-900/60 tracking-widest">Note</span>
+                                                                        {item.remarks}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="px-10 py-6 bg-white border-t border-gray-100 flex justify-end gap-3 shrink-0">
+                                            <button onClick={() => setSelectedOrder(null)} className="px-8 py-3 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all">Close Manifest</button>
+                                            <button onClick={() => window.print()} className="px-8 py-3 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-red-100 transition-all active:scale-95 flex items-center gap-2"><Download size={14} /> Print Order</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        }
+                        {
+                            (showAddColor || editingColor) && (
+                                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
+                                    <div className="bg-white rounded-[2.5rem] p-10 max-w-sm w-full shadow-2xl animate-in zoom-in duration-300 border border-gray-100">
+                                        <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-2">{editingColor ? 'Edit' : 'Create'} Shade</h3>
+                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-8">Spectrum Definition Protocol</p>
+
+                                        <form onSubmit={editingColor ? handleUpdateColorReal : handleAddColorReal} className="space-y-6">
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Color Display Name</label>
+                                                <input type="text" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 focus:ring-4 ring-red-50 transition-all" placeholder="e.g. Royal Teak"
+                                                    value={editingColor ? editingColor.name : newColor.name}
+                                                    onChange={e => editingColor ? setEditingColor({ ...editingColor, name: e.target.value }) : setNewColor({ ...newColor, name: e.target.value })} required />
+                                            </div>
+
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Hexadecimal Index</label>
+                                                <div className="relative">
+                                                    <input type="text" className="w-full bg-gray-50 border-none rounded-2xl p-4 pl-12 text-sm font-black font-mono text-gray-700 focus:ring-4 ring-red-50 transition-all uppercase" placeholder="#000000"
+                                                        value={(editingColor ? editingColor.hexCode : newColor.hexCode) || ''}
+                                                        onChange={e => editingColor ? setEditingColor({ ...editingColor, hexCode: e.target.value }) : setNewColor({ ...newColor, hexCode: e.target.value })} />
+                                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 rounded-lg border border-white/50 shadow-sm" style={{ backgroundColor: (editingColor ? editingColor.hexCode : newColor.hexCode) || '#EEE' }}></div>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Visual Sample (Optional)</label>
+                                                <label className="flex items-center justify-center gap-2 cursor-pointer bg-gray-50 hover:bg-red-50 border-2 border-dashed border-gray-100 hover:border-red-200 rounded-2xl p-4 transition-all group">
+                                                    <Upload size={18} className="text-gray-400 group-hover:text-red-600" />
+                                                    <span className="text-xs font-black text-gray-500 group-hover:text-red-900 uppercase tracking-widest">Select Image</span>
+                                                    <input type="file" accept="image/*" className="hidden"
+                                                        onChange={e => editingColor
+                                                            ? setEditingColor({ ...editingColor, imageFile: e.target.files[0] })
+                                                            : setNewColor({ ...newColor, image: e.target.files[0] })} />
+                                                </label>
+                                                {(editingColor?.imageUrl || (editingColor?.imageFile || newColor.image)) && (
+                                                    <div className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 flex items-center gap-1 mt-2">
+                                                        ✓ Digital texture assets detected
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="flex gap-4 pt-4">
+                                                <button type="submit" className="flex-1 bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-black shadow-lg shadow-red-100 transition-all active:scale-95 uppercase tracking-widest text-[10px]">Registry Save</button>
+                                                <button type="button" onClick={() => { setShowAddColor(false); setEditingColor(null) }} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-500 py-4 rounded-2xl font-black transition-all active:scale-95 uppercase tracking-widest text-[10px]">Cancel</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            )
+                        }
+                        {
+                            (showAddDesign || editingDesign) && (
+                                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto backdrop-blur-md animate-in fade-in duration-300">
+                                    <div className="bg-white rounded-[3rem] p-10 max-w-xl w-full my-8 shadow-2xl animate-in zoom-in duration-300 border border-gray-100 relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-red-50 rounded-full -mr-16 -mt-16 -z-10 translate-x-8 translate-y-8 blur-3xl opacity-50"></div>
+
+                                        <div className="flex justify-between items-center mb-8">
+                                            <div>
+                                                <h3 className="text-2xl font-black text-gray-900 tracking-tight">{editingDesign ? 'Modify' : 'Draft'} Architecture</h3>
+                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Design Master Database Entry</p>
+                                            </div>
+                                            <button onClick={() => { setShowAddDesign(false); setEditingDesign(null) }} className="p-2 hover:bg-gray-100 rounded-2xl transition-all text-gray-400"><X /></button>
+                                        </div>
+
+                                        <form onSubmit={editingDesign ? handleUpdateDesignReal : handleAddDesignReal} className="space-y-6">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                                <div className="space-y-1.5">
+                                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Design Serial #</label>
+                                                    <input type="text" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-black text-gray-900 focus:ring-4 ring-red-50 transition-all" placeholder="e.g. Z-101" required
+                                                        value={editingDesign ? editingDesign.designNumber : newDesign.designNumber}
+                                                        onChange={e => editingDesign ? setEditingDesign({ ...editingDesign, designNumber: e.target.value }) : setNewDesign({ ...newDesign, designNumber: e.target.value })} />
+                                                </div>
+
+                                                <div className="space-y-1.5">
+                                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Architectural Type</label>
+                                                    <div className="relative">
+                                                        <select className="w-full bg-gray-50 border-none rounded-2xl p-4 text-[11px] font-black text-red-900 appearance-none focus:ring-4 ring-red-50 transition-all cursor-pointer uppercase tracking-widest" required
+                                                            value={editingDesign ? editingDesign.doorTypeId : newDesign.doorTypeId}
+                                                            onChange={e => editingDesign ? setEditingDesign({ ...editingDesign, doorTypeId: e.target.value }) : setNewDesign({ ...newDesign, doorTypeId: e.target.value })}>
+                                                            <option value="">Select Structure...</option>
+                                                            {doors.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                                        </select>
+                                                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-red-400 pointer-events-none" size={14} />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Collection / Category</label>
+                                                <input type="text" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 focus:ring-4 ring-red-50 transition-all" placeholder="e.g. Luxury Oak Series"
+                                                    value={editingDesign ? (editingDesign.category || '') : newDesign.category}
+                                                    onChange={e => editingDesign ? setEditingDesign({ ...editingDesign, category: e.target.value }) : setNewDesign({ ...newDesign, category: e.target.value })} />
+                                            </div>
+
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Master Render Asset</label>
+                                                <label className="flex items-center justify-center flex-col gap-3 cursor-pointer bg-gray-50 hover:bg-red-50 border-2 border-dashed border-gray-100 hover:border-red-200 rounded-[2rem] p-8 transition-all group overflow-hidden relative">
+                                                    {/* Preview Thumbnail */}
+                                                    {(editingDesign?.imageFile || newDesign.image) ? (
+                                                        <div className="flex items-center gap-4 animate-in zoom-in">
+                                                            <div className="w-12 h-16 bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100"><img src={URL.createObjectURL(editingDesign?.imageFile || newDesign.image)} className="w-full h-full object-cover" /></div>
+                                                            <span className="text-xs font-black text-red-600 uppercase">Asset Buffered</span>
+                                                        </div>
+                                                    ) : editingDesign?.imageUrl ? (
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-12 h-16 bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100"><img src={getImageUrl(editingDesign.imageUrl)} className="w-full h-full object-cover" /></div>
+                                                            <span className="text-xs font-black text-emerald-600 uppercase">Current Asset: ✓</span>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-gray-300 shadow-sm group-hover:text-red-500 transition-colors"><Upload size={24} /></div>
+                                                            <div className="text-center">
+                                                                <span className="text-[10px] font-black text-gray-500 group-hover:text-red-900 uppercase tracking-widest block">Upload Portrait CAD/Render</span>
+                                                                <span className="text-[9px] font-bold text-gray-300 uppercase mt-1">PNG/JPG • Max 5MB</span>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                    <input type="file" accept="image/*" className="hidden"
+                                                        onChange={e => editingDesign
+                                                            ? setEditingDesign({ ...editingDesign, imageFile: e.target.files[0] })
+                                                            : setNewDesign({ ...newDesign, image: e.target.files[0] })} />
+                                                </label>
+                                            </div>
+
+                                            <div className="flex items-center gap-3 bg-gray-50/50 p-6 rounded-[1.5rem] border border-gray-100 group transition-all hover:bg-amber-50/30">
+                                                <input type="checkbox"
+                                                    checked={editingDesign ? editingDesign.isTrending : newDesign.isTrending}
+                                                    onChange={e => editingDesign ? setEditingDesign({ ...editingDesign, isTrending: e.target.checked }) : setNewDesign({ ...newDesign, isTrending: e.target.checked })}
+                                                    className="w-6 h-6 rounded-lg border-gray-200 text-amber-500 focus:ring-amber-500" />
+                                                <div className="flex flex-col">
+                                                    <label className="text-xs font-black text-gray-700 uppercase tracking-widest">Trending Visibility</label>
+                                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Prioritize in Dealer Gallery</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex gap-4 pt-6">
+                                                <button type="submit" className="flex-1 bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-black shadow-lg shadow-red-100 transition-all active:scale-95 uppercase tracking-widest text-[10px]">Execute Save</button>
+                                                <button type="button" onClick={() => { setShowAddDesign(false); setEditingDesign(null) }} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-500 py-4 rounded-2xl font-black transition-all active:scale-95 uppercase tracking-widest text-[10px]">Abort</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            )
+                        }
+
+                        {/* BULK UPLOAD MODAL */}
+                        {
+                            showBulkUpload && (
+                                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
+                                    <div className="bg-white rounded-[3rem] p-12 max-w-xl w-full shadow-2xl relative overflow-hidden animate-in zoom-in duration-300 border border-gray-100">
+                                        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-lime-400 to-emerald-500"></div>
+
+                                        <button onClick={() => setShowBulkUpload(false)} className="absolute top-8 right-8 p-2 hover:bg-gray-100 rounded-2xl transition-all text-gray-400">
+                                            <X size={24} />
+                                        </button>
+
+                                        <div className="text-center">
+                                            <div className="bg-lime-50 w-20 h-20 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-inner border border-lime-100/50">
+                                                <FileSpreadsheet className="text-lime-600 w-10 h-10 animate-bounce" />
+                                            </div>
+
+                                            <h2 className="text-3xl font-black text-gray-900 tracking-tight leading-tight uppercase">Batch Import</h2>
+                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-2 mb-10">Protocols for {bulkUploadType.toLowerCase()} network expansion</p>
+
+                                            <div className="flex flex-col gap-4 mb-10">
+                                                {/* Download Sample */}
+                                                <button
+                                                    onClick={downloadSample}
+                                                    className="flex items-center justify-between px-8 py-5 bg-gray-50 hover:bg-white border-2 border-dashed border-gray-100 hover:border-red-500 rounded-[2rem] transition-all group"
+                                                >
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-gray-400 group-hover:text-red-600 shadow-sm transition-colors border border-gray-100"><Download size={20} /></div>
+                                                        <div className="text-left">
+                                                            <span className="block text-[10px] font-black text-gray-600 uppercase tracking-widest group-hover:text-red-900 transition-colors">Digital Blueprint</span>
+                                                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Download XLSX Template</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-gray-300 group-hover:text-red-500 shadow-sm">→</div>
+                                                </button>
+
+                                                <div className="flex items-center gap-4 px-2">
+                                                    <div className="flex-1 h-px bg-gray-100"></div>
+                                                    <span className="text-[9px] font-black text-gray-300 uppercase tracking-[0.3em]">OR SOURCE ASSET</span>
+                                                    <div className="flex-1 h-px bg-gray-100"></div>
+                                                </div>
+
+                                                {/* Upload File */}
+                                                <div className="relative">
+                                                    <input
+                                                        type="file"
+                                                        accept=".xlsx, .xls, .csv"
+                                                        onChange={handleFileUpload}
+                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                                    />
+                                                    <div className="flex items-center justify-center gap-3 w-full bg-red-600 hover:bg-red-700 text-white font-black py-5 rounded-[2rem] shadow-xl shadow-red-100 transition-all active:scale-95 uppercase tracking-widest text-[11px]">
+                                                        <Upload size={20} className="animate-pulse" />
+                                                        Initialize Data Stream
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-gray-50/80 p-6 rounded-[2rem] border border-gray-100 text-left">
+                                                <div className="flex items-center gap-2 mb-4">
+                                                    <div className="w-2 h-2 bg-red-500 rounded-full animate-ping"></div>
+                                                    <p className="text-[10px] font-black text-red-900 uppercase tracking-widest">Required Data Mapping:</p>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    {bulkUploadType === 'DISTRIBUTOR' ? (
+                                                        <>
+                                                            <div className="flex flex-col gap-2">
+                                                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Identity</span>
+                                                                <ul className="text-[10px] font-bold text-gray-600 space-y-1"><li>• Legal Name</li><li>• Shop Identifier</li></ul>
+                                                            </div>
+                                                            <div className="flex flex-col gap-2">
+                                                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Credentials</span>
+                                                                <ul className="text-[10px] font-bold text-gray-600 space-y-1"><li>• Master Username</li><li>• Secure Password</li></ul>
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <div className="flex flex-col gap-2">
+                                                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Entity</span>
+                                                                <ul className="text-[10px] font-bold text-gray-600 space-y-1"><li>• Dealer Name</li><li>• Shop Label</li></ul>
+                                                            </div>
+                                                            <div className="flex flex-col gap-2">
+                                                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Routing</span>
+                                                                <ul className="text-[10px] font-bold text-gray-600 space-y-1"><li>• Google Auth Email</li><li>• Parent Distributor ID</li></ul>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        }
+
+                        {/* === IMPORT ORDERS MODAL === */}
+                        {
+                            showImportOrders && (
+                                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200] backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                                    <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8 relative animate-in zoom-in-95 duration-300">
+                                        <button onClick={() => setShowImportOrders(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-full transition-all">
+                                            <X size={20} />
+                                        </button>
+
+                                        <div className="text-center mb-6">
+                                            <div className="bg-red-100 text-red-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                                <Upload size={32} />
+                                            </div>
+                                            <h3 className="text-2xl font-black text-gray-900">Import Orders from Excel</h3>
+                                            <p className="text-gray-500 text-sm mt-1">Upload historical orders or bulk import new orders</p>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            {/* Step 1: Download Sample */}
+                                            <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className="font-bold text-gray-700">Step 1: Download Sample</p>
+                                                        <p className="text-xs text-gray-500">Get the correct format template</p>
+                                                    </div>
+                                                    <button onClick={downloadOrderImportSample} className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-2">
+                                                        <Download size={14} /> Sample
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Step 2: Upload File */}
+                                            <div className="bg-red-50 rounded-2xl p-4 border border-red-100">
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <div>
+                                                        <p className="font-bold text-red-700">Step 2: Upload Your File</p>
+                                                        <p className="text-xs text-red-600/70">Excel .xlsx or .xls format</p>
+                                                    </div>
+                                                </div>
+                                                <label className="block w-full bg-white border-2 border-dashed border-red-200 hover:border-red-400 rounded-xl p-6 text-center cursor-pointer transition-all hover:bg-red-50/50">
+                                                    <Upload size={24} className="mx-auto text-red-400 mb-2" />
+                                                    <span className="text-sm font-bold text-red-600">Click to select file</span>
+                                                    <input type="file" accept=".xlsx,.xls" onChange={handleOrderImportFile} className="hidden" />
+                                                </label>
+                                            </div>
+
+                                            {/* Required Columns Info */}
+                                            <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
+                                                <p className="text-xs font-bold text-amber-700 uppercase tracking-widest mb-2">Column Inventory:</p>
+                                                <div className="grid grid-cols-3 gap-2 text-[10px] font-bold text-amber-800">
+                                                    <span>orderId (Optional)</span>
+                                                    <span>dealerEmail</span>
+                                                    <span>designNumber</span>
+                                                    <span>colorName</span>
+                                                    <span>width</span>
+                                                    <span>height</span>
+                                                    <span>quantity</span>
+                                                    <span>status</span>
+                                                    <span>orderDate</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        }
+
+                        {/* Bulk Upload Designs Modal */}
+                        {
+                            showBulkDesigns && (
+                                <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 animate-in fade-in">
+                                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <h3 className="text-xl font-black text-gray-900">Bulk Upload Designs</h3>
+                                            <button onClick={() => setShowBulkDesigns(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className="font-bold text-gray-700">Step 1: Download Sample</p>
+                                                        <p className="text-xs text-gray-500">Template with columns: designNumber, category, doorType</p>
+                                                    </div>
+                                                    <button onClick={downloadDesignSample} className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-2">
+                                                        <Download size={14} /> Sample
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="bg-red-50 rounded-2xl p-4 border border-red-100">
+                                                <p className="font-bold text-red-700 mb-2">Step 2: Upload Your File</p>
+                                                <label className="block w-full bg-white border-2 border-dashed border-red-200 hover:border-red-400 rounded-xl p-6 text-center cursor-pointer transition-all">
+                                                    <Upload size={24} className="mx-auto text-red-400 mb-2" />
+                                                    <span className="text-sm font-bold text-red-600">Click to upload Excel</span>
+                                                    <p className="text-xs text-gray-400 mt-1">Photos can be uploaded later via Edit</p>
+                                                    <input type="file" accept=".xlsx,.xls" onChange={handleBulkDesignUpload} className="hidden" />
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        }
+
+                        {/* Bulk Upload Foil Colors Modal */}
+                        {
+                            showBulkColors && (
+                                <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 animate-in fade-in">
+                                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <h3 className="text-xl font-black text-gray-900">Bulk Upload Foil Colors</h3>
+                                            <button onClick={() => setShowBulkColors(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className="font-bold text-gray-700">Step 1: Download Sample</p>
+                                                        <p className="text-xs text-gray-500">Template with column: name</p>
+                                                    </div>
+                                                    <button onClick={downloadFoilColorSample} className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-2">
+                                                        <Download size={14} /> Sample
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
+                                                <p className="font-bold text-emerald-700 mb-2">Step 2: Upload Your File</p>
+                                                <label className="block w-full bg-white border-2 border-dashed border-emerald-200 hover:border-emerald-400 rounded-xl p-6 text-center cursor-pointer transition-all">
+                                                    <Upload size={24} className="mx-auto text-emerald-400 mb-2" />
+                                                    <span className="text-sm font-bold text-emerald-600">Click to upload Excel</span>
+                                                    <p className="text-xs text-gray-400 mt-1">Texture photos can be uploaded later</p>
+                                                    <input type="file" accept=".xlsx,.xls" onChange={handleBulkFoilColorUpload} className="hidden" />
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        }
+                        {/* ORDER DETAILS MODAL (COMPACT EXCEL STYLE) */}
+                        {selectedOrder && (
+                            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                                <div className="bg-white rounded-lg shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col animate-in zoom-in-95 duration-200 overflow-hidden">
+
+                                    {/* Actions Header */}
+                                    <div className="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                                        <h3 className="font-bold text-gray-700">Order Details</h3>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => window.print()} className="bg-white border border-gray-300 text-gray-700 px-3 py-1 rounded text-xs font-bold hover:bg-gray-50 flex items-center gap-2">
+                                                <Printer size={14} /> Print
+                                            </button>
+                                            <button onClick={() => setSelectedOrder(null)} className="text-gray-500 hover:text-red-500 transition-colors">
+                                                <X size={24} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* EXCEL SHEET CONTAINER */}
+                                    <div className="flex-1 overflow-y-auto p-8 bg-gray-100 font-sans">
+
+                                        <div className="bg-white border-2 border-black max-w-4xl mx-auto text-sm text-black">
+                                            {/* HEADER ROW 1 */}
+                                            <div className="flex border-b-2 border-black">
+                                                <div className="w-24 p-2 font-black border-r-2 border-black bg-red-50/50 flex items-center">OD NO.</div>
+                                                <div className="w-24 p-2 font-bold border-r-2 border-black flex items-center justify-center text-lg">{selectedOrder.id}</div>
+
+                                                <div className="w-32 p-2 font-black border-r-2 border-black bg-red-50/50 flex items-center">DEALER NAME</div>
+                                                <div className="flex-1 p-2 font-bold border-r-2 border-black flex items-center justify-center uppercase text-red-900">{selectedOrder.User?.name}</div>
+
+                                                <div className="w-24 p-2 font-black border-r-2 border-black bg-red-50/50 flex items-center">OD DATE</div>
+                                                <div className="w-32 p-2 font-bold flex items-center justify-center">{new Date(selectedOrder.createdAt).toLocaleDateString()}</div>
+                                            </div>
+
+                                            {/* TABLE HEADER */}
+                                            <div className="grid grid-cols-12 border-b-2 border-black text-center font-black bg-red-100">
+                                                <div className="col-span-2 p-2 border-r border-black flex items-center justify-center">Foil</div>
+                                                <div className="col-span-2 p-2 border-r border-black flex items-center justify-center">Design No</div>
+                                                <div className="col-span-1 p-2 border-r border-black flex items-center justify-center">Sr. No</div>
+                                                <div className="col-span-1 p-2 border-r border-black flex items-center justify-center">Width</div>
+                                                <div className="col-span-1 p-2 border-r border-black flex items-center justify-center">Height</div>
+                                                <div className="col-span-3 p-2 border-r border-black flex items-center justify-center">Remark</div>
+                                                <div className="col-span-1 p-2 border-r border-black flex items-center justify-center">Lock</div>
+                                                <div className="col-span-1 p-2 flex items-center justify-center">Vent</div>
+                                            </div>
+
+                                            {/* TABLE ROWS */}
+                                            <div className="divide-y divide-black">
+                                                {(() => {
+                                                    let srNo = 1;
+                                                    return selectedOrder.OrderItems?.map((item) => {
+                                                        const rows = [];
+                                                        for (let i = 0; i < item.quantity; i++) {
+                                                            rows.push(
+                                                                <div key={`${item.id}-${i}`} className="grid grid-cols-12 text-center font-bold relative group">
+                                                                    <div className="col-span-2 p-1 border-r border-black flex items-center justify-center border-t-0 text-xs">{item.colorNameSnapshot}</div>
+                                                                    <div className="col-span-2 p-1 border-r border-black flex items-center justify-center text-xs">{item.designNameSnapshot}</div>
+                                                                    <div className="col-span-1 p-1 border-r border-black flex items-center justify-center bg-gray-50">{srNo++}</div>
+                                                                    <div className="col-span-1 p-1 border-r border-black flex items-center justify-center">{item.width}</div>
+                                                                    <div className="col-span-1 p-1 border-r border-black flex items-center justify-center">{item.height}</div>
+                                                                    <div className="col-span-3 p-1 border-r border-black flex items-center justify-center text-[10px] text-gray-500 italic">{item.remarks}</div>
+                                                                    <div className="col-span-1 p-1 border-r border-black flex items-center justify-center"></div>
+                                                                    <div className="col-span-1 p-1 flex items-center justify-center"></div>
+                                                                    <div className="absolute inset-0 bg-red-500/10 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity"></div>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return rows;
+                                                    });
+                                                })()}
+                                            </div>
+
+                                            {/* Empty Rows Filler */}
+                                            {[...Array(Math.max(0, 5 - (selectedOrder.OrderItems?.reduce((acc, i) => acc + i.quantity, 0) || 0)))].map((_, i) => (
+                                                <div key={`empty-${i}`} className="grid grid-cols-12 h-8 border-t border-black">
+                                                    <div className="col-span-2 border-r border-black"></div>
+                                                    <div className="col-span-2 border-r border-black"></div>
+                                                    <div className="col-span-1 border-r border-black"></div>
+                                                    <div className="col-span-1 border-r border-black"></div>
+                                                    <div className="col-span-1 border-r border-black"></div>
+                                                    <div className="col-span-3 border-r border-black"></div>
+                                                    <div className="col-span-1 border-r border-black"></div>
+                                                    <div className="col-span-1"></div>
+                                                </div>
+                                            ))}
+
+                                            {/* Footer */}
+                                            <div className="border-t-2 border-black bg-gray-50 flex justify-between p-2">
+                                                <div className="text-xs font-bold">Total Items: {selectedOrder.OrderItems?.reduce((acc, i) => acc + i.quantity, 0)}</div>
+                                                <div className="text-xs font-bold uppercase">Status: {selectedOrder.status}</div>
+                                            </div>
+                                        </div>
+
+                                        {/* Action Buttons */}
+                                        <div className="max-w-4xl mx-auto mt-4 flex justify-end">
+                                            {selectedOrder.status === 'RECEIVED' && (
+                                                <button
+                                                    onClick={async () => {
+                                                        try {
+                                                            await api.put(`/orders/${selectedOrder.id}/status`, { status: 'PRODUCTION' });
+                                                            toast.success('Sent to Production');
+                                                            setSelectedOrder(null);
+                                                            fetchOrders();
+                                                        } catch (e) { toast.error('Action failed'); }
+                                                    }}
+                                                    className="px-6 py-2 bg-red-600 text-white font-bold rounded shadow-lg hover:bg-red-700 uppercase tracking-wider text-xs"
+                                                >
+                                                    Start Production
+                                                </button>
+                                            )}
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Stage Details Modal */}
+                        {
+                            selectedStage && (
+                                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-200">
+                                        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                                            <div>
+                                                <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">{selectedStage.replace('_', ' ')} LIST</h2>
+                                                <p className="text-xs text-gray-400 font-bold mt-1">{stageUnits.length} Doors Pending</p>
+                                            </div>
+                                            <button onClick={() => setSelectedStage(null)} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X size={24} /></button>
+                                        </div>
+
+                                        <div className="overflow-y-auto flex-1 p-6">
+                                            <table className="min-w-full text-left">
+                                                <thead className="bg-gray-50 text-gray-400 font-black uppercase text-[10px] tracking-widest border-b border-gray-100 sticky top-0">
+                                                    <tr>
+                                                        <th className="px-6 py-4">Unit Code</th>
+                                                        <th className="px-6 py-4">Design</th>
+                                                        <th className="px-6 py-4">Color</th>
+                                                        <th className="px-6 py-4">Order Ref</th>
+                                                        {/* <th className="px-6 py-4">Actions</th> */}
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-50">
+                                                    {stageUnits.length > 0 ? stageUnits.map(unit => (
+                                                        <tr key={unit.id} className="hover:bg-red-50/30 transition-colors">
+                                                            <td className="px-6 py-4 font-mono text-xs font-bold text-gray-600">{unit.uniqueCode}</td>
+                                                            <td className="px-6 py-4 font-bold text-gray-900 text-sm">{unit.OrderItem?.Design?.designNumber || 'N/A'}</td>
+                                                            <td className="px-6 py-4 font-bold text-gray-700 text-xs">{unit.OrderItem?.Color?.name || 'N/A'}</td>
+                                                            <td className="px-6 py-4">
+                                                                <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-[10px] font-black uppercase">Order #{unit.OrderItem?.orderId}</span>
+                                                            </td>
+                                                            {/* <td className="px-6 py-4">
+                                                <button className="text-[10px] font-bold text-red-600 border border-red-200 px-3 py-1 rounded-lg hover:bg-red-50">Override</button>
+                                            </td> */}
+                                                        </tr>
+                                                    )) : (
+                                                        <tr><td colSpan="5" className="px-6 py-20 text-center text-gray-300 font-black uppercase tracking-widest italic">No Items in this stage</td></tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        }
 
 
 
-                </div>
-            </div >
-        </div >
+                        {/* STOCK TAB */}
+                        {activeTab === 'stock' && (
+                            <StockManagement />
+                        )}
+
+                    </div>
+                </main>
+            </div>
+        </div>
     );
 };

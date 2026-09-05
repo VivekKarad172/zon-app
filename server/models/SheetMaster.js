@@ -18,6 +18,16 @@ const SheetMaster = sequelize.define('SheetMaster', {
     isEnabled: {
         type: DataTypes.BOOLEAN,
         defaultValue: true
+    },
+    currentStock: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+        allowNull: false
+    },
+    minStock: {
+        type: DataTypes.INTEGER,
+        defaultValue: 10,
+        allowNull: false
     }
 });
 

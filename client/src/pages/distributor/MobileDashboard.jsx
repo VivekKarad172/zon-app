@@ -18,7 +18,7 @@ export default function MobileDistributorDashboard({
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
             {/* Compact Mobile Header */}
-            <div className="bg-gradient-to-r from-blue-700 to-indigo-800 shadow-lg p-4 sticky top-0 z-[100]">
+            <div className="bg-gradient-to-r from-red-700 to-red-800 shadow-lg p-4 sticky top-0 z-[100]">
                 <div className="flex justify-between items-center text-white">
                     <div className="flex items-center gap-3">
                         <div className="bg-white/20 p-2 rounded-xl">
@@ -138,7 +138,7 @@ export default function MobileDistributorDashboard({
                                 </button>
                                 <button
                                     onClick={() => { setNewDealer({ name: '', email: '', city: '', shopName: '' }); setShowAddDealer(true); }}
-                                    className="bg-indigo-600 text-white p-2 rounded-lg"
+                                    className="bg-red-600 text-white p-2 rounded-lg"
                                 >
                                     <Plus size={18} />
                                 </button>
@@ -182,7 +182,7 @@ export default function MobileDistributorDashboard({
                 {activeTab === 'whatsnew' && (
                     <div className="space-y-4 animate-in fade-in duration-300">
                         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                            <Bell className="text-indigo-600" /> What's New
+                            <Bell className="text-red-600" /> What's New
                         </h2>
                         {posts.length === 0 && (
                             <div className="text-center text-gray-400 py-12 bg-white rounded-xl">No updates yet</div>
@@ -195,7 +195,7 @@ export default function MobileDistributorDashboard({
                                     </div>
                                 )}
                                 <div className="p-4">
-                                    <span className={`text-xs px-2 py-1 rounded-full font-bold ${post.postType === 'announcement' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                                    <span className={`text-xs px-2 py-1 rounded-full font-bold ${post.postType === 'announcement' ? 'bg-red-100 text-red-700' : 'bg-rose-100 text-rose-700'}`}>
                                         {post.postType === 'announcement' ? '📢' : '🚪'} {post.postType.replace('_', ' ')}
                                     </span>
                                     {post.title && <h3 className="font-bold text-gray-800 mt-2">{post.title}</h3>}
@@ -211,15 +211,15 @@ export default function MobileDistributorDashboard({
             {/* Bottom Navigation */}
             <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-xl z-[100]">
                 <div className="flex justify-around py-2">
-                    <button onClick={() => setActiveTab('orders')} className={`flex flex-col items-center py-2 px-4 ${activeTab === 'orders' ? 'text-indigo-600' : 'text-gray-400'}`}>
+                    <button onClick={() => setActiveTab('orders')} className={`flex flex-col items-center py-2 px-4 ${activeTab === 'orders' ? 'text-red-600' : 'text-gray-400'}`}>
                         <ShoppingBag size={22} />
                         <span className="text-[10px] font-bold mt-1">Orders</span>
                     </button>
-                    <button onClick={() => setActiveTab('dealers')} className={`flex flex-col items-center py-2 px-4 ${activeTab === 'dealers' ? 'text-indigo-600' : 'text-gray-400'}`}>
+                    <button onClick={() => setActiveTab('dealers')} className={`flex flex-col items-center py-2 px-4 ${activeTab === 'dealers' ? 'text-red-600' : 'text-gray-400'}`}>
                         <Users size={22} />
                         <span className="text-[10px] font-bold mt-1">Dealers</span>
                     </button>
-                    <button onClick={() => setActiveTab('whatsnew')} className={`flex flex-col items-center py-2 px-4 ${activeTab === 'whatsnew' ? 'text-indigo-600' : 'text-gray-400'}`}>
+                    <button onClick={() => setActiveTab('whatsnew')} className={`flex flex-col items-center py-2 px-4 ${activeTab === 'whatsnew' ? 'text-red-600' : 'text-gray-400'}`}>
                         <Bell size={22} />
                         <span className="text-[10px] font-bold mt-1">News</span>
                     </button>
@@ -239,7 +239,7 @@ export default function MobileDistributorDashboard({
                             {!isEditingDealer && <input type="email" placeholder="Email (Google login)" required className="w-full border rounded-xl p-3" value={newDealer.email} onChange={e => setNewDealer({ ...newDealer, email: e.target.value })} />}
                             <input type="text" placeholder="City" className="w-full border rounded-xl p-3" value={newDealer.city} onChange={e => setNewDealer({ ...newDealer, city: e.target.value })} />
                             <input type="text" placeholder="Shop Name" className="w-full border rounded-xl p-3" value={newDealer.shopName} onChange={e => setNewDealer({ ...newDealer, shopName: e.target.value })} />
-                            <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl">
+                            <button type="submit" className="w-full bg-red-600 text-white font-bold py-4 rounded-xl">
                                 {isEditingDealer ? 'Update Dealer' : 'Add Dealer'}
                             </button>
                         </form>
@@ -274,9 +274,9 @@ export default function MobileDistributorDashboard({
                             <button onClick={downloadSample} className="w-full bg-gray-100 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2">
                                 <FileSpreadsheet size={16} /> Download Sample
                             </button>
-                            <label className="block w-full bg-indigo-50 border-2 border-dashed border-indigo-200 rounded-xl p-6 text-center cursor-pointer">
-                                <Upload size={24} className="mx-auto text-indigo-400 mb-2" />
-                                <span className="text-sm font-bold text-indigo-600">Click to upload Excel</span>
+                            <label className="block w-full bg-red-50 border-2 border-dashed border-red-200 rounded-xl p-6 text-center cursor-pointer">
+                                <Upload size={24} className="mx-auto text-red-400 mb-2" />
+                                <span className="text-sm font-bold text-red-600">Click to upload Excel</span>
                                 <input type="file" accept=".xlsx,.xls" onChange={handleFileUpload} className="hidden" />
                             </label>
                         </div>

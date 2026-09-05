@@ -78,20 +78,20 @@ export default function AdminWorkerControl() {
     return (
         <div className="p-6">
             <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                <Users className="text-indigo-600" /> Worker Control Panel
+                <Users className="text-red-600" /> Worker Control Panel
             </h1>
 
             {/* TABS */}
             <div className="flex gap-4 mb-6 border-b border-gray-200 pb-2">
                 <button
                     onClick={() => setActiveTab('tasks')}
-                    className={`px-4 py-2 font-bold rounded-lg ${activeTab === 'tasks' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-500'}`}
+                    className={`px-4 py-2 font-bold rounded-lg ${activeTab === 'tasks' ? 'bg-red-50 text-red-600' : 'text-gray-500'}`}
                 >
                     Task Override
                 </button>
                 <button
                     onClick={() => setActiveTab('status')}
-                    className={`px-4 py-2 font-bold rounded-lg ${activeTab === 'status' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-500'}`}
+                    className={`px-4 py-2 font-bold rounded-lg ${activeTab === 'status' ? 'bg-red-50 text-red-600' : 'text-gray-500'}`}
                 >
                     Live Status
                 </button>
@@ -136,7 +136,7 @@ export default function AdminWorkerControl() {
                                         className="p-4 bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition-colors"
                                     >
                                         <div className="flex items-center gap-4">
-                                            <div className="bg-indigo-600 text-white font-black text-lg w-10 h-10 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-200">
+                                            <div className="bg-red-600 text-white font-black text-lg w-10 h-10 rounded-lg flex items-center justify-center shadow-lg shadow-red-200">
                                                 {orderId === 'Unknown' ? '?' : orderId}
                                             </div>
                                             <div>
@@ -168,8 +168,8 @@ export default function AdminWorkerControl() {
                                                 </thead>
                                                 <tbody className="divide-y divide-gray-50">
                                                     {orderTasks.map(task => (
-                                                        <tr key={task.id} className="hover:bg-indigo-50/30 transition-colors">
-                                                            <td className="p-3 pl-4 font-bold text-indigo-900">#{task.unitNumber}</td>
+                                                        <tr key={task.id} className="hover:bg-red-50/30 transition-colors">
+                                                            <td className="p-3 pl-4 font-bold text-red-900">#{task.unitNumber}</td>
                                                             <td className="p-3 text-sm font-medium">
                                                                 {task?.OrderItem?.Design?.designNumber || 'N/A'} <span className="text-gray-400 text-xs">({task?.OrderItem?.Color?.name})</span>
                                                             </td>
@@ -188,7 +188,7 @@ export default function AdminWorkerControl() {
                                                                 {!task.isPacked && (
                                                                     <button
                                                                         onClick={() => handleOverride(task.id, 'Force Complete')}
-                                                                        className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
+                                                                        className="bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
                                                                     >
                                                                         Force Next
                                                                     </button>

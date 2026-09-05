@@ -1,0 +1,180 @@
+[
+  {
+    "kind": "documents",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\.graphify_chunk_0.txt",
+      "D:\\Z-ON DOOR 2024\\zon app\\.graphify_chunk_1.txt",
+      "D:\\Z-ON DOOR 2024\\zon app\\.graphify_chunk_2.txt",
+      "D:\\Z-ON DOOR 2024\\zon app\\.graphify_chunk_3.txt",
+      "D:\\Z-ON DOOR 2024\\zon app\\.graphify_chunk_4.txt",
+      "D:\\Z-ON DOOR 2024\\zon app\\FUTURE_UPDATES.md",
+      "D:\\Z-ON DOOR 2024\\zon app\\render-tester.html",
+      "D:\\Z-ON DOOR 2024\\zon app\\.agents\\rules\\graphify.md",
+      "D:\\Z-ON DOOR 2024\\zon app\\.agents\\workflows\\graphify.md",
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\index.html",
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\assets\\public\\index.html"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable-land-hdpi\\splash.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable-land-mdpi\\splash.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable-land-xhdpi\\splash.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable-land-xxhdpi\\splash.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable-land-xxxhdpi\\splash.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable-port-hdpi\\splash.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable-port-mdpi\\splash.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable-port-xhdpi\\splash.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable-port-xxhdpi\\splash.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable-port-xxxhdpi\\splash.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable\\splash.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher_foreground.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher_round.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher_foreground.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher_round.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher_foreground.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher_round.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher_foreground.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher_round.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher_foreground.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher_round.png"
+    ]
+  },
+  {
+    "kind": "image",
+    "files": [
+      "D:\\Z-ON DOOR 2024\\zon app\\client\\public\\favicon.svg"
+    ]
+  }
+]

@@ -77,14 +77,14 @@ export default function WorkerLogin() {
         }
     };
 
-    if (loading) return <div className="h-screen flex items-center justify-center bg-gray-50"><Loader className="animate-spin text-indigo-600" size={48} /></div>;
+    if (loading) return <div className="h-screen flex items-center justify-center bg-gray-50"><Loader className="animate-spin text-red-600" size={48} /></div>;
 
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col">
             {/* Header */}
             <div className="bg-white p-6 shadow-sm flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
+                    <div className="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center text-white">
                         <User size={24} />
                     </div>
                     <div>
@@ -123,11 +123,11 @@ export default function WorkerLogin() {
                                     onClick={() => setSelectedWorker(worker)}
                                     className="bg-white p-8 rounded-3xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all border border-gray-100 flex flex-col items-center gap-4 group"
                                 >
-                                    <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors shadow-inner">
+                                    <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center text-red-600 group-hover:bg-red-600 group-hover:text-white transition-colors shadow-inner">
                                         <span className="text-2xl font-black">{worker.name.charAt(0)}</span>
                                     </div>
                                     <div className="text-center">
-                                        <div className="font-black text-lg text-gray-800 group-hover:text-indigo-600 transition-colors">{worker.name}</div>
+                                        <div className="font-black text-lg text-gray-800 group-hover:text-red-600 transition-colors">{worker.name}</div>
                                         <div className="text-xs font-bold text-gray-400 uppercase mt-1 bg-gray-100 px-2 py-1 rounded-lg inline-block">
                                             {worker.role.replace('_', ' ')}
                                         </div>
@@ -140,7 +140,7 @@ export default function WorkerLogin() {
                     /* STEP 2: ENTER PIN */
                     <div className="w-full max-w-sm">
                         <div className="text-center mb-8">
-                            <div className="w-20 h-20 bg-indigo-600 rounded-full mx-auto flex items-center justify-center text-white shadow-lg shadow-indigo-200 mb-4">
+                            <div className="w-20 h-20 bg-red-600 rounded-full mx-auto flex items-center justify-center text-white shadow-lg shadow-red-200 mb-4">
                                 <span className="text-2xl font-black">{selectedWorker.name.charAt(0)}</span>
                             </div>
                             <h2 className="text-2xl font-black text-gray-900">{selectedWorker.name}</h2>
@@ -150,7 +150,7 @@ export default function WorkerLogin() {
                         {/* PIN DOTS */}
                         <div className="flex justify-center gap-4 mb-8">
                             {[0, 1, 2, 3].map(i => (
-                                <div key={i} className={`w-4 h-4 rounded-full transition-all duration-300 ${pin.length > i ? 'bg-indigo-600 scale-125' : 'bg-gray-200'
+                                <div key={i} className={`w-4 h-4 rounded-full transition-all duration-300 ${pin.length > i ? 'bg-red-600 scale-125' : 'bg-gray-200'
                                     }`} />
                             ))}
                         </div>
@@ -161,7 +161,7 @@ export default function WorkerLogin() {
                                 <button
                                     key={num}
                                     onClick={() => handleNumClick(num)}
-                                    className="bg-white hover:bg-indigo-50 active:bg-indigo-100 h-20 rounded-2xl shadow-sm border border-gray-100 text-3xl font-black text-gray-700 transition-all active:scale-95"
+                                    className="bg-white hover:bg-red-50 active:bg-red-100 h-20 rounded-2xl shadow-sm border border-gray-100 text-3xl font-black text-gray-700 transition-all active:scale-95"
                                 >
                                     {num}
                                 </button>
@@ -169,7 +169,7 @@ export default function WorkerLogin() {
                             <div className="col-span-1"></div>
                             <button
                                 onClick={() => handleNumClick(0)}
-                                className="bg-white hover:bg-indigo-50 active:bg-indigo-100 h-20 rounded-2xl shadow-sm border border-gray-100 text-3xl font-black text-gray-700 transition-all active:scale-95"
+                                className="bg-white hover:bg-red-50 active:bg-red-100 h-20 rounded-2xl shadow-sm border border-gray-100 text-3xl font-black text-gray-700 transition-all active:scale-95"
                             >
                                 0
                             </button>

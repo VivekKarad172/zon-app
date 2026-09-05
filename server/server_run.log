@@ -1,0 +1,11 @@
+[dotenv@17.2.3] injecting env (6) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+==============================================
+DATABASE CONNECTION: D:\Z-ON DOOR 2024\zon app\server\database.sqlite
+==============================================
+Database connected and schema updated.
+>>> SERVER RESTART: Stock Logic v2 is ACTIVE <<<
+Server is running on port 5000
+[2026-06-15T18:51:48.851Z] POST /api/auth/login from 127.0.0.1
+[2026-06-15T18:51:48.955Z] GET /api/reports/worker-productivity from 127.0.0.1
+[2026-06-15T18:51:48.987Z] GET /api/reports/material-requirement from 127.0.0.1
+[2026-06-15T18:51:49.083Z] GET /api/reports/backup from 127.0.0.1

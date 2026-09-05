@@ -1,0 +1,1002 @@
+{
+  "D:\\Z-ON DOOR 2024\\zon app\\.claude\\settings.local.json": {
+    "mtime": 1781545494.4887404,
+    "ast_hash": "94033a7279e5ebf02dd06d0f3d129b06",
+    "semantic_hash": "94033a7279e5ebf02dd06d0f3d129b06"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\.graphify_ast.json": {
+    "mtime": 1781804599.009031,
+    "ast_hash": "ed3e86cab3f754b92aa05b1fee25836a",
+    "semantic_hash": "ed3e86cab3f754b92aa05b1fee25836a"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\.graphify_detect.json": {
+    "mtime": 1781804561.56767,
+    "ast_hash": "8a8c9fb8a364a3c009a16671b7380a1d",
+    "semantic_hash": "8a8c9fb8a364a3c009a16671b7380a1d"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\.graphify_filter.py": {
+    "mtime": 1781804551.6905403,
+    "ast_hash": "f4adf68621a02270412f397bc00e985d",
+    "semantic_hash": "f4adf68621a02270412f397bc00e985d"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\.graphify_out_0.json": {
+    "mtime": 1781804824.4017026,
+    "ast_hash": "603e2ebc5fa9cfa38ae3ec08e92dcbab",
+    "semantic_hash": "603e2ebc5fa9cfa38ae3ec08e92dcbab"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\.graphify_out_1.json": {
+    "mtime": 1781804827.8519132,
+    "ast_hash": "af4e54a27d83a9627dfcb9ccacf4f417",
+    "semantic_hash": "af4e54a27d83a9627dfcb9ccacf4f417"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\.graphify_out_2.json": {
+    "mtime": 1781804788.019111,
+    "ast_hash": "b2755a6709b4c207e95c7e903cd8664c",
+    "semantic_hash": "b2755a6709b4c207e95c7e903cd8664c"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\.graphify_out_3.json": {
+    "mtime": 1781804820.6547463,
+    "ast_hash": "f5661480c27101aa51fdf86172f7abd9",
+    "semantic_hash": "f5661480c27101aa51fdf86172f7abd9"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\.graphify_out_4.json": {
+    "mtime": 1781804886.5664482,
+    "ast_hash": "4a571d936b351fbdf4d353a61629cb92",
+    "semantic_hash": "4a571d936b351fbdf4d353a61629cb92"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\FIX_FIREWALL.ps1": {
+    "mtime": 1767982653.7750514,
+    "ast_hash": "71cf16492b56fd5bbc765a1f538d9253",
+    "semantic_hash": "71cf16492b56fd5bbc765a1f538d9253"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\add_stock.js": {
+    "mtime": 1770830715.7052855,
+    "ast_hash": "3e97914a7f883c93939862e5817166d1",
+    "semantic_hash": "3e97914a7f883c93939862e5817166d1"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\add_stock_all.js": {
+    "mtime": 1770830900.8000536,
+    "ast_hash": "60682be2e33be525f800becf2d06028c",
+    "semantic_hash": "60682be2e33be525f800becf2d06028c"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\backfill_doortypes.js": {
+    "mtime": 1770401606.7259758,
+    "ast_hash": "57ecc888de43f9624e4ce73c5fbb2bb0",
+    "semantic_hash": "57ecc888de43f9624e4ce73c5fbb2bb0"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\backfill_stock.js": {
+    "mtime": 1770831277.8579257,
+    "ast_hash": "b5cdee8b190bd45125a2b99c515f0558",
+    "semantic_hash": "b5cdee8b190bd45125a2b99c515f0558"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\check_restored.js": {
+    "mtime": 1770835591.6831322,
+    "ast_hash": "812b18d79d66e043f33771c1e9af0c67",
+    "semantic_hash": "812b18d79d66e043f33771c1e9af0c67"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\build.gradle": {
+    "mtime": 1767976823.5105772,
+    "ast_hash": "9135eeaf5bbc5b1cec4af11e8d1d3579",
+    "semantic_hash": "9135eeaf5bbc5b1cec4af11e8d1d3579"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\capacitor.build.gradle": {
+    "mtime": 1767985711.0063639,
+    "ast_hash": "b863e425fbde80251bd3c68ac8ccba02",
+    "semantic_hash": "b863e425fbde80251bd3c68ac8ccba02"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\androidTest\\java\\com\\getcapacitor\\myapp\\ExampleInstrumentedTest.java": {
+    "mtime": 1765216967.0,
+    "ast_hash": "fbaf7cc870c663eb52dcf218531c439d",
+    "semantic_hash": "fbaf7cc870c663eb52dcf218531c439d"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\assets\\capacitor.config.json": {
+    "mtime": 1767985710.9276998,
+    "ast_hash": "ab3596456443196fa9d6173e9c17ce3d",
+    "semantic_hash": "ab3596456443196fa9d6173e9c17ce3d"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\assets\\capacitor.plugins.json": {
+    "mtime": 1767985710.9591184,
+    "ast_hash": "58e0494c51d30eb3494f7c9198986bb9",
+    "semantic_hash": "58e0494c51d30eb3494f7c9198986bb9"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\assets\\public\\assets\\index-DhvlHuZT.js": {
+    "mtime": 1767985709.7749324,
+    "ast_hash": "ca297ca9fe2e676b13daad03fd5b07cb",
+    "semantic_hash": "ca297ca9fe2e676b13daad03fd5b07cb"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\assets\\public\\cordova.js": {
+    "mtime": 1767985711.0063639,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\assets\\public\\cordova_plugins.js": {
+    "mtime": 1767985711.0063639,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\java\\com\\zonoor\\app\\MainActivity.java": {
+    "mtime": 1767941201.4305148,
+    "ast_hash": "de257d4401f6999c28596191c0c475e0",
+    "semantic_hash": "de257d4401f6999c28596191c0c475e0"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\test\\java\\com\\getcapacitor\\myapp\\ExampleUnitTest.java": {
+    "mtime": 1765216967.0,
+    "ast_hash": "e91b4501c14da821682fa5c26a16d616",
+    "semantic_hash": "e91b4501c14da821682fa5c26a16d616"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\build.gradle": {
+    "mtime": 1767982416.475442,
+    "ast_hash": "925b577e6e18c855e5c9640a37e93a7a",
+    "semantic_hash": "925b577e6e18c855e5c9640a37e93a7a"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\capacitor-cordova-android-plugins\\build.gradle": {
+    "mtime": 1767985711.0063639,
+    "ast_hash": "2af61653d70c95d20802c8b5c433ba90",
+    "semantic_hash": "2af61653d70c95d20802c8b5c433ba90"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\capacitor-cordova-android-plugins\\cordova.variables.gradle": {
+    "mtime": 1767985711.0063639,
+    "ast_hash": "d2372a0ae9aa60abb8d03e7f06bf9194",
+    "semantic_hash": "d2372a0ae9aa60abb8d03e7f06bf9194"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\capacitor.settings.gradle": {
+    "mtime": 1767985711.0063639,
+    "ast_hash": "455ebb7f9fe84a6974da6bdae43097c2",
+    "semantic_hash": "455ebb7f9fe84a6974da6bdae43097c2"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\gradlew": {
+    "mtime": 1765216967.0,
+    "ast_hash": "794669d78aef1dd5c7d889ef618b311a",
+    "semantic_hash": "794669d78aef1dd5c7d889ef618b311a"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\settings.gradle": {
+    "mtime": 1765216967.0,
+    "ast_hash": "f6cd925b3f859e23c3d819fe2459e0e4",
+    "semantic_hash": "f6cd925b3f859e23c3d819fe2459e0e4"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\variables.gradle": {
+    "mtime": 1767976597.199156,
+    "ast_hash": "700d3e72b88fd5d6d22cc1a38e479033",
+    "semantic_hash": "700d3e72b88fd5d6d22cc1a38e479033"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\capacitor.config.json": {
+    "mtime": 1767941015.9091127,
+    "ast_hash": "b67966b72c67773e86b4485e23cc3fc5",
+    "semantic_hash": "b67966b72c67773e86b4485e23cc3fc5"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\package.json": {
+    "mtime": 1767941013.0659864,
+    "ast_hash": "2591066f5f179d16b82ed8c2cd15fa87",
+    "semantic_hash": "2591066f5f179d16b82ed8c2cd15fa87"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\postcss.config.js": {
+    "mtime": 1767616978.183999,
+    "ast_hash": "df8f19c6d8328a505ac7470ecdfb6186",
+    "semantic_hash": "df8f19c6d8328a505ac7470ecdfb6186"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\App.jsx": {
+    "mtime": 1781467534.483276,
+    "ast_hash": "28d0eac906c7cbe9403ecd0883868d7e",
+    "semantic_hash": "28d0eac906c7cbe9403ecd0883868d7e"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\components\\Logo.jsx": {
+    "mtime": 1781467486.799055,
+    "ast_hash": "17fe2a90c1f4b593929cd965ad08b1be",
+    "semantic_hash": "17fe2a90c1f4b593929cd965ad08b1be"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\components\\Sidebar.jsx": {
+    "mtime": 1781467534.483276,
+    "ast_hash": "45645eb2c7103aeddb27f5aa16b00fa6",
+    "semantic_hash": "45645eb2c7103aeddb27f5aa16b00fa6"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\context\\AuthContext.jsx": {
+    "mtime": 1781457896.0002878,
+    "ast_hash": "0db300905806fc6ef4d3f7e2668d97b9",
+    "semantic_hash": "0db300905806fc6ef4d3f7e2668d97b9"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\hooks\\useMediaQuery.js": {
+    "mtime": 1768851064.1910558,
+    "ast_hash": "4064e6f58c3459b5eb69fe082b010c66",
+    "semantic_hash": "4064e6f58c3459b5eb69fe082b010c66"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\hooks\\useSound.js": {
+    "mtime": 1769542217.1183276,
+    "ast_hash": "812d7cb9019ef8d53f19aee3be4d05aa",
+    "semantic_hash": "812d7cb9019ef8d53f19aee3be4d05aa"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\main.jsx": {
+    "mtime": 1767645659.0971072,
+    "ast_hash": "4a77fd2ed4840975e8303da5ad9dceec",
+    "semantic_hash": "4a77fd2ed4840975e8303da5ad9dceec"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\pages\\Login.jsx": {
+    "mtime": 1781467580.3358133,
+    "ast_hash": "18b9b785985f03f2dab6751435a26a8a",
+    "semantic_hash": "18b9b785985f03f2dab6751435a26a8a"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\pages\\Profile.jsx": {
+    "mtime": 1781467535.115434,
+    "ast_hash": "4aa4197bb224f8c60430bfb5f6025f59",
+    "semantic_hash": "4aa4197bb224f8c60430bfb5f6025f59"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\pages\\admin\\AdminWorkerControl.jsx": {
+    "mtime": 1781467534.483276,
+    "ast_hash": "eebe34a0034dd3cdd8139eec89f269fb",
+    "semantic_hash": "eebe34a0034dd3cdd8139eec89f269fb"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\pages\\admin\\AnalyticsDashboard.jsx": {
+    "mtime": 1781467726.4873505,
+    "ast_hash": "79b4b31cf7efc428e3a8e211f421c476",
+    "semantic_hash": "79b4b31cf7efc428e3a8e211f421c476"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\pages\\admin\\DamageReturns.jsx": {
+    "mtime": 1781545695.8670554,
+    "ast_hash": "99c9155b49624b50873a863bcbbb3717",
+    "semantic_hash": "99c9155b49624b50873a863bcbbb3717"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\pages\\admin\\Dashboard.jsx": {
+    "mtime": 1781554140.6462066,
+    "ast_hash": "b36e66f345a9d8ba1e4da791f19a6351",
+    "semantic_hash": "b36e66f345a9d8ba1e4da791f19a6351"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\pages\\admin\\MaterialAnalysis.jsx": {
+    "mtime": 1781467535.053542,
+    "ast_hash": "d9ca32f7a0a0076e0c1fb57bfc5f467b",
+    "semantic_hash": "d9ca32f7a0a0076e0c1fb57bfc5f467b"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\pages\\admin\\ReportsDashboard.jsx": {
+    "mtime": 1781549574.3767924,
+    "ast_hash": "25ee97d59def9fae9ee033a4fddae728",
+    "semantic_hash": "25ee97d59def9fae9ee033a4fddae728"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\pages\\admin\\StockManagement.jsx": {
+    "mtime": 1781467641.0078495,
+    "ast_hash": "2deab96d426642c030ca60c0c613aeb0",
+    "semantic_hash": "2deab96d426642c030ca60c0c613aeb0"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\pages\\dealer\\Dashboard.jsx": {
+    "mtime": 1781553992.1368124,
+    "ast_hash": "b3b417c783a5beffdea3d17e5ccd2977",
+    "semantic_hash": "b3b417c783a5beffdea3d17e5ccd2977"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\pages\\dealer\\DesktopDashboard.jsx": {
+    "mtime": 1781554058.7989378,
+    "ast_hash": "3dd06181267b047bd2557daefcf2fb5f",
+    "semantic_hash": "3dd06181267b047bd2557daefcf2fb5f"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\pages\\dealer\\MobileDashboard.jsx": {
+    "mtime": 1781554166.2290611,
+    "ast_hash": "9b29aaef5ac493d525c4a91cd9d30efb",
+    "semantic_hash": "9b29aaef5ac493d525c4a91cd9d30efb"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\pages\\distributor\\Dashboard.jsx": {
+    "mtime": 1781470118.6101954,
+    "ast_hash": "27a93f068f4865cd956c315aaf5d23db",
+    "semantic_hash": "27a93f068f4865cd956c315aaf5d23db"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\pages\\distributor\\DesktopDashboard.jsx": {
+    "mtime": 1781467641.0129483,
+    "ast_hash": "e221bc3545d03784182dd3830a9e2c5a",
+    "semantic_hash": "e221bc3545d03784182dd3830a9e2c5a"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\pages\\distributor\\MobileDashboard.jsx": {
+    "mtime": 1781467641.014114,
+    "ast_hash": "7ad874fb11953fc5623800a09284c18e",
+    "semantic_hash": "7ad874fb11953fc5623800a09284c18e"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\pages\\manager\\ManagerAnalytics.jsx": {
+    "mtime": 1781467770.5549078,
+    "ast_hash": "2faf40f846366c3027e8de1f13e99ef8",
+    "semantic_hash": "2faf40f846366c3027e8de1f13e99ef8"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\pages\\manager\\ManagerDashboard.jsx": {
+    "mtime": 1781467535.1138978,
+    "ast_hash": "03f0233f22702b534ea14dcb6fffe679",
+    "semantic_hash": "03f0233f22702b534ea14dcb6fffe679"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\pages\\manager\\ManagerOrders.jsx": {
+    "mtime": 1781467535.1150892,
+    "ast_hash": "bb0d4f5bb3876e565e6e0048024ede82",
+    "semantic_hash": "bb0d4f5bb3876e565e6e0048024ede82"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\pages\\worker\\WorkerDashboard.jsx": {
+    "mtime": 1781554218.4509034,
+    "ast_hash": "991d59bf9414eeeff326c16348e2278e",
+    "semantic_hash": "991d59bf9414eeeff326c16348e2278e"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\pages\\worker\\WorkerLogin.jsx": {
+    "mtime": 1781467535.1187694,
+    "ast_hash": "85a8d5a8f53048efd15d9a39ccec3394",
+    "semantic_hash": "85a8d5a8f53048efd15d9a39ccec3394"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\utils\\api.js": {
+    "mtime": 1768839141.7392664,
+    "ast_hash": "00568c146ff8885d5dcc3efe32283828",
+    "semantic_hash": "00568c146ff8885d5dcc3efe32283828"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\utils\\designLogicClient.js": {
+    "mtime": 1770142507.6206489,
+    "ast_hash": "6f1c57c5c1c8157ae5f39574578c8557",
+    "semantic_hash": "6f1c57c5c1c8157ae5f39574578c8557"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\utils\\offlineSync.js": {
+    "mtime": 1769542352.5765157,
+    "ast_hash": "6cdba3129d11a93f5cbe49818684118d",
+    "semantic_hash": "6cdba3129d11a93f5cbe49818684118d"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\src\\verify_syntax.js": {
+    "mtime": 1769187170.7895944,
+    "ast_hash": "cdf19a72977772a7bd2f09f0187a0a21",
+    "semantic_hash": "cdf19a72977772a7bd2f09f0187a0a21"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\tailwind.config.js": {
+    "mtime": 1767616976.202224,
+    "ast_hash": "e2d6814eab4638aee7a349cb5ac46119",
+    "semantic_hash": "e2d6814eab4638aee7a349cb5ac46119"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\vite.config.js": {
+    "mtime": 1769450413.4852695,
+    "ast_hash": "836c2b5143568a1206814a12efb5edb9",
+    "semantic_hash": "836c2b5143568a1206814a12efb5edb9"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\fix_schema.js": {
+    "mtime": 1769523112.890207,
+    "ast_hash": "6b89a22245e92231ef776fc14dd42f00",
+    "semantic_hash": "6b89a22245e92231ef776fc14dd42f00"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\fix_sqlite_all.js": {
+    "mtime": 1769523668.780309,
+    "ast_hash": "fc4790abfb2d80729304f981c25b6189",
+    "semantic_hash": "fc4790abfb2d80729304f981c25b6189"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\fix_sqlite_columns.js": {
+    "mtime": 1770401113.8369384,
+    "ast_hash": "ad99400f5bde2e68abbe33d48ce69b7f",
+    "semantic_hash": "ad99400f5bde2e68abbe33d48ce69b7f"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\initialize_recovered_stock.js": {
+    "mtime": 1770835756.6846552,
+    "ast_hash": "da1214191f1d616c1fe6c804db303f3c",
+    "semantic_hash": "da1214191f1d616c1fe6c804db303f3c"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\migrate_material_type.js": {
+    "mtime": 1770101545.6828766,
+    "ast_hash": "253091810dc85272aa0b8b4797640fbf",
+    "semantic_hash": "253091810dc85272aa0b8b4797640fbf"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\migrate_pick_columns.js": {
+    "mtime": 1769525054.0250416,
+    "ast_hash": "832ee93cf928166b71855244a1d5f622",
+    "semantic_hash": "832ee93cf928166b71855244a1d5f622"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\migrate_stock.js": {
+    "mtime": 1770830085.0701675,
+    "ast_hash": "06f16570879160bec1474ed512629f7b",
+    "semantic_hash": "06f16570879160bec1474ed512629f7b"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\migrate_stock_v2.js": {
+    "mtime": 1770835768.3881354,
+    "ast_hash": "2e6ac9e88a53d6bdcb74419d2e4d4b76",
+    "semantic_hash": "2e6ac9e88a53d6bdcb74419d2e4d4b76"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\package.json": {
+    "mtime": 1769450398.1799283,
+    "ast_hash": "699d0de31bff6cb5719c6d8d48c1fd71",
+    "semantic_hash": "699d0de31bff6cb5719c6d8d48c1fd71"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\check_bhakti.js": {
+    "mtime": 1767813049.345614,
+    "ast_hash": "4d90a404ae9064774130753725a9c0dd",
+    "semantic_hash": "4d90a404ae9064774130753725a9c0dd"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\check_db.js": {
+    "mtime": 1770103591.0935333,
+    "ast_hash": "60caf31a5a382c71e89a0c13976ba2d4",
+    "semantic_hash": "60caf31a5a382c71e89a0c13976ba2d4"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\check_design_zn02.js": {
+    "mtime": 1770050884.6460166,
+    "ast_hash": "87b8ce8e10dc4dd0edd031fa0e5a781c",
+    "semantic_hash": "87b8ce8e10dc4dd0edd031fa0e5a781c"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\check_links.js": {
+    "mtime": 1767811676.2086089,
+    "ast_hash": "7d9996b75fe4e3c0217d555c94214501",
+    "semantic_hash": "7d9996b75fe4e3c0217d555c94214501"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\check_models.js": {
+    "mtime": 1770050493.204711,
+    "ast_hash": "5f1e94b50a3dcb170137a144a4e65f4f",
+    "semantic_hash": "5f1e94b50a3dcb170137a144a4e65f4f"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\check_production_units.js": {
+    "mtime": 1770059509.660064,
+    "ast_hash": "259aae058b9f4a52e3e83a136c87e46c",
+    "semantic_hash": "259aae058b9f4a52e3e83a136c87e46c"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\check_routes.js": {
+    "mtime": 1770050534.9109507,
+    "ast_hash": "ef6d52619c0c5332d03d7d74174787c2",
+    "semantic_hash": "ef6d52619c0c5332d03d7d74174787c2"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\check_schema.js": {
+    "mtime": 1770105150.4294486,
+    "ast_hash": "faa7eab44d6056c94adc6a34a46c9d61",
+    "semantic_hash": "faa7eab44d6056c94adc6a34a46c9d61"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\check_shubham.js": {
+    "mtime": 1767812448.22891,
+    "ast_hash": "4c5287e83600f20c62b3d336f903f1b7",
+    "semantic_hash": "4c5287e83600f20c62b3d336f903f1b7"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\check_units.js": {
+    "mtime": 1769089267.9249525,
+    "ast_hash": "9680e278cae32c2bf946eb986d2dce4d",
+    "semantic_hash": "9680e278cae32c2bf946eb986d2dce4d"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\check_users.js": {
+    "mtime": 1767621874.4277425,
+    "ast_hash": "a3fc960aa5ed9bd38804058ea6ec15dc",
+    "semantic_hash": "a3fc960aa5ed9bd38804058ea6ec15dc"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\config\\database.js": {
+    "mtime": 1769524337.5016825,
+    "ast_hash": "ebd4fc9909f672c11b5e43da360dc340",
+    "semantic_hash": "ebd4fc9909f672c11b5e43da360dc340"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\create_import_template.js": {
+    "mtime": 1781462087.1779225,
+    "ast_hash": "0de70b5d89633c70abf3ba5a62c4124f",
+    "semantic_hash": "0de70b5d89633c70abf3ba5a62c4124f"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\debug_api.js": {
+    "mtime": 1769099037.7147753,
+    "ast_hash": "e8aec496cf8be9817d372ddd98ddadaf",
+    "semantic_hash": "e8aec496cf8be9817d372ddd98ddadaf"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\debug_orders.js": {
+    "mtime": 1769089441.9332418,
+    "ast_hash": "048b439f2b7200dc2424bd396abd606d",
+    "semantic_hash": "048b439f2b7200dc2424bd396abd606d"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\debug_query.js": {
+    "mtime": 1769099680.9397333,
+    "ast_hash": "249f8dd9b111ea306b9821992f319f09",
+    "semantic_hash": "249f8dd9b111ea306b9821992f319f09"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\fix_columns_correct.js": {
+    "mtime": 1770105558.4995203,
+    "ast_hash": "cf0ba4f813d24ad24d4b50904060f924",
+    "semantic_hash": "cf0ba4f813d24ad24d4b50904060f924"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\fix_database.js": {
+    "mtime": 1770103555.7847307,
+    "ast_hash": "8d98101540be68ce8982d641902fbb21",
+    "semantic_hash": "8d98101540be68ce8982d641902fbb21"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\fix_db.js": {
+    "mtime": 1767979342.5221946,
+    "ast_hash": "bd884f3ca426d31d8fbaf2704e736d6c",
+    "semantic_hash": "bd884f3ca426d31d8fbaf2704e736d6c"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\fix_factory_data.js": {
+    "mtime": 1769099204.5476222,
+    "ast_hash": "390e702f76e886fbf35988c97a42fa6e",
+    "semantic_hash": "390e702f76e886fbf35988c97a42fa6e"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\fix_schema_items.js": {
+    "mtime": 1770233685.282842,
+    "ast_hash": "21fd4a6b431b701e3aa198bc45182d94",
+    "semantic_hash": "21fd4a6b431b701e3aa198bc45182d94"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\fix_timestamps.js": {
+    "mtime": 1770105597.7578743,
+    "ast_hash": "eeac6cc77204a46eaeadd3f96d82fef4",
+    "semantic_hash": "eeac6cc77204a46eaeadd3f96d82fef4"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\fix_unique_constraint.js": {
+    "mtime": 1770105526.5012538,
+    "ast_hash": "b28312d39eb94e6e565c0f5dee733054",
+    "semantic_hash": "b28312d39eb94e6e565c0f5dee733054"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\fix_users.js": {
+    "mtime": 1767806764.7863536,
+    "ast_hash": "3778c4f7d0730fee14b01ac38d846a5e",
+    "semantic_hash": "3778c4f7d0730fee14b01ac38d846a5e"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\import_from_sheets.js": {
+    "mtime": 1781465670.4116318,
+    "ast_hash": "ee31bbd9cad368b4ca927e2cabbbd5d9",
+    "semantic_hash": "ee31bbd9cad368b4ca927e2cabbbd5d9"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\import_historical_data.js": {
+    "mtime": 1781462074.8063297,
+    "ast_hash": "f1fc75e8fcea8a91bf894c524f87183a",
+    "semantic_hash": "f1fc75e8fcea8a91bf894c524f87183a"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\merge_gujarati_dealers.js": {
+    "mtime": 1781543111.429876,
+    "ast_hash": "551da5376c421fe92ed1705fa3ec143b",
+    "semantic_hash": "551da5376c421fe92ed1705fa3ec143b"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\middleware\\auth.js": {
+    "mtime": 1767616772.8615158,
+    "ast_hash": "04106997b4fde9a75cf6e260f04429b2",
+    "semantic_hash": "04106997b4fde9a75cf6e260f04429b2"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\migrate_add_material_type.js": {
+    "mtime": 1770104216.7804854,
+    "ast_hash": "600172b1b49ef4f23296b0b47cb8f27d",
+    "semantic_hash": "600172b1b49ef4f23296b0b47cb8f27d"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\migrate_add_phone.js": {
+    "mtime": 1781459663.0338805,
+    "ast_hash": "199b73bb766003c1389354019c85f1be",
+    "semantic_hash": "199b73bb766003c1389354019c85f1be"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\migrate_delivery_damage.js": {
+    "mtime": 1781545160.574641,
+    "ast_hash": "3f52d9590c09cbcdf761469eb6bc3da9",
+    "semantic_hash": "3f52d9590c09cbcdf761469eb6bc3da9"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\migrate_dispatch_fields.js": {
+    "mtime": 1781547575.2226157,
+    "ast_hash": "2bb3815281550341b8d56e699fbb368f",
+    "semantic_hash": "2bb3815281550341b8d56e699fbb368f"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\migrate_sitename.js": {
+    "mtime": 1781553918.0866706,
+    "ast_hash": "173df283f3a106a945516a0617330061",
+    "semantic_hash": "173df283f3a106a945516a0617330061"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\models\\Color.js": {
+    "mtime": 1767640109.0182724,
+    "ast_hash": "0851b09f52908bab417ccc0929922d5f",
+    "semantic_hash": "0851b09f52908bab417ccc0929922d5f"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\models\\DamageReport.js": {
+    "mtime": 1781545004.384098,
+    "ast_hash": "794096315bba802f8c653bd110bda114",
+    "semantic_hash": "794096315bba802f8c653bd110bda114"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\models\\Design.js": {
+    "mtime": 1767640208.4231305,
+    "ast_hash": "a175d10f77a812f6e1bf18a82601682e",
+    "semantic_hash": "a175d10f77a812f6e1bf18a82601682e"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\models\\DesignColor.js": {
+    "mtime": 1767640110.9978886,
+    "ast_hash": "8f4c8a8757403aa88f7fccca6751a962",
+    "semantic_hash": "8f4c8a8757403aa88f7fccca6751a962"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\models\\DoorType.js": {
+    "mtime": 1767616686.818051,
+    "ast_hash": "cae50248c4578b8c57c4919b94476c39",
+    "semantic_hash": "cae50248c4578b8c57c4919b94476c39"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\models\\Notification.js": {
+    "mtime": 1770229180.9486458,
+    "ast_hash": "22fb0d05cb363d4e1564814dca0c4ee2",
+    "semantic_hash": "22fb0d05cb363d4e1564814dca0c4ee2"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\models\\Order.js": {
+    "mtime": 1781553887.5904098,
+    "ast_hash": "c948aabcf4aeb2bccf09edb8e4ada944",
+    "semantic_hash": "c948aabcf4aeb2bccf09edb8e4ada944"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\models\\OrderItem.js": {
+    "mtime": 1770233292.8936932,
+    "ast_hash": "e9f40bf64a44d2d058c5044c9763449d",
+    "semantic_hash": "e9f40bf64a44d2d058c5044c9763449d"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\models\\Post.js": {
+    "mtime": 1767802928.5841208,
+    "ast_hash": "269348fa849e8af2d7a55cc2df36c03a",
+    "semantic_hash": "269348fa849e8af2d7a55cc2df36c03a"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\models\\ProcessRecord.js": {
+    "mtime": 1769084489.453568,
+    "ast_hash": "168ac65b156f9460e2d5968f04b667d6",
+    "semantic_hash": "168ac65b156f9460e2d5968f04b667d6"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\models\\ProductionUnit.js": {
+    "mtime": 1769524969.023043,
+    "ast_hash": "4f99daa47697b8ecd4c6ede1696bb44f",
+    "semantic_hash": "4f99daa47697b8ecd4c6ede1696bb44f"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\models\\SheetMaster.js": {
+    "mtime": 1770916266.8676531,
+    "ast_hash": "b654859d12c7cbd028e86c4a71b9ae02",
+    "semantic_hash": "b654859d12c7cbd028e86c4a71b9ae02"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\models\\StockHistory.js": {
+    "mtime": 1770830030.3180175,
+    "ast_hash": "5250beabcf3f989f5cd1d368aa6cf81c",
+    "semantic_hash": "5250beabcf3f989f5cd1d368aa6cf81c"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\models\\SystemSetting.js": {
+    "mtime": 1769103354.7936215,
+    "ast_hash": "e77c68712c149630dcbe33c860e3da41",
+    "semantic_hash": "e77c68712c149630dcbe33c860e3da41"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\models\\User.js": {
+    "mtime": 1781457761.1737523,
+    "ast_hash": "8d829a36e068faeda15efdd28e861dbc",
+    "semantic_hash": "8d829a36e068faeda15efdd28e861dbc"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\models\\Worker.js": {
+    "mtime": 1769084448.1514041,
+    "ast_hash": "6f17a8e589f637aabeb53e767d224936",
+    "semantic_hash": "6f17a8e589f637aabeb53e767d224936"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\models\\index.js": {
+    "mtime": 1781545043.154825,
+    "ast_hash": "f11aef0df9477f834692e24e272ea8b8",
+    "semantic_hash": "f11aef0df9477f834692e24e272ea8b8"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\package.json": {
+    "mtime": 1781462177.9722378,
+    "ast_hash": "6a84f7d9ab2ca4904f41e7a58bfe5b4d",
+    "semantic_hash": "6a84f7d9ab2ca4904f41e7a58bfe5b4d"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\reimport_corrected.js": {
+    "mtime": 1781468638.611921,
+    "ast_hash": "4243e68fac4416ec476b070060c37717",
+    "semantic_hash": "4243e68fac4416ec476b070060c37717"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\repair_production_units.js": {
+    "mtime": 1770059545.272871,
+    "ast_hash": "a6ef35696af72e3bdd48768e3f8cde70",
+    "semantic_hash": "a6ef35696af72e3bdd48768e3f8cde70"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\reset_admin.js": {
+    "mtime": 1767978719.16123,
+    "ast_hash": "3a8c459f942a6c346511017513dbd70b",
+    "semantic_hash": "3a8c459f942a6c346511017513dbd70b"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\routes\\analytics.js": {
+    "mtime": 1770064727.0994816,
+    "ast_hash": "d0eab6272f27809996b7fca7c128dbeb",
+    "semantic_hash": "d0eab6272f27809996b7fca7c128dbeb"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\routes\\auth.js": {
+    "mtime": 1781457837.2518694,
+    "ast_hash": "5a4040ef7904c0391110e8371db139ea",
+    "semantic_hash": "5a4040ef7904c0391110e8371db139ea"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\routes\\damage.js": {
+    "mtime": 1781545071.8651254,
+    "ast_hash": "3b599247aa93b5de95630996026a62e4",
+    "semantic_hash": "3b599247aa93b5de95630996026a62e4"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\routes\\masterData.js": {
+    "mtime": 1781458515.3462086,
+    "ast_hash": "c673aca8b0b174bd9d5eeb5266763f08",
+    "semantic_hash": "c673aca8b0b174bd9d5eeb5266763f08"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\routes\\notifications.js": {
+    "mtime": 1770229196.0748801,
+    "ast_hash": "f5f41c49c42238c2f538afe4f12c1359",
+    "semantic_hash": "f5f41c49c42238c2f538afe4f12c1359"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\routes\\orders.js": {
+    "mtime": 1781553906.6657114,
+    "ast_hash": "6f3094ef3bb5a736880befbb2b7a3ca8",
+    "semantic_hash": "6f3094ef3bb5a736880befbb2b7a3ca8"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\routes\\posts.js": {
+    "mtime": 1767802991.7274013,
+    "ast_hash": "46002ac7f2d372be3db6d802819f0969",
+    "semantic_hash": "46002ac7f2d372be3db6d802819f0969"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\routes\\reports.js": {
+    "mtime": 1781549478.5548143,
+    "ast_hash": "94b4d6ee2db760eec7c5f255306db5b7",
+    "semantic_hash": "94b4d6ee2db760eec7c5f255306db5b7"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\routes\\sheets.js": {
+    "mtime": 1770917645.732027,
+    "ast_hash": "ac3dd492b2be92ea4d77a1419ba220a4",
+    "semantic_hash": "ac3dd492b2be92ea4d77a1419ba220a4"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\routes\\users.js": {
+    "mtime": 1781469944.2281778,
+    "ast_hash": "0d15fb811a95bf16e481488eba30c36d",
+    "semantic_hash": "0d15fb811a95bf16e481488eba30c36d"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\routes\\workers.js": {
+    "mtime": 1781554181.633862,
+    "ast_hash": "ebd8b97f3b2f97c441986f32ee6e0b1d",
+    "semantic_hash": "ebd8b97f3b2f97c441986f32ee6e0b1d"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\seed.js": {
+    "mtime": 1768840960.6351764,
+    "ast_hash": "2d5dbfc09e7191b69712bf58dfd90105",
+    "semantic_hash": "2d5dbfc09e7191b69712bf58dfd90105"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\seed_manager.js": {
+    "mtime": 1769963585.26859,
+    "ast_hash": "44c6aaf9d25342f4d80931075801394a",
+    "semantic_hash": "44c6aaf9d25342f4d80931075801394a"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\server.js": {
+    "mtime": 1781545145.917314,
+    "ast_hash": "a99f16884f2b3bd17672a388dcbfa2de",
+    "semantic_hash": "a99f16884f2b3bd17672a388dcbfa2de"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\test_api_http.js": {
+    "mtime": 1770108362.422156,
+    "ast_hash": "7bab421f83719cabe716df0b28d24b5a",
+    "semantic_hash": "7bab421f83719cabe716df0b28d24b5a"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\test_create_distributor.js": {
+    "mtime": 1767790006.6165364,
+    "ast_hash": "376180e3147d4f1eba7682bfedcf75ef",
+    "semantic_hash": "376180e3147d4f1eba7682bfedcf75ef"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\test_http.js": {
+    "mtime": 1770108383.3904247,
+    "ast_hash": "6dd975740c7ccc3e1de4cee7a36e359c",
+    "semantic_hash": "6dd975740c7ccc3e1de4cee7a36e359c"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\test_http2.js": {
+    "mtime": 1770108402.6045227,
+    "ast_hash": "9ea44a34674c31118d5f1cc1aea43fc4",
+    "semantic_hash": "9ea44a34674c31118d5f1cc1aea43fc4"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\test_login.js": {
+    "mtime": 1767979170.9552486,
+    "ast_hash": "8f3955c9da3cbb03d863010f284a71ef",
+    "semantic_hash": "8f3955c9da3cbb03d863010f284a71ef"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\test_sheets_api.js": {
+    "mtime": 1770108329.3796093,
+    "ast_hash": "1367ab38ddb05d0d65b2f9ff5a862cac",
+    "semantic_hash": "1367ab38ddb05d0d65b2f9ff5a862cac"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\utils\\designLogic.js": {
+    "mtime": 1770142542.5558205,
+    "ast_hash": "c4bebb99ab32fc809f52986a518c456e",
+    "semantic_hash": "c4bebb99ab32fc809f52986a518c456e"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\server\\utils\\whatsapp.js": {
+    "mtime": 1781457784.65757,
+    "ast_hash": "24e1d69feb424fd386cdacd559effa75",
+    "semantic_hash": "24e1d69feb424fd386cdacd559effa75"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\show_affected_stock.js": {
+    "mtime": 1770831328.278836,
+    "ast_hash": "906fb0accc8137fc2ed33a328be107ff",
+    "semantic_hash": "906fb0accc8137fc2ed33a328be107ff"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\test_api.js": {
+    "mtime": 1770833432.4886694,
+    "ast_hash": "0d2b28d24f5f7de42712c2c70c1adc9f",
+    "semantic_hash": "0d2b28d24f5f7de42712c2c70c1adc9f"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\test_api_direct.js": {
+    "mtime": 1770834520.9249945,
+    "ast_hash": "a75397c9e1ad78313faa154498ad2bf2",
+    "semantic_hash": "a75397c9e1ad78313faa154498ad2bf2"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\test_api_response.js": {
+    "mtime": 1770833641.3366215,
+    "ast_hash": "e525b73a7faf2b078b31d999445ab6c4",
+    "semantic_hash": "e525b73a7faf2b078b31d999445ab6c4"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\test_blank_logic.js": {
+    "mtime": 1769520113.5546362,
+    "ast_hash": "7bbf750f3473a31c6d9923d2221e3dd9",
+    "semantic_hash": "7bbf750f3473a31c6d9923d2221e3dd9"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\test_sheets.js": {
+    "mtime": 1770833352.0899389,
+    "ast_hash": "a527743e119094d74cc6d4fc85203057",
+    "semantic_hash": "a527743e119094d74cc6d4fc85203057"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\verify_distributor_create.js": {
+    "mtime": 1767788940.2241454,
+    "ast_hash": "e4548c72a4cbb3fddd8af214a7aec886",
+    "semantic_hash": "e4548c72a4cbb3fddd8af214a7aec886"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\verify_option_b.js": {
+    "mtime": 1770918413.5587096,
+    "ast_hash": "cbb2fa0103a44abd8601ed1b7f353081",
+    "semantic_hash": "cbb2fa0103a44abd8601ed1b7f353081"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\view_stock.js": {
+    "mtime": 1770830713.9349966,
+    "ast_hash": "51294395d8955b7e92416340682488e9",
+    "semantic_hash": "51294395d8955b7e92416340682488e9"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\.agents\\rules\\graphify.md": {
+    "mtime": 1781805381.652445,
+    "ast_hash": "a0e4d192b9e2e17256124dbfc8e24e6a",
+    "semantic_hash": "a0e4d192b9e2e17256124dbfc8e24e6a"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\.agents\\workflows\\graphify.md": {
+    "mtime": 1781805381.652445,
+    "ast_hash": "637776aa6f7496d069afe7520c845c8a",
+    "semantic_hash": "637776aa6f7496d069afe7520c845c8a"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\.graphify_chunk_0.txt": {
+    "mtime": 1781804663.8387158,
+    "ast_hash": "8db921e01866b4c32d9b818baa8a7874",
+    "semantic_hash": "8db921e01866b4c32d9b818baa8a7874"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\.graphify_chunk_1.txt": {
+    "mtime": 1781804663.8387158,
+    "ast_hash": "b6fb33f4bfaed4df9ddf26b56cf29ef8",
+    "semantic_hash": "b6fb33f4bfaed4df9ddf26b56cf29ef8"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\.graphify_chunk_2.txt": {
+    "mtime": 1781804663.8387158,
+    "ast_hash": "0bf60864366a5b64ed86f5cd38c1b624",
+    "semantic_hash": "0bf60864366a5b64ed86f5cd38c1b624"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\.graphify_chunk_3.txt": {
+    "mtime": 1781804663.8387158,
+    "ast_hash": "d2743f894265e6de1f60543b49070397",
+    "semantic_hash": "d2743f894265e6de1f60543b49070397"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\.graphify_chunk_4.txt": {
+    "mtime": 1781804663.8387158,
+    "ast_hash": "b7cbfc6b4bbc0a86da88f094cc780f9f",
+    "semantic_hash": "b7cbfc6b4bbc0a86da88f094cc780f9f"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\FUTURE_UPDATES.md": {
+    "mtime": 1781458457.4506953,
+    "ast_hash": "d891ed21754e3e5b2fbfd6d1a197de8f",
+    "semantic_hash": "d891ed21754e3e5b2fbfd6d1a197de8f"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\assets\\public\\index.html": {
+    "mtime": 1767985709.7749324,
+    "ast_hash": "89e0301f646f826d0d1d80b4bc5313e4",
+    "semantic_hash": "89e0301f646f826d0d1d80b4bc5313e4"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\index.html": {
+    "mtime": 1781467793.8579,
+    "ast_hash": "7f61a0dc87281b5c4692674270cd036a",
+    "semantic_hash": "7f61a0dc87281b5c4692674270cd036a"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\render-tester.html": {
+    "mtime": 1770064002.695864,
+    "ast_hash": "c36c197fe0b67012f66a4c9aa6a0ed82",
+    "semantic_hash": "c36c197fe0b67012f66a4c9aa6a0ed82"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable-land-hdpi\\splash.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "f7a80786dd355bd39014e58027aa6e19",
+    "semantic_hash": "f7a80786dd355bd39014e58027aa6e19"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable-land-mdpi\\splash.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "acc976d4a36479233371a53021525c0c",
+    "semantic_hash": "acc976d4a36479233371a53021525c0c"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable-land-xhdpi\\splash.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "b8c72969bc1f78aab71a76035360d4af",
+    "semantic_hash": "b8c72969bc1f78aab71a76035360d4af"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable-land-xxhdpi\\splash.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "f87e988387b07d843905f38b084929fb",
+    "semantic_hash": "f87e988387b07d843905f38b084929fb"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable-land-xxxhdpi\\splash.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "055a69553b16b0bf5f72094a2e459fc7",
+    "semantic_hash": "055a69553b16b0bf5f72094a2e459fc7"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable-port-hdpi\\splash.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "5eb10d16c81338abe8bbc033d49638a8",
+    "semantic_hash": "5eb10d16c81338abe8bbc033d49638a8"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable-port-mdpi\\splash.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "d855a76a5070c8e6fcfd83a27549bdce",
+    "semantic_hash": "d855a76a5070c8e6fcfd83a27549bdce"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable-port-xhdpi\\splash.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "df100b2a36bdb98b711cca58941728de",
+    "semantic_hash": "df100b2a36bdb98b711cca58941728de"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable-port-xxhdpi\\splash.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "2c1b668364e815256f67b71dcdfa4d6e",
+    "semantic_hash": "2c1b668364e815256f67b71dcdfa4d6e"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable-port-xxxhdpi\\splash.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "b5b1b22b59abe686c1df0d74a423d034",
+    "semantic_hash": "b5b1b22b59abe686c1df0d74a423d034"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\drawable\\splash.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "acc976d4a36479233371a53021525c0c",
+    "semantic_hash": "acc976d4a36479233371a53021525c0c"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "1956941339dd5fe36d5c66601c89a08d",
+    "semantic_hash": "1956941339dd5fe36d5c66601c89a08d"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher_foreground.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "73b1e06d769fa08a9c3b8328cc15fd75",
+    "semantic_hash": "73b1e06d769fa08a9c3b8328cc15fd75"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher_round.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "f43e5674865a00186dd76183cf1f2f8e",
+    "semantic_hash": "f43e5674865a00186dd76183cf1f2f8e"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "7ed1b3739b83215d0c4a0b4a7f2dcab4",
+    "semantic_hash": "7ed1b3739b83215d0c4a0b4a7f2dcab4"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher_foreground.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "5b77e8aec8b17eed320a97567c7cb8bf",
+    "semantic_hash": "5b77e8aec8b17eed320a97567c7cb8bf"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher_round.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "a49547a32c7d9b529af607b033811d81",
+    "semantic_hash": "a49547a32c7d9b529af607b033811d81"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "5689511ee4e41a367d0342f37ac48bdf",
+    "semantic_hash": "5689511ee4e41a367d0342f37ac48bdf"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher_foreground.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "15cdded29b9877ac98c5931024c5da5d",
+    "semantic_hash": "15cdded29b9877ac98c5931024c5da5d"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher_round.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "c890fa4af62a63486d5dea62441ce7ab",
+    "semantic_hash": "c890fa4af62a63486d5dea62441ce7ab"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "a3285eeaedda8201f04e7737b9df8421",
+    "semantic_hash": "a3285eeaedda8201f04e7737b9df8421"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher_foreground.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "4e9584ecc16d1fc75afb798688ce576f",
+    "semantic_hash": "4e9584ecc16d1fc75afb798688ce576f"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher_round.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "14cde87848553e24d7106f56eb8ceb6f",
+    "semantic_hash": "14cde87848553e24d7106f56eb8ceb6f"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "9e029293ab1ae8e3a6a7b7d0b7177e46",
+    "semantic_hash": "9e029293ab1ae8e3a6a7b7d0b7177e46"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher_foreground.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "ed3696b7c52d9747411a475dbe3fa34a",
+    "semantic_hash": "ed3696b7c52d9747411a475dbe3fa34a"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\android\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher_round.png": {
+    "mtime": 1765216967.0,
+    "ast_hash": "85addb4159ecd3f76f02fbacd5ec86de",
+    "semantic_hash": "85addb4159ecd3f76f02fbacd5ec86de"
+  },
+  "D:\\Z-ON DOOR 2024\\zon app\\client\\public\\favicon.svg": {
+    "mtime": 1781467786.0416389,
+    "ast_hash": "ad585be9821e317e2d4c76ee06b93164",
+    "semantic_hash": "ad585be9821e317e2d4c76ee06b93164"
+  }
+}

@@ -69,9 +69,9 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const dealerLogin = async (email) => {
+    const dealerLogin = async (email, password) => {
         try {
-            const res = await api.post('/auth/dealer-login', { email });
+            const res = await api.post('/auth/dealer-login', { email, password: password || undefined });
             const { token, user: userData } = res.data;
             localStorage.setItem('token', token);
             api.defaults.headers.common['Authorization'] = `Bearer ${token}`;

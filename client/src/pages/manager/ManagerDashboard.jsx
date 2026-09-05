@@ -22,10 +22,10 @@ export default function ManagerDashboard() {
         <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
             {/* SIDEBAR */}
             <aside className="w-full md:w-64 bg-white shadow-lg z-20 flex-shrink-0 md:h-screen md:fixed md:left-0 md:top-0">
-                <div className="p-6 border-b border-indigo-100 flex items-center justify-between md:block">
+                <div className="p-6 border-b border-red-100 flex items-center justify-between md:block">
                     <div>
-                        <div className="text-2xl font-black text-indigo-700 tracking-tighter">Z-ON DOOR</div>
-                        <div className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest mt-1">Manager Panel</div>
+                        <div className="text-2xl font-black text-red-700 tracking-tighter">Z-ON DOOR</div>
+                        <div className="text-[10px] font-bold text-red-300 uppercase tracking-widest mt-1">Manager Panel</div>
                     </div>
                 </div>
 
@@ -38,28 +38,28 @@ export default function ManagerDashboard() {
                     <nav className="space-y-2">
                         <button
                             onClick={() => setActiveTab('home')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${activeTab === 'home' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${activeTab === 'home' ? 'bg-red-600 text-white shadow-lg shadow-red-200' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
                         >
                             <Home size={18} /> Home Overview
                         </button>
 
                         <button
                             onClick={() => setActiveTab('orders')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${activeTab === 'orders' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${activeTab === 'orders' ? 'bg-red-600 text-white shadow-lg shadow-red-200' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
                         >
                             <Package size={18} /> Orders & Measure
                         </button>
 
                         <button
                             onClick={() => setActiveTab('analytics')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${activeTab === 'analytics' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${activeTab === 'analytics' ? 'bg-red-600 text-white shadow-lg shadow-red-200' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
                         >
                             <TrendingUp size={18} /> Analytics & Pulse
                         </button>
 
                         <button
                             onClick={() => setActiveTab('worker-control')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${activeTab === 'worker-control' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${activeTab === 'worker-control' ? 'bg-red-600 text-white shadow-lg shadow-red-200' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
                         >
                             <Users size={18} /> Worker Control
                         </button>
@@ -81,7 +81,7 @@ export default function ManagerDashboard() {
                 {activeTab === 'home' && (
                     <div className="animate-fade-in space-y-6">
                         <h1 className="text-2xl font-black text-slate-800">Welcome, Manager</h1>
-                        <p className="text-slate-500">Select <span className="font-bold text-indigo-600">Worker Control</span> from the sidebar to manage factory tasks.</p>
+                        <p className="text-slate-500">Select <span className="font-bold text-red-600">Worker Control</span> from the sidebar to manage factory tasks.</p>
 
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 max-w-md">
                             <h2 className="text-lg font-bold mb-4">Quick Stats</h2>

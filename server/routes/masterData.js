@@ -26,10 +26,56 @@ const upload = multer({ storage });
 
 // === DOOR TYPES ===
 router.get('/doors', authenticate, async (req, res) => {
-    // Admin sees all, Dealers sees enabled
     const where = req.user.role === 'MANUFACTURER' ? {} : { isEnabled: true };
     const doors = await DoorType.findAll({ where });
     res.json(doors);
+});
+
+router.post('/doors', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        const { name, thickness } = req.body;
+        if (!name || !name.trim()) return res.status(400).json({ error: 'Door type name is required' });
+        const existing = await DoorType.findOne({ where: { name: name.trim() } });
+        if (existing) return res.status(400).json({ error: `Door type "${name}" already exists` });
+        const door = await DoorType.create({ name: name.trim(), thickness: thickness || null, isEnabled: true });
+        res.status(201).json(door);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.put('/doors/:id', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        const door = await DoorType.findByPk(req.params.id);
+        if (!door) return res.status(404).json({ error: 'Door type not found' });
+        const { name, thickness, isEnabled } = req.body;
+        const updateData = {};
+        if (name) updateData.name = name.trim();
+        if (thickness !== undefined) updateData.thickness = thickness;
+        if (isEnabled !== undefined) updateData.isEnabled = isEnabled === 'true' || isEnabled === true;
+        await door.update(updateData);
+        res.json(door);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.delete('/doors/:id', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        const door = await DoorType.findByPk(req.params.id);
+        if (!door) return res.status(404).json({ error: 'Door type not found' });
+        // Check if any designs use this door type before deleting
+        const inUse = await Design.count({ where: { doorTypeId: door.id } });
+        if (inUse > 0) {
+            // Soft-disable instead of hard delete to protect existing designs
+            await door.update({ isEnabled: false });
+            return res.json({ message: `"${door.name}" disabled (${inUse} designs use it — cannot delete)` });
+        }
+        await door.destroy();
+        res.json({ message: `"${door.name}" deleted successfully` });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // === GLOBAL COLORS ===
@@ -357,65 +403,7 @@ router.post('/designs/auto-categorize', authenticate, authorize(['MANUFACTURER']
     }
 });
 
-// === SHEET MASTERS ===
-router.get('/sheets', authenticate, async (req, res) => {
-    const { materialType } = req.query;
-    const where = { isEnabled: true };
-    if (materialType) where.materialType = materialType;
-
-    const sheets = await SheetMaster.findAll({
-        attributes: ['id', 'width', 'height', 'materialType', 'isEnabled', 'createdAt', 'updatedAt'],
-        where,
-        order: [['materialType', 'ASC'], ['width', 'ASC'], ['height', 'ASC']]
-    });
-
-    console.log('[SHEETS API] Returning', sheets.length, 'sheets');
-    console.log('[SHEETS API] Sample:', sheets.slice(0, 2).map(s => ({ w: s.width, h: s.height, mat: s.materialType })));
-
-    res.json(sheets);
-});
-
-router.post('/sheets', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
-    try {
-        console.log('[SHEET CREATE] Request body:', req.body);
-        const { width, height, materialType = 'PVC' } = req.body;
-
-        if (!width || !height) {
-            console.log('[SHEET CREATE] Missing width or height');
-            return res.status(400).json({ error: 'Width and Height required' });
-        }
-
-        console.log('[SHEET CREATE] Checking for duplicate:', { width, height, materialType });
-
-        // Check duplicate (same width + height + material type)
-        const existing = await SheetMaster.findOne({ where: { width, height, materialType } });
-        if (existing) {
-            console.log('[SHEET CREATE] Duplicate found:', existing.id);
-            if (!existing.isEnabled) {
-                await existing.update({ isEnabled: true });
-                return res.json(existing);
-            }
-            return res.status(400).json({ error: `${materialType} sheet ${width}x${height} already exists` });
-        }
-
-        console.log('[SHEET CREATE] Creating new sheet:', { width, height, materialType });
-        const sheet = await SheetMaster.create({ width, height, materialType, isEnabled: true });
-        console.log('[SHEET CREATE] Sheet created successfully:', sheet.id);
-        res.json(sheet);
-    } catch (error) {
-        console.error('[SHEET CREATE] Error:', error);
-        res.status(500).json({ error: error.message || 'Validation error' });
-    }
-});
-
-router.delete('/sheets/:id', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
-    try {
-        await SheetMaster.destroy({ where: { id: req.params.id } });
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+// --- SHEET MASTERS MOVED TO server/routes/sheets.js ---
 
 module.exports = router;
 

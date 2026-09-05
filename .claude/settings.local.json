@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Recurse -Depth 2)",
+      "Bash(Select-Object FullName, PSIsContainer)",
+      "Bash(ConvertTo-Csv)",
+      "Bash(node -e ' *)",
+      "Bash(node -e \"require\\('./server/routes/masterData'\\); console.log\\('masterData OK'\\)\")",
+      "Bash(node_modules\\\\.bin\\\\vite build *)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(node server.js)",
+      "Bash(echo \"Server PID: $!\")",
+      "Bash(curl -s http://localhost:5000/)",
+      "Bash(node migrate_add_phone.js)",
+      "Bash(curl -s http://localhost:5000/api/auth/verify)",
+      "mcp__Claude_in_Chrome__navigate",
+      "Bash(node -e \"require\\('xlsx'\\); console.log\\('xlsx ok'\\)\")",
+      "Bash(npm install *)",
+      "Bash(npx vite *)",
+      "PowerShell(Get-NetTCPConnection -LocalPort 5174 -State Listen -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Process node -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Id 25536 -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1; Write-Output \"Old Vite stopped\"; Start-Process powershell -ArgumentList '-NoExit','-Command','cd \"D:\\\\Z-ON DOOR 2024\\\\zon app\\\\client\"; npm run dev' -WindowStyle Minimized; Write-Output \"New Vite starting...\")",
+      "Bash(node -e \"try { require\\('./routes/reports'\\); console.log\\('reports.js loads OK'\\); } catch\\(e\\){ console.log\\('REPORTS ERROR:', e.message\\); }\")",
+      "Bash(node merge_gujarati_dealers.js)",
+      "Bash(node merge_gujarati_dealers.js --apply)",
+      "Bash(node migrate_delivery_damage.js)"
+    ]
+  }
+}

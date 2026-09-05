@@ -11,6 +11,7 @@ export default function MobileDealerDashboard({
     orderSelection, setOrderSelection,
     sizeRows, addRow, removeRow, updateRow, addAllToCart,
     cart, setCart, placeOrder,
+    siteName, setSiteName,
     myOrders, cancelOrder,
     posts,
     getImageUrl
@@ -18,7 +19,7 @@ export default function MobileDealerDashboard({
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
             {/* Compact Mobile Header */}
-            <div className="bg-gradient-to-r from-indigo-700 to-purple-800 shadow-xl p-4 sticky top-0 z-[100] border-b border-white/10">
+            <div className="bg-gradient-to-r from-red-700 to-rose-800 shadow-xl p-4 sticky top-0 z-[100] border-b border-white/10">
                 <div className="flex justify-between items-center text-white">
                     <div className="flex items-center gap-3">
                         <div className="bg-white/20 p-2 rounded-xl">
@@ -44,9 +45,9 @@ export default function MobileDealerDashboard({
                 {activeTab === 'new-order' && (
                     <div className="space-y-4 animate-in fade-in duration-300">
                         {/* Welcome Card */}
-                        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-5 text-white">
+                        <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-2xl p-5 text-white">
                             <h2 className="text-xl font-bold">New Order</h2>
-                            <p className="text-blue-100 text-sm">Select material → design → color → sizes</p>
+                            <p className="text-red-100 text-sm">Select material → design → color → sizes</p>
                         </div>
 
                         {/* Step 1: Material */}
@@ -58,13 +59,13 @@ export default function MobileDealerDashboard({
                                         key={d.id}
                                         onClick={() => setOrderSelection({ doorTypeId: d.id, designId: '', colorId: '' })}
                                         className={`p-4 rounded-xl text-left transition-all ${orderSelection.doorTypeId == d.id
-                                            ? 'bg-indigo-600 text-white shadow-lg scale-[1.02]'
+                                            ? 'bg-red-600 text-white shadow-lg scale-[1.02]'
                                             : 'bg-white shadow-sm'
                                             }`}
                                     >
                                         <span className="text-xl mb-1 block">🚪</span>
                                         <div className="font-bold text-sm">{d.name}</div>
-                                        <div className={`text-xs ${orderSelection.doorTypeId == d.id ? 'text-indigo-200' : 'text-gray-400'}`}>{d.thickness}</div>
+                                        <div className={`text-xs ${orderSelection.doorTypeId == d.id ? 'text-red-200' : 'text-gray-400'}`}>{d.thickness}</div>
                                     </button>
                                 ))}
                             </div>
@@ -79,7 +80,7 @@ export default function MobileDealerDashboard({
                                         <div
                                             key={d.id}
                                             onClick={() => setOrderSelection({ ...orderSelection, designId: d.id, colorId: '' })}
-                                            className={`rounded-xl overflow-hidden cursor-pointer transition-all ${orderSelection.designId == d.id ? 'ring-4 ring-indigo-500 shadow-lg' : 'shadow-sm'}`}
+                                            className={`rounded-xl overflow-hidden cursor-pointer transition-all ${orderSelection.designId == d.id ? 'ring-4 ring-red-500 shadow-lg' : 'shadow-sm'}`}
                                         >
                                             <div className="aspect-[3/4] bg-gray-100 relative">
                                                 {d.imageUrl ? (
@@ -88,7 +89,7 @@ export default function MobileDealerDashboard({
                                                     <div className="w-full h-full flex items-center justify-center text-gray-300 text-3xl">🚪</div>
                                                 )}
                                                 {orderSelection.designId == d.id && (
-                                                    <div className="absolute inset-0 bg-indigo-900/40 flex items-center justify-center">
+                                                    <div className="absolute inset-0 bg-red-900/40 flex items-center justify-center">
                                                         <CheckCircle size={32} className="text-white" />
                                                     </div>
                                                 )}
@@ -114,14 +115,14 @@ export default function MobileDealerDashboard({
                                                 onClick={() => setOrderSelection({ ...orderSelection, colorId: c.id })}
                                                 className="flex flex-col items-center cursor-pointer"
                                             >
-                                                <div className={`w-12 h-12 rounded-full overflow-hidden border-3 transition-all ${orderSelection.colorId == c.id ? 'border-indigo-600 scale-110 ring-2 ring-indigo-200' : 'border-transparent'}`}>
+                                                <div className={`w-12 h-12 rounded-full overflow-hidden border-3 transition-all ${orderSelection.colorId == c.id ? 'border-red-600 scale-110 ring-2 ring-red-200' : 'border-transparent'}`}>
                                                     {c.imageUrl ? (
                                                         <img src={getImageUrl(c.imageUrl)} className="w-full h-full object-cover" alt={c.name} />
                                                     ) : (
                                                         <div className="w-full h-full" style={{ backgroundColor: c.hexCode || '#eee' }} />
                                                     )}
                                                 </div>
-                                                <span className={`text-[10px] font-bold mt-1 text-center ${orderSelection.colorId == c.id ? 'text-indigo-600' : 'text-gray-500'}`}>
+                                                <span className={`text-[10px] font-bold mt-1 text-center ${orderSelection.colorId == c.id ? 'text-red-600' : 'text-gray-500'}`}>
                                                     {c.name}
                                                 </span>
                                             </div>
@@ -136,7 +137,7 @@ export default function MobileDealerDashboard({
                             <section className="animate-in fade-in duration-300 pb-4">
                                 <div className="flex justify-between items-center mb-2">
                                     <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">4. Sizes</label>
-                                    <button onClick={addRow} className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full flex items-center gap-1">
+                                    <button onClick={addRow} className="text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-full flex items-center gap-1">
                                         <Plus size={14} /> Add Row
                                     </button>
                                 </div>
@@ -162,7 +163,7 @@ export default function MobileDealerDashboard({
                                         ))}
                                     </div>
                                     {/* Add All Button */}
-                                    <button onClick={addAllToCart} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl mt-3 flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                                    <button onClick={addAllToCart} className="w-full bg-red-600 text-white font-bold py-4 rounded-xl mt-3 flex items-center justify-center gap-2 active:scale-95 transition-transform">
                                         <ShoppingCart size={20} /> Add All to Cart
                                     </button>
                                 </div>
@@ -195,6 +196,16 @@ export default function MobileDealerDashboard({
                                         </div>
                                     ))}
                                 </div>
+                                <div className="mb-3">
+                                    <input
+                                        type="text"
+                                        value={siteName}
+                                        onChange={(e) => setSiteName(e.target.value)}
+                                        placeholder="Site / Party name (e.g. Mohandeep Society, Ishvarbhai)"
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-bold text-gray-700"
+                                    />
+                                    <p className="text-[10px] text-gray-400 mt-1 ml-1">For your reference at delivery time</p>
+                                </div>
                                 <button onClick={placeOrder} className="w-full bg-green-500 text-white font-bold py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center gap-2">
                                     <CheckCircle size={20} /> Confirm & Place Order
                                 </button>
@@ -207,7 +218,7 @@ export default function MobileDealerDashboard({
                 {activeTab === 'my-orders' && (
                     <div className="space-y-4 animate-in fade-in duration-300 pb-4">
                         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                            <Clock className="text-indigo-600" /> Order History
+                            <Clock className="text-red-600" /> Order History
                         </h2>
                         {myOrders.length === 0 && (
                             <div className="text-center text-gray-400 py-12 bg-white rounded-xl">No orders yet</div>
@@ -217,9 +228,9 @@ export default function MobileDealerDashboard({
                             const currentStep = statusSteps.indexOf(order.status);
                             const statusColors = {
                                 RECEIVED: 'bg-yellow-100 text-yellow-700',
-                                PRODUCTION: 'bg-blue-100 text-blue-700',
+                                PRODUCTION: 'bg-red-100 text-red-700',
                                 READY: 'bg-green-100 text-green-700',
-                                DISPATCHED: 'bg-purple-100 text-purple-700',
+                                DISPATCHED: 'bg-rose-100 text-rose-700',
                                 CANCELLED: 'bg-red-100 text-red-700'
                             };
                             return (
@@ -227,7 +238,11 @@ export default function MobileDealerDashboard({
                                     <div className="flex justify-between items-start mb-3">
                                         <div>
                                             <div className="font-bold text-gray-900">Order #{order.id}</div>
+                                            {order.siteName && <div className="text-xs font-black text-red-700">📍 {order.siteName}</div>}
                                             <div className="text-xs text-gray-500">{new Date(order.createdAt).toLocaleDateString()}</div>
+                                            {order.expectedDate && ['RECEIVED', 'PRODUCTION', 'READY'].includes(order.status) && (
+                                                <div className="text-[11px] font-bold text-emerald-600">📅 Ready: {new Date(order.expectedDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</div>
+                                            )}
                                         </div>
                                         <span className={`text-xs font-bold px-2 py-1 rounded-full ${statusColors[order.status] || 'bg-gray-100'}`}>
                                             {order.status}
@@ -238,7 +253,7 @@ export default function MobileDealerDashboard({
                                         <div className="grid grid-cols-4 gap-1 mb-3">
                                             {statusSteps.map((step, idx) => (
                                                 <div key={step} className="text-center">
-                                                    <div className={`h-1.5 rounded-full ${idx <= currentStep ? 'bg-indigo-500' : 'bg-gray-200'}`} />
+                                                    <div className={`h-1.5 rounded-full ${idx <= currentStep ? 'bg-red-500' : 'bg-gray-200'}`} />
                                                     <div className={`text-[8px] mt-1 ${idx <= currentStep ? 'text-gray-700' : 'text-gray-300'}`}>
                                                         {step === 'RECEIVED' ? '📥' : step === 'PRODUCTION' ? '🔧' : step === 'READY' ? '✅' : '🚚'}
                                                     </div>
@@ -276,7 +291,7 @@ export default function MobileDealerDashboard({
                 {activeTab === 'whatsnew' && (
                     <div className="space-y-4 animate-in fade-in duration-300">
                         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                            <Bell className="text-indigo-600" /> What's New
+                            <Bell className="text-red-600" /> What's New
                         </h2>
                         {posts.length === 0 && (
                             <div className="text-center text-gray-400 py-12 bg-white rounded-xl">No updates yet</div>
@@ -289,7 +304,7 @@ export default function MobileDealerDashboard({
                                     </div>
                                 )}
                                 <div className="p-4">
-                                    <span className={`text-xs px-2 py-1 rounded-full font-bold ${post.postType === 'announcement' ? 'bg-blue-100 text-blue-700' : post.postType === 'new_design' ? 'bg-purple-100 text-purple-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                    <span className={`text-xs px-2 py-1 rounded-full font-bold ${post.postType === 'announcement' ? 'bg-red-100 text-red-700' : post.postType === 'new_design' ? 'bg-rose-100 text-rose-700' : 'bg-yellow-100 text-yellow-700'}`}>
                                         {post.postType === 'announcement' ? '📢' : post.postType === 'new_design' ? '🚪' : '🎉'} {post.postType.replace('_', ' ')}
                                     </span>
                                     {post.title && <h3 className="font-bold text-gray-800 mt-2">{post.title}</h3>}
@@ -307,21 +322,21 @@ export default function MobileDealerDashboard({
                 <div className="flex justify-around py-2">
                     <button
                         onClick={() => setActiveTab('new-order')}
-                        className={`flex flex-col items-center py-2 px-4 rounded-xl transition-all ${activeTab === 'new-order' ? 'text-indigo-600' : 'text-gray-400'}`}
+                        className={`flex flex-col items-center py-2 px-4 rounded-xl transition-all ${activeTab === 'new-order' ? 'text-red-600' : 'text-gray-400'}`}
                     >
                         <ShoppingCart size={22} />
                         <span className="text-[10px] font-bold mt-1">Order</span>
                     </button>
                     <button
                         onClick={() => setActiveTab('my-orders')}
-                        className={`flex flex-col items-center py-2 px-4 rounded-xl transition-all ${activeTab === 'my-orders' ? 'text-indigo-600' : 'text-gray-400'}`}
+                        className={`flex flex-col items-center py-2 px-4 rounded-xl transition-all ${activeTab === 'my-orders' ? 'text-red-600' : 'text-gray-400'}`}
                     >
                         <Clock size={22} />
                         <span className="text-[10px] font-bold mt-1">History</span>
                     </button>
                     <button
                         onClick={() => setActiveTab('whatsnew')}
-                        className={`flex flex-col items-center py-2 px-4 rounded-xl transition-all ${activeTab === 'whatsnew' ? 'text-indigo-600' : 'text-gray-400'}`}
+                        className={`flex flex-col items-center py-2 px-4 rounded-xl transition-all ${activeTab === 'whatsnew' ? 'text-red-600' : 'text-gray-400'}`}
                     >
                         <Bell size={22} />
                         <span className="text-[10px] font-bold mt-1">News</span>

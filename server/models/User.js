@@ -36,6 +36,10 @@ const User = sequelize.define('User', {
         type: DataTypes.STRING,
         allowNull: true
     },
+    phone: {
+        type: DataTypes.STRING,
+        allowNull: true // WhatsApp/SMS notification number
+    },
     isEnabled: {
         type: DataTypes.BOOLEAN,
         defaultValue: true

@@ -38,12 +38,15 @@ const postsRoutes = require('./routes/posts'); // NEW: What's New
 const seed = require('./seed');
 
 app.use('/api/auth', authRoutes);
+app.use('/api/sheets', require('./routes/sheets')); // NEW: Stock Management (Mounted BEFORE masterData to prevent shadowing)
 app.use('/api', masterDataRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/posts', postsRoutes); // NEW: What's New
 app.use('/api/workers', require('./routes/workers')); // FACTORY SYSTEM
 app.use('/api/analytics', require('./routes/analytics')); // NEW: Analytics & Reports
+app.use('/api/reports', require('./routes/reports')); // NEW: Business Reports (sales, churn, product-mix, stock)
+app.use('/api/damage', require('./routes/damage')); // NEW: Damage / Returns tracking
 app.use('/api/notifications', require('./routes/notifications')); // NEW: Notifications
 
 // TEMPORARY: Seed Database via URL
@@ -71,6 +74,7 @@ app.get(/(.*)/, (req, res) => {
 // ENABLE ALTER for Schema Update (Foil Pasting Columns) - DISABLED LOCALLY DUE TO SQLITE ERROR
 sequelize.sync().then(() => {
     console.log('Database connected and schema updated.');
+    console.log('>>> SERVER RESTART: Stock Logic v2 is ACTIVE <<<');
     app.listen(PORT, '0.0.0.0', () => {
         console.log(`Server is running on port ${PORT}`);
     });

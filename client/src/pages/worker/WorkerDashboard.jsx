@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
-import { LogOut, RefreshCw, Check, Lock, AlertOctagon, Box, Ruler, User, Layers, Search, Filter, X, Volume2, VolumeX, Wifi, WifiOff, Wind } from 'lucide-react';
+import { LogOut, RefreshCw, Check, Lock, AlertOctagon, Box, Ruler, User, Layers, Search, Filter, X, Volume2, VolumeX, Wifi, WifiOff, Wind, Menu, Home, Clock } from 'lucide-react';
 
 import { getDesignType, getOptimalBlankSize } from '../../utils/designLogicClient';
 import { useSound } from '../../hooks/useSound';
@@ -83,6 +83,7 @@ export default function WorkerDashboard() {
     const [todayCompleted, setTodayCompleted] = useState(0); // Today's completion count
     const [isRefreshing, setIsRefreshing] = useState(false); // Auto-refresh indicator
 
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false); // NEW: Sidebar State
     // SEARCH & FILTER STATE
     const [searchText, setSearchText] = useState(''); // Search by order/design/dealer
     const [showUrgentOnly, setShowUrgentOnly] = useState(false); // Urgent filter toggle
@@ -328,7 +329,37 @@ export default function WorkerDashboard() {
 
     const checkDependencies = (unit) => {
         if (!myRole.deps) return { locked: false };
-        const missing = myRole.deps.filter(key => !unit[key]);
+
+        // DYNAMIC DEPENDENCY LOGIC
+        let requiredDeps = [...myRole.deps];
+
+        // 1. Skip Emboss check for Non-Emboss designs in Door Making
+        if (worker.role === 'DOOR_MAKING') {
+            const isEmbossDesign = unit.OrderItem?.Design?.category === 'EMBOSS';
+            if (!isEmbossDesign) {
+                requiredDeps = requiredDeps.filter(d => d !== 'isEmbossDone');
+            }
+
+            // NEW: Skip PVC check for WPC (since it skipped PVC stage)
+            const doorName = unit.OrderItem?.DoorType?.name?.toUpperCase() || '';
+            // Also check Design Number if DoorType is generic but Design is WPC
+            const designName = unit.OrderItem?.Design?.designNumber?.toUpperCase() || '';
+
+            if (doorName.includes('WPC') || designName.includes('WPC')) {
+                requiredDeps = requiredDeps.filter(d => d !== 'isPvcDone');
+            }
+        }
+
+        // 2. Skip PVC check for WPC in Foil Pasting
+        if (worker.role === 'FOIL_PASTING') {
+            // Check for WPC in DoorType name (Case Insensitive)
+            const doorName = unit.OrderItem?.DoorType?.name?.toUpperCase() || '';
+            if (doorName.includes('WPC')) {
+                requiredDeps = requiredDeps.filter(d => d !== 'isPvcDone');
+            }
+        }
+
+        const missing = requiredDeps.filter(key => !unit[key]);
         if (missing.length > 0) {
             const labels = missing.map(k => Object.values(ROLE_MAP).find(v => v.flag === k)?.label || k);
             return { locked: true, reason: `Wait: ${labels.join(', ')}` };
@@ -394,6 +425,21 @@ export default function WorkerDashboard() {
             console.error(err);
             toast.error('Location Access Denied. enable GPS.');
         }, { enableHighAccuracy: true, timeout: 10000 });
+    };
+
+    // --- QC at packing (Way 1: packer checks before packing) ---
+    const [qcUnit, setQcUnit] = useState(null); // unit being quality-checked
+
+    const handleReject = async (unit, reason) => {
+        try {
+            await api.post('/workers/reject', { workerId: worker.id, unitId: unit.id, reason });
+            playError();
+            toast.success('Rejected — sent to Damage & Returns');
+            setQcUnit(null);
+            fetchTasks();
+        } catch (e) {
+            toast.error(e.response?.data?.error || 'Failed to reject');
+        }
     };
 
     const handleLogout = () => {
@@ -513,25 +559,109 @@ export default function WorkerDashboard() {
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
-            {/* Header */}
+            {/* Header / Top Bar */}
             <div className="bg-white p-3 shadow-sm flex items-center justify-between sticky top-0 z-50">
-                <div>
-                    <h1 className="text-lg font-black text-gray-900 leading-none">{worker.name}</h1>
-                    <div className="text-[10px] font-bold uppercase text-indigo-600 bg-indigo-50 px-1 rounded inline-block mt-1">{myRole.label}</div>
+                <div className="flex items-center gap-3">
+                    {/* HAMBURGER MENU BUTTON */}
+                    <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+                        <Menu size={24} />
+                    </button>
+                    <div>
+                        <h1 className="text-lg font-black text-gray-900 leading-none">{worker.name}</h1>
+                        <div className="text-[10px] font-bold uppercase text-red-600 bg-red-50 px-1 rounded inline-block mt-1">{myRole.label}</div>
+                    </div>
                 </div>
-                <div className="flex gap-2">
-                    {/* Sound Toggle */}
-                    <button onClick={toggleMute} className={`p-2 rounded-lg ${muted ? 'bg-gray-100 text-gray-400' : 'bg-indigo-50 text-indigo-600'}`}>
-                        {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                    </button>
-                    <button onClick={() => setActiveTab(activeTab === 'tasks' ? 'history' : 'tasks')} className={`px-3 py-2 rounded-lg text-sm font-bold ${activeTab === 'history' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
-                        {activeTab === 'tasks' ? 'History' : 'Tasks'}
-                    </button>
-                    <button onClick={handleLogout} className="p-2 bg-red-50 text-red-600 rounded-lg">
-                        <LogOut size={18} />
-                    </button>
-                </div>
+                {/* Right Side: Status Indicator or Notification? Keeping it simple per request */}
+                <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`}></div>
             </div>
+
+            {/* SIDEBAR DRAWER (Overlay) */}
+            {isSidebarOpen && (
+                <div className="fixed inset-0 z-[60] flex font-sans">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+                        onClick={() => setIsSidebarOpen(false)}
+                    ></div>
+
+                    {/* Drawer Content */}
+                    <div className="relative bg-white w-64 h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
+                        {/* Drawer Header */}
+                        <div className="p-4 border-b flex items-center justify-between bg-gray-50">
+                            <div className="font-black text-xl text-red-600 tracking-tighter">Z-ON <span className="text-gray-900">DOOR</span></div>
+                            <button onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-gray-200 rounded-full">
+                                <X size={24} className="text-gray-500" />
+                            </button>
+                        </div>
+
+                        {/* User Profile */}
+                        <div className="p-4 border-b">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-700 font-bold text-xl border-2 border-red-50">
+                                    {worker.name[0]}
+                                </div>
+                                <div className="overflow-hidden">
+                                    <div className="font-bold text-gray-900 truncate">{worker.name}</div>
+                                    <div className="text-xs text-red-600 font-bold uppercase tracking-wider bg-red-50 px-1.5 py-0.5 rounded inline-block">
+                                        {myRole?.label}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Navigation Menu */}
+                        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+                            <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-3 mt-2">Menu</div>
+
+                            <button
+                                onClick={() => { setActiveTab('tasks'); setIsSidebarOpen(false); }}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'tasks'
+                                        ? 'bg-red-600 text-white shadow-lg shadow-red-200'
+                                        : 'text-gray-600 hover:bg-gray-100'
+                                    }`}
+                            >
+                                <Home size={20} /> Tasks
+                            </button>
+
+                            <button
+                                onClick={() => { setActiveTab('history'); setIsSidebarOpen(false); }}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'history'
+                                        ? 'bg-red-600 text-white shadow-lg shadow-red-200'
+                                        : 'text-gray-600 hover:bg-gray-100'
+                                    }`}
+                            >
+                                <Clock size={20} /> History
+                            </button>
+
+                            <div className="my-4 border-t border-gray-100"></div>
+
+                            <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-3">Settings</div>
+
+                            {/* Sound Toggle */}
+                            <button
+                                onClick={toggleMute}
+                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-100 transition-all"
+                            >
+                                {muted ? <VolumeX size={20} className="text-gray-400" /> : <Volume2 size={20} className="text-red-500" />}
+                                <span>{muted ? 'Unmute Sound' : 'Mute Sound'}</span>
+                            </button>
+                        </nav>
+
+                        {/* Footer */}
+                        <div className="p-4 border-t bg-gray-50">
+                            <button
+                                onClick={handleLogout}
+                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-red-600 bg-white border border-red-100 hover:bg-red-50 hover:border-red-200 transition-all shadow-sm"
+                            >
+                                <LogOut size={20} /> Logout
+                            </button>
+                            <div className="text-center mt-3 text-[10px] text-gray-400 font-medium">
+                                App Version 2.1
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* STATS WIDGET */}
             {activeTab === 'tasks' && (
@@ -624,7 +754,7 @@ export default function WorkerDashboard() {
                                 placeholder="Search order #, design, or dealer name..."
                                 value={searchText}
                                 onChange={(e) => setSearchText(e.target.value)}
-                                className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm"
                             />
                             {searchText && (
                                 <button
@@ -677,7 +807,7 @@ export default function WorkerDashboard() {
                                         </div>
                                         <div className="text-xs text-gray-500">Order #{record.ProductionUnit?.OrderItem?.Order?.id}</div>
                                         {/* Show Stage Detail */}
-                                        <div className="text-[10px] bg-blue-50 text-blue-600 px-1 rounded inline-block mt-1 uppercase font-bold">{record.stage}</div>
+                                        <div className="text-[10px] bg-red-50 text-red-600 px-1 rounded inline-block mt-1 uppercase font-bold">{record.stage}</div>
                                     </div>
                                     <button onClick={() => handleUndo(record.id)} className="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-red-100 active:scale-95">
                                         Undo
@@ -715,7 +845,7 @@ export default function WorkerDashboard() {
                                                     type="checkbox"
                                                     checked={allSelected}
                                                     onChange={() => toggleSelectOrder(group)}
-                                                    className="w-5 h-5 rounded border-2 border-gray-400 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                                    className="w-5 h-5 rounded border-2 border-gray-400 text-red-600 focus:ring-2 focus:ring-red-500 cursor-pointer"
                                                     title="Select all tasks in this order"
                                                 />
                                             );
@@ -727,6 +857,9 @@ export default function WorkerDashboard() {
                                         <div className="text-gray-600 font-bold text-sm">
                                             {group.items[0]?.OrderItem?.Order?.User?.name || 'Dealer'}
                                         </div>
+                                        {group.items[0]?.OrderItem?.Order?.siteName && (
+                                            <div className="text-red-700 font-black text-xs bg-red-50 px-2 py-1 rounded-lg border border-red-100">📍 {group.items[0].OrderItem.Order.siteName}</div>
+                                        )}
                                     </div>
                                     <div className="text-[10px] font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded border border-gray-100">
                                         {group.items.length} Units
@@ -873,7 +1006,7 @@ export default function WorkerDashboard() {
                                                                                     </div>
                                                                                 )}
                                                                                 {item.hasVent && (
-                                                                                    <div className="bg-cyan-50 text-cyan-700 border border-cyan-200 px-2 py-0.5 rounded flex items-center gap-1">
+                                                                                    <div className="bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded flex items-center gap-1">
                                                                                         <Wind size={12} strokeWidth={2.5} />
                                                                                         <span className="text-[10px] font-black uppercase tracking-wide">Vent</span>
                                                                                     </div>
@@ -907,7 +1040,7 @@ export default function WorkerDashboard() {
                                                                             <div className="flex-1 flex flex-col shadow-sm rounded-lg overflow-hidden">
                                                                                 <button
                                                                                     onClick={() => handleComplete(unit.id, unit.isFoilFrontSheetPicked ? 'FRONT_PICK_UNDO' : 'FRONT_PICK')}
-                                                                                    className={`w-full py-2 text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${unit.isFoilFrontSheetPicked ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white active:bg-blue-700'}`}
+                                                                                    className={`w-full py-2 text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${unit.isFoilFrontSheetPicked ? 'bg-red-600 text-white' : 'bg-red-600 text-white active:bg-red-700'}`}
                                                                                 >
                                                                                     {unit.isFoilFrontSheetPicked ? <Check size={14} strokeWidth={4} /> : null}
                                                                                     PICKED
@@ -925,7 +1058,7 @@ export default function WorkerDashboard() {
                                                                             <div className="flex-1 flex flex-col shadow-sm rounded-lg overflow-hidden">
                                                                                 <button
                                                                                     onClick={() => handleComplete(unit.id, unit.isFoilBackSheetPicked ? 'BACK_PICK_UNDO' : 'BACK_PICK')}
-                                                                                    className={`w-full py-2 text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${unit.isFoilBackSheetPicked ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white active:bg-blue-700'}`}
+                                                                                    className={`w-full py-2 text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${unit.isFoilBackSheetPicked ? 'bg-red-600 text-white' : 'bg-red-600 text-white active:bg-red-700'}`}
                                                                                 >
                                                                                     {unit.isFoilBackSheetPicked ? <Check size={14} strokeWidth={4} /> : null}
                                                                                     PICKED
@@ -957,7 +1090,7 @@ export default function WorkerDashboard() {
                                                                 type="checkbox"
                                                                 checked={selectedUnits.has(unit.id)}
                                                                 onChange={() => toggleSelectUnit(unit.id)}
-                                                                className="w-5 h-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                                                className="w-5 h-5 rounded border-2 border-gray-300 text-red-600 focus:ring-2 focus:ring-red-500 cursor-pointer"
                                                             />
                                                         </div>
                                                     )}
@@ -1038,7 +1171,7 @@ export default function WorkerDashboard() {
                                                                     </div>
                                                                     {/* BLANK SIZE DISPLAY */}
                                                                     {blankSize && (
-                                                                        <div className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded w-fit border border-indigo-100">
+                                                                        <div className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded w-fit border border-red-100">
                                                                             Blank: {blankSize}
                                                                         </div>
                                                                     )}
@@ -1055,7 +1188,7 @@ export default function WorkerDashboard() {
                                                                         </div>
                                                                     )}
                                                                     {item.hasVent && (
-                                                                        <div className="bg-cyan-50 text-cyan-700 border border-cyan-200 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                                                        <div className="bg-red-50 text-red-700 border border-red-200 px-1.5 py-0.5 rounded flex items-center gap-1">
                                                                             <Wind size={10} strokeWidth={2.5} />
                                                                             <span className="text-[9px] font-black uppercase tracking-wide">Vent</span>
                                                                         </div>
@@ -1088,7 +1221,7 @@ export default function WorkerDashboard() {
                                                                         {/* Front Pick */}
                                                                         <button
                                                                             onClick={() => handleComplete(unit.id, unit.isFoilFrontSheetPicked ? 'FRONT_PICK_UNDO' : 'FRONT_PICK')}
-                                                                            className={`px-2 py-1 rounded-md border text-[9px] font-bold uppercase transition-all ${unit.isFoilFrontSheetPicked ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'}`}
+                                                                            className={`px-2 py-1 rounded-md border text-[9px] font-bold uppercase transition-all ${unit.isFoilFrontSheetPicked ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-500 border-gray-200'}`}
                                                                         >
                                                                             {unit.isFoilFrontSheetPicked ? '✓ Picked' : 'Pick Front'}
                                                                         </button>
@@ -1107,7 +1240,7 @@ export default function WorkerDashboard() {
                                                                         {/* Back Pick */}
                                                                         <button
                                                                             onClick={() => handleComplete(unit.id, unit.isFoilBackSheetPicked ? 'BACK_PICK_UNDO' : 'BACK_PICK')}
-                                                                            className={`px-2 py-1 rounded-md border text-[9px] font-bold uppercase transition-all ${unit.isFoilBackSheetPicked ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'}`}
+                                                                            className={`px-2 py-1 rounded-md border text-[9px] font-bold uppercase transition-all ${unit.isFoilBackSheetPicked ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-500 border-gray-200'}`}
                                                                         >
                                                                             {unit.isFoilBackSheetPicked ? '✓ Picked' : 'Pick Back'}
                                                                         </button>
@@ -1125,10 +1258,10 @@ export default function WorkerDashboard() {
                                                                 // STANDARD BUTTON (Non-Foil)
                                                                 !isCompleted && (
                                                                     <button
-                                                                        onClick={() => handleComplete(unit.id)}
+                                                                        onClick={() => worker.role === 'PACKING' ? setQcUnit(unit) : handleComplete(unit.id)}
                                                                         className={`w-full py-2 rounded-lg font-black text-white shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-wide ${isHighPriority ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}
                                                                     >
-                                                                        <Check size={14} strokeWidth={4} /> DONE
+                                                                        <Check size={14} strokeWidth={4} /> {worker.role === 'PACKING' ? 'CHECK & PACK' : 'DONE'}
                                                                     </button>
                                                                 )
                                                             )}
@@ -1145,6 +1278,16 @@ export default function WorkerDashboard() {
                 )}
             </div>
 
+            {/* QC CHECK MODAL (packing) */}
+            {qcUnit && (
+                <QcModal
+                    unit={qcUnit}
+                    onClose={() => setQcUnit(null)}
+                    onPass={() => { handleComplete(qcUnit.id); setQcUnit(null); }}
+                    onReject={(reason) => handleReject(qcUnit, reason)}
+                />
+            )}
+
             {/* FLOATING BATCH COMPLETE BUTTON */}
             {
                 selectedUnits.size > 0 && ['PVC_CUT', 'PACKING'].includes(worker.role) && (
@@ -1160,6 +1303,78 @@ export default function WorkerDashboard() {
                 )
             }
         </div >
+    );
+}
+
+// QC checklist modal shown to the PACKING worker before each door is packed.
+function QcModal({ unit, onClose, onPass, onReject }) {
+    const CHECKS = [
+        { id: 'size', label: 'Size correct' },
+        { id: 'foil', label: 'Foil / lamination clean (no bubble, no scratch)' },
+        { id: 'crack', label: 'No crack or damage' },
+        { id: 'fitting', label: 'Lock hole & vent correct' },
+    ];
+    const [checked, setChecked] = useState({});
+    const [rejecting, setRejecting] = useState(false);
+    const [reason, setReason] = useState('');
+    const allOk = CHECKS.every(c => checked[c.id]);
+    const toggle = (id) => setChecked(p => ({ ...p, [id]: !p[id] }));
+
+    const design = unit.OrderItem?.Design?.designNumber || unit.OrderItem?.designNameSnapshot || 'Door';
+    const color = unit.OrderItem?.Color?.name || unit.OrderItem?.colorNameSnapshot || '';
+    const size = unit.OrderItem ? `${unit.OrderItem.width} x ${unit.OrderItem.height}` : '';
+
+    return (
+        <div className="fixed inset-0 bg-black/70 z-[60] flex items-end sm:items-center justify-center p-3" onClick={onClose}>
+            <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl animate-in slide-in-from-bottom" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-lg font-black text-gray-900">Quality Check</h3>
+                    <button onClick={onClose} className="p-1.5 text-gray-400"><X size={20} /></button>
+                </div>
+                <p className="text-xs text-gray-500 font-bold mb-4">{design}{color ? ` / ${color}` : ''} {size && `· ${size}`} · Unit #{unit.unitNumber || unit.id}</p>
+
+                {!rejecting ? (
+                    <>
+                        <div className="space-y-2 mb-5">
+                            {CHECKS.map(c => (
+                                <button key={c.id} onClick={() => toggle(c.id)}
+                                    className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${checked[c.id] ? 'bg-green-50 border-green-400' : 'bg-gray-50 border-gray-200'}`}>
+                                    <span className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${checked[c.id] ? 'bg-green-500 text-white' : 'bg-white border-2 border-gray-300'}`}>
+                                        {checked[c.id] && <Check size={16} strokeWidth={4} />}
+                                    </span>
+                                    <span className={`text-sm font-bold ${checked[c.id] ? 'text-green-800' : 'text-gray-600'}`}>{c.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex gap-3">
+                            <button onClick={onPass}
+                                className={`flex-1 py-3.5 rounded-2xl font-black text-white text-sm uppercase tracking-wide flex items-center justify-center gap-2 transition-all ${allOk ? 'bg-green-600 hover:bg-green-700' : 'bg-green-400'}`}>
+                                <Check size={18} strokeWidth={4} /> Pack & Pass
+                            </button>
+                            <button onClick={() => setRejecting(true)}
+                                className="flex-1 py-3.5 rounded-2xl font-black text-white text-sm uppercase tracking-wide bg-red-600 hover:bg-red-700 flex items-center justify-center gap-2">
+                                <AlertOctagon size={18} /> Reject
+                            </button>
+                        </div>
+                        {!allOk && <p className="text-[11px] text-gray-400 text-center mt-3">Tip: tick all checks once you've inspected the door.</p>}
+                    </>
+                ) : (
+                    <>
+                        <p className="text-sm font-bold text-gray-700 mb-2">What's wrong with this door?</p>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                            {['Foil bubble', 'Crack', 'Wrong size', 'Scratch', 'Lock issue'].map(r => (
+                                <button key={r} onClick={() => setReason(r)} className={`px-3 py-1.5 rounded-full text-xs font-bold border ${reason === r ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-600 border-gray-300'}`}>{r}</button>
+                            ))}
+                        </div>
+                        <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason" className="w-full bg-gray-50 rounded-xl p-3 text-sm font-bold mb-4" />
+                        <div className="flex gap-3">
+                            <button onClick={() => onReject(reason || 'QC reject')} className="flex-1 py-3.5 rounded-2xl font-black text-white text-sm uppercase bg-red-600 hover:bg-red-700">Confirm Reject</button>
+                            <button onClick={() => setRejecting(false)} className="flex-1 py-3.5 rounded-2xl font-black text-gray-600 text-sm uppercase bg-gray-100">Back</button>
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
     );
 }
 

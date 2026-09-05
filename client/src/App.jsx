@@ -14,7 +14,7 @@ import { Toaster } from 'react-hot-toast';
 const LoadingSpinner = () => (
     <div className="flex h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-700 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-700 mx-auto mb-4"></div>
             <p className="text-gray-500 font-bold animate-pulse">Loading Z-ON DOOR...</p>
         </div>
     </div>

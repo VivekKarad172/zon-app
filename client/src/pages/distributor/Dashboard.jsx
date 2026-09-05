@@ -136,8 +136,12 @@ export default function DistributorDashboard() {
 
     const handleDeleteDealer = async (id) => {
         try {
-            await api.delete(`/users/${id}`);
-            toast.success('Dealer deleted successfully');
+            const res = await api.delete(`/users/${id}`);
+            if (res.data?.softDisabled) {
+                toast(res.data.message || 'Dealer disabled (has orders)', { icon: '🛡️', duration: 6000 });
+            } else {
+                toast.success(res.data?.message || 'Dealer deleted successfully');
+            }
             setShowDeleteConfirm(null);
             fetchDealers();
         } catch (error) {
@@ -241,9 +245,9 @@ export default function DistributorDashboard() {
     const getStatusBadge = (status) => {
         const styles = {
             'RECEIVED': 'bg-yellow-100 text-yellow-800',
-            'PRODUCTION': 'bg-blue-100 text-blue-800',
+            'PRODUCTION': 'bg-red-100 text-red-800',
             'READY': 'bg-green-100 text-green-800',
-            'DISPATCHED': 'bg-purple-100 text-purple-800',
+            'DISPATCHED': 'bg-rose-100 text-rose-800',
             'CANCELLED': 'bg-red-100 text-red-800'
         };
         const emojis = { 'RECEIVED': '📥', 'PRODUCTION': '🔧', 'READY': '✅', 'DISPATCHED': '🚚', 'CANCELLED': '❌' };

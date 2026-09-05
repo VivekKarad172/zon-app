@@ -86,11 +86,11 @@ const Profile = () => {
             <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
 
                 {/* Header */}
-                <div className="bg-indigo-700 p-6 flex items-center text-white">
-                    <button onClick={() => navigate(-1)} className="mr-4 hover:bg-indigo-600 p-1 rounded-full"><ArrowLeft size={20} /></button>
+                <div className="bg-red-700 p-6 flex items-center text-white">
+                    <button onClick={() => navigate(-1)} className="mr-4 hover:bg-red-600 p-1 rounded-full"><ArrowLeft size={20} /></button>
                     <div>
                         <h1 className="text-xl font-bold">My Profile</h1>
-                        <p className="text-indigo-200 text-sm">Manage your account</p>
+                        <p className="text-red-200 text-sm">Manage your account</p>
                     </div>
                 </div>
 
@@ -116,7 +116,7 @@ const Profile = () => {
                                     name="name"
                                     value={formData.name}
                                     onChange={handleChange}
-                                    className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-red-500 focus:border-red-500"
                                     placeholder="Your Name"
                                     required
                                 />
@@ -133,7 +133,7 @@ const Profile = () => {
                                                 name="shopName"
                                                 value={formData.shopName}
                                                 onChange={handleChange}
-                                                className="w-full border border-gray-300 rounded-lg p-2.5 pl-10 focus:ring-2 focus:ring-indigo-500"
+                                                className="w-full border border-gray-300 rounded-lg p-2.5 pl-10 focus:ring-2 focus:ring-red-500"
                                                 placeholder="My Awesome Shop"
                                             />
                                         </div>
@@ -147,7 +147,7 @@ const Profile = () => {
                                                 name="city"
                                                 value={formData.city}
                                                 onChange={handleChange}
-                                                className="w-full border border-gray-300 rounded-lg p-2.5 pl-10 focus:ring-2 focus:ring-indigo-500"
+                                                className="w-full border border-gray-300 rounded-lg p-2.5 pl-10 focus:ring-2 focus:ring-red-500"
                                                 placeholder="City"
                                             />
                                         </div>
@@ -170,7 +170,7 @@ const Profile = () => {
                                         name="currentPassword"
                                         value={formData.currentPassword}
                                         onChange={handleChange}
-                                        className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500"
+                                        className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-red-500"
                                         placeholder="••••••••"
                                     />
                                 </div>
@@ -182,7 +182,7 @@ const Profile = () => {
                                             name="newPassword"
                                             value={formData.newPassword}
                                             onChange={handleChange}
-                                            className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500"
+                                            className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-red-500"
                                             placeholder="New Pass"
                                         />
                                     </div>
@@ -193,7 +193,7 @@ const Profile = () => {
                                             name="confirmPassword"
                                             value={formData.confirmPassword}
                                             onChange={handleChange}
-                                            className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500"
+                                            className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-red-500"
                                             placeholder="Confirm"
                                         />
                                     </div>
@@ -205,7 +205,7 @@ const Profile = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"
+                            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"
                         >
                             {loading ? 'Saving...' : <><Save size={18} /> Update Profile</>}
                         </button>

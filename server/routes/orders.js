@@ -1,27 +1,54 @@
 const express = require('express');
 const router = express.Router();
-const { Order, OrderItem, Design, Color, User, DoorType, sequelize, ProductionUnit, Notification } = require('../models');
+const { Order, OrderItem, Design, Color, User, DoorType, sequelize, ProductionUnit, Notification, SystemSetting } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
 const { Op } = require('sequelize');
 const { getDesignType } = require('../utils/designLogic');
+const wa = require('../utils/whatsapp');
+
+// Default production lead time (days) — used to auto-set each order's expected date.
+const DEFAULT_LEAD_DAYS = 7;
+async function getLeadDays() {
+    try {
+        await SystemSetting.sync();
+        const s = await SystemSetting.findByPk('LEAD_DAYS');
+        const n = s ? parseInt(s.value) : NaN;
+        return Number.isFinite(n) && n > 0 ? n : DEFAULT_LEAD_DAYS;
+    } catch { return DEFAULT_LEAD_DAYS; }
+}
 
 // Create Order (Dealer)
 router.post('/', authenticate, authorize(['DEALER']), async (req, res) => {
+    const t = await sequelize.transaction();
     try {
-        const { items, remarks } = req.body; // items: [{ designId, colorId, width, height, quantity, remarks }]
+        const { items, remarks, siteName } = req.body;
 
-        if (!items || items.length === 0) return res.status(400).json({ error: 'No items' });
+        if (!items || items.length === 0) {
+            await t.rollback();
+            return res.status(400).json({ error: 'No items' });
+        }
 
-        // Verify Dealer Link
-        if (!req.user.distributorId) return res.status(400).json({ error: 'Dealer not linked to Distributor' });
+        if (!req.user.distributorId) {
+            await t.rollback();
+            return res.status(400).json({ error: 'Dealer not linked to Distributor' });
+        }
+
+        // Auto expected ready date = today + lead days
+        const leadDays = await getLeadDays();
+        const expected = new Date();
+        expected.setDate(expected.getDate() + leadDays);
 
         const order = await Order.create({
             userId: req.user.id,
             distributorId: req.user.distributorId,
-            status: 'RECEIVED'
-        });
+            status: 'RECEIVED',
+            expectedDate: expected,
+            siteName: siteName ? String(siteName).trim() : null
+        }, { transaction: t });
 
-        // Create Items with Snapshots
+        const { SheetMaster } = require('../models');
+        const { getOptimalBlankSize } = require('../utils/designLogic');
+
         for (const item of items) {
             const design = await Design.findByPk(item.designId);
             const color = await Color.findByPk(item.colorId);
@@ -36,15 +63,43 @@ router.post('/', authenticate, authorize(['DEALER']), async (req, res) => {
                 remarks: item.remarks,
                 hasLock: item.hasLock || false,
                 hasVent: item.hasVent || false,
-                // Snapshots
                 designNameSnapshot: design ? design.designNumber : 'Unknown',
                 colorNameSnapshot: color ? color.name : 'Unknown',
                 designImageSnapshot: design ? design.imageUrl : null,
                 colorImageSnapshot: color ? color.imageUrl : null
-            });
+            }, { transaction: t });
+
+            // Low-stock warning check (no deduction at order time — deduction happens at PRODUCTION)
+            try {
+                const designRef = design?.designNumber || 'Unknown';
+                const designType = design?.category || getDesignType(designRef);
+                const materialType = String(designRef).toUpperCase().startsWith('WPC') ? 'WPC' : 'PVC';
+                const availableSheets = await SheetMaster.findAll({ where: { isEnabled: true, materialType } });
+                const blankSize = getOptimalBlankSize(item.width, item.height, designType, availableSheets);
+
+                if (blankSize && blankSize !== 'No match' && blankSize !== 'Missing Dimensions') {
+                    const [w, , h] = blankSize.split(' ');
+                    const sheet = await SheetMaster.findOne({
+                        where: { width: parseFloat(w), height: parseFloat(h), materialType, isEnabled: true }
+                    });
+                    if (sheet && sheet.currentStock < item.quantity * 2) {
+                        await Notification.create({
+                            targetRole: 'MANUFACTURER',
+                            title: 'Low Stock Alert',
+                            message: `Order #${order.id} requires ${item.quantity * 2} sheets of ${blankSize}, only ${sheet.currentStock} in stock`,
+                            type: 'WARNING',
+                            orderId: order.id
+                        });
+                    }
+                }
+            } catch (stockErr) {
+                console.error('Stock check error (non-critical):', stockErr.message);
+            }
         }
 
-        // NOTIFY MANUFACTURER
+        await t.commit();
+
+        // Notify manufacturer (outside transaction — non-critical)
         try {
             const dealerName = req.user.shopName || req.user.name;
             await Notification.create({
@@ -54,10 +109,16 @@ router.post('/', authenticate, authorize(['DEALER']), async (req, res) => {
                 type: 'INFO',
                 orderId: order.id
             });
+            // WhatsApp alert to manufacturer
+            wa.notifyManufacturerNewOrder(order.id, dealerName, items.length).catch(() => {});
+            // WhatsApp confirmation to dealer
+            const dealer = await User.findByPk(req.user.id, { attributes: ['name', 'shopName', 'phone'] });
+            wa.notifyDealerOrderReceived(dealer, order.id).catch(() => {});
         } catch (nErr) { console.error('Notification failed', nErr); }
 
         res.status(201).json(order);
     } catch (error) {
+        await t.rollback();
         console.error(error);
         res.status(500).json({ error: error.message });
     }
@@ -226,23 +287,94 @@ router.put('/:id/status', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR'
 
         await order.update({ status: newStatus });
 
+        // WhatsApp notifications on key status changes
+        try {
+            if (newStatus === 'READY' || newStatus === 'DISPATCHED') {
+                const dealer = await User.findByPk(order.userId, { attributes: ['name', 'shopName', 'phone'] });
+                const distributor = order.distributorId
+                    ? await User.findByPk(order.distributorId, { attributes: ['name', 'shopName', 'phone'] })
+                    : null;
+
+                if (newStatus === 'READY') {
+                    wa.notifyDealerOrderReady(dealer, order.id).catch(() => {});
+                    if (distributor) wa.notifyDistributorOrderReady(distributor, order.id).catch(() => {});
+                } else if (newStatus === 'DISPATCHED') {
+                    wa.notifyDealerOrderDispatched(dealer, order.id).catch(() => {});
+                }
+            }
+        } catch (waErr) { console.error('WhatsApp status notify error:', waErr.message); }
+
         // FACTORY SYSTEM: Generate Production Units if moving to PRODUCTION
         if (newStatus === 'PRODUCTION') {
-            const items = await OrderItem.findAll({ where: { orderId: order.id } });
+            const items = await OrderItem.findAll({
+                where: { orderId: order.id },
+                include: [
+                    { model: Design, attributes: ['designNumber', 'category'] }
+                ]
+            });
+
+            // STOCK DEDUCTION LOGIC
+            const { SheetMaster, StockHistory } = require('../models');
+            const { getOptimalBlankSize, getDesignType } = require('../utils/designLogic');
 
             for (const item of items) {
-                // Check if units already exist (prevent duplicates)
+                // 1. Create Units — only on first move to PRODUCTION
                 const existing = await ProductionUnit.count({ where: { orderItemId: item.id } });
-                if (existing > 0) continue;
+                const isFirstTime = existing === 0;
 
-                // Create Unit for each quantity
-                for (let i = 1; i <= item.quantity; i++) {
-                    await ProductionUnit.create({
-                        orderItemId: item.id,
-                        unitNumber: i,
-                        uniqueCode: `OD${order.id}-IT${item.id}-QN${i}`,
-                        currentStage: 'PVC_CUT'
-                    });
+                if (isFirstTime) {
+                    const designRef = item.Design?.designNumber || item.designNameSnapshot || '';
+                    const isWPC = String(designRef).toUpperCase().startsWith('WPC');
+                    for (let i = 1; i <= item.quantity; i++) {
+                        await ProductionUnit.create({
+                            orderItemId: item.id,
+                            unitNumber: i,
+                            uniqueCode: `OD${order.id}-IT${item.id}-QN${i}`,
+                            currentStage: 'PVC_CUT',
+                            // WPC doors skip PVC cutting — pre-mark so DOOR_MAKING isn't blocked
+                            isPvcDone: isWPC ? true : false
+                        });
+                    }
+                }
+
+                // 2. Deduct Stock — only on first move to PRODUCTION to prevent double deduction
+                if (!isFirstTime) {
+                    console.log(`⏭️ Skipping stock deduction for item ${item.id} — ProductionUnits already exist`);
+                    continue;
+                }
+                try {
+                    const designRef = item.Design?.designNumber || item.designNameSnapshot || 'Unknown';
+                    const designType = item.Design?.category || getDesignType(designRef);
+                    const materialType = String(designRef).toUpperCase().startsWith('WPC') ? 'WPC' : 'PVC';
+
+                    // Get available sheets
+                    const availableSheets = await SheetMaster.findAll({ where: { isEnabled: true, materialType } });
+                    const blankSize = getOptimalBlankSize(item.width, item.height, designType, availableSheets);
+
+                    if (blankSize && blankSize !== 'No match' && blankSize !== 'Missing Dimensions') {
+                        const [width, , height] = blankSize.split(' ');
+                        const sheet = await SheetMaster.findOne({
+                            where: { width: parseFloat(width), height: parseFloat(height), materialType, isEnabled: true }
+                        });
+
+                        if (sheet) {
+                            const sheetsNeeded = item.quantity * 2;
+                            // Use atomic decrement to prevent race condition when multiple
+                            // orders are moved to PRODUCTION simultaneously
+                            await sheet.decrement('currentStock', { by: sheetsNeeded });
+
+                            await StockHistory.create({
+                                sheetId: sheet.id,
+                                change: -sheetsNeeded,
+                                type: 'CONSUMPTION',
+                                relatedOrderId: order.id,
+                                description: `Production Started: Order #${order.id}`
+                            });
+                            console.log(`📉 Stock Deducted: ${sheetsNeeded} x ${blankSize} for Order #${order.id}`);
+                        }
+                    }
+                } catch (err) {
+                    console.error('Stock deduction error in status update:', err.message);
                 }
             }
         }
@@ -250,6 +382,62 @@ router.put('/:id/status', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR'
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
+});
+
+// --- LEAD TIME SETTING (admin) ---
+router.get('/settings/lead-time', authenticate, authorize(['MANUFACTURER', 'MANAGER']), async (req, res) => {
+    try {
+        const days = await getLeadDays();
+        res.json({ leadDays: days });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/settings/lead-time', authenticate, authorize(['MANUFACTURER']), async (req, res) => {
+    try {
+        const days = parseInt(req.body.leadDays);
+        if (!Number.isFinite(days) || days < 0 || days > 365) {
+            return res.status(400).json({ error: 'Lead days must be a number between 0 and 365' });
+        }
+        await SystemSetting.sync();
+        await SystemSetting.upsert({ key: 'LEAD_DAYS', value: String(days) });
+        res.json({ leadDays: days });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- DISPATCH an order with delivery-challan details (logistics, no money) ---
+router.put('/:id/dispatch', authenticate, authorize(['MANUFACTURER', 'MANAGER']), async (req, res) => {
+    try {
+        const order = await Order.findByPk(req.params.id);
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+
+        const { vehicleNo, transportName, lrNumber } = req.body;
+        await order.update({
+            status: 'DISPATCHED',
+            vehicleNo: vehicleNo || null,
+            transportName: transportName || null,
+            lrNumber: lrNumber || null,
+            dispatchedAt: new Date()
+        });
+
+        // WhatsApp dispatch notification (best-effort)
+        try {
+            const dealer = await User.findByPk(order.userId, { attributes: ['name', 'shopName', 'phone'] });
+            wa.notifyDealerOrderDispatched(dealer, order.id).catch(() => {});
+        } catch (e) { console.error('dispatch notify error:', e.message); }
+
+        res.json(order);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- UPDATE EXPECTED DATE for one order (admin manual override) ---
+router.put('/:id/expected-date', authenticate, authorize(['MANUFACTURER', 'MANAGER']), async (req, res) => {
+    try {
+        const order = await Order.findByPk(req.params.id);
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+        const { expectedDate } = req.body; // YYYY-MM-DD or null
+        await order.update({ expectedDate: expectedDate ? new Date(expectedDate) : null });
+        res.json(order);
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ANALYTICS ENDPOINT (Manufacturer Only)
@@ -376,7 +564,8 @@ router.get('/analytics/materials', authenticate, authorize(['MANUFACTURER', 'MAN
                 if (!breakdown[materialType][blankSize]) {
                     breakdown[materialType][blankSize] = 0;
                 }
-                breakdown[materialType][blankSize] += item.quantity;
+                // Each item (Door) uses 2 sheets (Front + Back)
+                breakdown[materialType][blankSize] += (item.quantity * 2);
             }
         }
 
@@ -410,11 +599,63 @@ router.put('/bulk-status', authenticate, authorize(['MANUFACTURER']), async (req
             return res.status(400).json({ error: 'Invalid order IDs' });
         }
 
-        await Order.update({ status }, {
-            where: {
-                id: { [Op.in]: orderIds }
+        await Order.update({ status }, { where: { id: { [Op.in]: orderIds } } });
+
+        // When moving to PRODUCTION, create ProductionUnits so workers see the tasks
+        if (status === 'PRODUCTION') {
+            const { SheetMaster, StockHistory } = require('../models');
+            const { getOptimalBlankSize } = require('../utils/designLogic');
+
+            const orders = await Order.findAll({
+                where: { id: { [Op.in]: orderIds } },
+                include: [{ model: OrderItem, include: [{ model: Design, attributes: ['designNumber', 'category'] }] }]
+            });
+
+            for (const order of orders) {
+                for (const item of order.OrderItems) {
+                    const existing = await ProductionUnit.count({ where: { orderItemId: item.id } });
+                    if (existing === 0) {
+                        for (let i = 1; i <= item.quantity; i++) {
+                            await ProductionUnit.create({
+                                orderItemId: item.id,
+                                unitNumber: i,
+                                uniqueCode: `OD${order.id}-IT${item.id}-QN${i}`,
+                                currentStage: 'PVC_CUT'
+                            });
+                        }
+                    }
+
+                    // Deduct stock
+                    try {
+                        const designRef = item.Design?.designNumber || item.designNameSnapshot || 'Unknown';
+                        const designType = item.Design?.category || getDesignType(designRef);
+                        const materialType = String(designRef).toUpperCase().startsWith('WPC') ? 'WPC' : 'PVC';
+                        const availableSheets = await SheetMaster.findAll({ where: { isEnabled: true, materialType } });
+                        const blankSize = getOptimalBlankSize(item.width, item.height, designType, availableSheets);
+
+                        if (blankSize && blankSize !== 'No match' && blankSize !== 'Missing Dimensions') {
+                            const [w, , h] = blankSize.split(' ');
+                            const sheet = await SheetMaster.findOne({
+                                where: { width: parseFloat(w), height: parseFloat(h), materialType, isEnabled: true }
+                            });
+                            if (sheet) {
+                                const sheetsNeeded = item.quantity * 2;
+                                await sheet.decrement('currentStock', { by: sheetsNeeded });
+                                await StockHistory.create({
+                                    sheetId: sheet.id,
+                                    change: -sheetsNeeded,
+                                    type: 'CONSUMPTION',
+                                    relatedOrderId: order.id,
+                                    description: `Production Started (Bulk): Order #${order.id}`
+                                });
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Bulk stock deduction error:', err.message);
+                    }
+                }
             }
-        });
+        }
 
         res.json({ message: 'Orders updated successfully' });
     } catch (error) {

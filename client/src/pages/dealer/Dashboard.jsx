@@ -31,10 +31,15 @@ export default function DealerDashboard() {
     const [searchQuery, setSearchQuery] = useState(''); // New Search State
     const [sizeRows, setSizeRows] = useState([{ id: 1, width: '', height: '', quantity: 1, remarks: '', hasLock: false, hasVent: false }]);
     const [cart, setCart] = useState([]);
+    const [siteName, setSiteName] = useState(''); // dealer's site / party reference for this order
 
     // My Orders & Posts
     const [myOrders, setMyOrders] = useState([]);
     const [posts, setPosts] = useState([]);
+
+    // Order confirmation state
+    const [lastPlacedOrder, setLastPlacedOrder] = useState(null); // { id, itemCount }
+    const [showOrderConfirm, setShowOrderConfirm] = useState(false);
 
     // === DATA FETCHERS ===
     useEffect(() => {
@@ -163,21 +168,23 @@ export default function DealerDashboard() {
         }));
 
         setCart([...cart, ...newItems]);
-        setCart([...cart, ...newItems]);
         setSizeRows([{ id: 1, width: '', height: '', quantity: 1, remarks: '', hasLock: false, hasVent: false }]);
-        toast.success(`${validRows.length} item(s) added to cart!`);
         toast.success(`${validRows.length} item(s) added to cart!`);
     };
 
     const placeOrder = async () => {
         if (cart.length === 0) return;
         try {
-            await api.post('/orders', { items: cart });
-            toast.success('Order Placed Successfully!');
+            const res = await api.post('/orders', { items: cart, siteName: siteName });
+            const itemCount = cart.length;
             setCart([]);
-            setActiveTab('my-orders');
+            setOrderSelection({ doorTypeId: '', designId: '', colorId: '' });
+            setSizeRows([{ id: 1, width: '', height: '', quantity: 1, remarks: '', hasLock: false, hasVent: false }]);
+            setLastPlacedOrder({ id: res.data.id, itemCount, siteName });
+            setSiteName('');
+            setShowOrderConfirm(true);
         } catch (error) {
-            toast.error('Failed to place order');
+            toast.error(error.response?.data?.error || 'Failed to place order');
         }
     };
 
@@ -252,11 +259,18 @@ export default function DealerDashboard() {
         orderSelection, setOrderSelection,
         sizeRows, addRow, removeRow, updateRow, addAllToCart, addBulkRows,
         cart, setCart, placeOrder,
+        siteName, setSiteName,
         myOrders, cancelOrder, handleReorder,
-        groupBy, setGroupBy, groupedOrders, // New Props
-        searchQuery, setSearchQuery, // Search Prop
+        groupBy, setGroupBy, groupedOrders,
+        searchQuery, setSearchQuery,
         posts,
-        getImageUrl
+        getImageUrl,
+        showOrderConfirm, lastPlacedOrder,
+        dismissOrderConfirm: () => {
+            setShowOrderConfirm(false);
+            setLastPlacedOrder(null);
+            setActiveTab('my-orders');
+        }
     };
 
     // === RENDER APPROPRIATE LAYOUT ===

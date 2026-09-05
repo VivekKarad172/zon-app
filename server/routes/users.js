@@ -94,7 +94,7 @@ router.post('/', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), async
         console.log('Body:', req.body);
         console.log('User making request:', req.user);
 
-        let { username, password, role, name, city, shopName, distributorId, email, isEnabled } = req.body;
+        let { username, password, role, name, city, shopName, distributorId, email, isEnabled, phone } = req.body;
 
         // Common Validation
         if (!name || name.trim() === '') {
@@ -152,6 +152,14 @@ router.post('/', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), async
             if (existingEmail) {
                 return res.status(400).json({ error: `Email '${email}' is already registered.` });
             }
+
+            // Phone uniqueness check (only if provided)
+            if (phone && phone.trim() !== '') {
+                const existingPhone = await User.findOne({ where: { phone: phone.trim() } });
+                if (existingPhone) {
+                    return res.status(400).json({ error: `Phone '${phone}' is already registered to another account.` });
+                }
+            }
         } else {
             return res.status(400).json({ error: 'Invalid Role Specified' });
         }
@@ -165,19 +173,18 @@ router.post('/', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), async
             hashedPassword = await bcrypt.hash(password, 10);
         }
 
-        // STRICT: Set explicit nulls based on role to prevent data contamination
         const user = await User.create({
             role: targetRole,
             name: name,
             city: city || null,
             shopName: shopName || null,
+            phone: phone ? phone.trim() : null,
             isEnabled: isEnabled !== undefined ? isEnabled : true,
-            // Role-specific fields with explicit null handling:
             username: targetRole === 'DISTRIBUTOR' ? username : null,
-            password: targetRole === 'DISTRIBUTOR' ? hashedPassword : null,
+            // Dealers can have an optional password; Distributors always require one
+            password: hashedPassword || null,
             email: targetRole === 'DEALER' ? email : null,
             distributorId: targetRole === 'DEALER' ? distributorId : null
-            // NOTE: createdBy removed - field does not exist in User model
         });
 
         res.status(201).json({ message: 'User created successfully', id: user.id });
@@ -197,7 +204,7 @@ router.post('/', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), async
 // UPDATE User
 router.put('/:id', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), async (req, res) => {
     try {
-        const { name, city, shopName, distributorId, isEnabled, password, email, username } = req.body;
+        const { name, city, shopName, distributorId, isEnabled, password, email, username, phone } = req.body;
         const user = await User.findByPk(req.params.id);
 
         if (!user) return res.status(404).json({ error: 'User not found' });
@@ -218,6 +225,7 @@ router.put('/:id', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), asy
         if (name) updateData.name = name;
         if (city) updateData.city = city;
         if (shopName) updateData.shopName = shopName;
+        if (phone !== undefined) updateData.phone = phone ? phone.trim() : null;
         // Distributor cannot change their own distributorId (it's null anyway)
         if (distributorId && user.role === 'DEALER' && req.user.role === 'MANUFACTURER') updateData.distributorId = distributorId;
 
@@ -258,6 +266,10 @@ router.put('/:id', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), asy
 });
 
 // DELETE User
+// Safe-delete: a user with orders (or a distributor with dealers) is NEVER
+// hard-deleted, because that would orphan their orders / dealers. Instead we
+// soft-disable them (isEnabled=false) so all history stays intact. Only users
+// with no linked records are physically removed.
 router.delete('/:id', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), async (req, res) => {
     try {
         const user = await User.findByPk(req.params.id);
@@ -276,6 +288,49 @@ router.delete('/:id', authenticate, authorize(['MANUFACTURER', 'DISTRIBUTOR']), 
             return res.status(400).json({ error: 'Cannot delete yourself' });
         }
 
+        // --- ORPHAN PROTECTION ---
+        // Count orders linked to this user (as dealer OR as distributor)
+        const orderCount = await Order.count({
+            where: {
+                [Op.or]: [
+                    { userId: user.id },
+                    { distributorId: user.id }
+                ]
+            }
+        });
+
+        // A distributor with dealers under it must not be removed either
+        let dealerCount = 0;
+        if (user.role === 'DISTRIBUTOR') {
+            dealerCount = await User.count({ where: { distributorId: user.id } });
+        }
+
+        if (orderCount > 0 || dealerCount > 0) {
+            // SOFT-DISABLE instead of hard delete to preserve data integrity
+            if (user.isEnabled === false) {
+                return res.status(400).json({
+                    error: `This ${user.role.toLowerCase()} already disabled. ` +
+                        `Cannot permanently delete: ${orderCount} order(s)` +
+                        (dealerCount ? ` and ${dealerCount} dealer(s)` : '') +
+                        ` are still linked. Deleting would orphan production records.`,
+                    softDisabled: true,
+                    orderCount,
+                    dealerCount
+                });
+            }
+            await user.update({ isEnabled: false });
+            return res.json({
+                message: `User has ${orderCount} order(s)` +
+                    (dealerCount ? ` and ${dealerCount} dealer(s)` : '') +
+                    `, so they were DISABLED instead of deleted (to keep order history safe). ` +
+                    `They can no longer log in or place orders.`,
+                softDisabled: true,
+                orderCount,
+                dealerCount
+            });
+        }
+
+        // No linked records — safe to physically remove
         await user.destroy();
         res.json({ message: 'User deleted successfully' });
     } catch (error) {

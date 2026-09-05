@@ -43,7 +43,7 @@ export default function ManagerAnalytics() {
             </div>
             <h3 className="text-lg font-black text-slate-800 mb-2">Analytics Unavailable</h3>
             <p className="text-slate-500 font-bold mb-6 max-w-md mx-auto">{error}</p>
-            <button onClick={fetchData} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors">
+            <button onClick={fetchData} className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors">
                 Retry Connection
             </button>
         </div>
@@ -57,7 +57,7 @@ export default function ManagerAnalytics() {
     return (
         <div className="space-y-6">
             <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                <TrendingUp className="text-indigo-600" /> Factory Pulse
+                <TrendingUp className="text-red-600" /> Factory Pulse
             </h2>
 
             {/* KPI CARDS */}
@@ -97,7 +97,7 @@ export default function ManagerAnalytics() {
                             />
                             <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                                 {chartData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={['#6366f1', '#10b981', '#f59e0b', '#ef4444'][index % 4]} />
+                                    <Cell key={`cell-${index}`} fill={['#E0312A', '#10b981', '#f59e0b', '#6b7280'][index % 4]} />
                                 ))}
                             </Bar>
                         </BarChart>
@@ -111,7 +111,7 @@ export default function ManagerAnalytics() {
                         {workers.map(worker => (
                             <div key={worker.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center font-black text-indigo-600 text-xs">
+                                    <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center font-black text-red-600 text-xs">
                                         {worker.name.charAt(0)}
                                     </div>
                                     <div>
