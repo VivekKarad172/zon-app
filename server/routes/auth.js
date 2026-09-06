@@ -28,22 +28,27 @@ router.post('/google', async (req, res) => {
         // Check if user exists
         let user = await User.findOne({ where: { email } });
 
+        // 1. Check RoleWhitelist table for pre-assigned role on EVERY login
+        let assignedRole = 'DEALER'; // Default fallback
+        const whitelistEntry = await RoleWhitelist.findOne({ where: { email: email.toLowerCase() } });
+        if (whitelistEntry) {
+            assignedRole = whitelistEntry.role;
+        }
+
         if (!user) {
-            // Check RoleWhitelist table for pre-assigned role
-            let role = 'DEALER'; // Default fallback for unknown emails
-
-            const whitelistEntry = await RoleWhitelist.findOne({ where: { email: email.toLowerCase() } });
-            if (whitelistEntry) {
-                role = whitelistEntry.role;
-            }
-
             // Auto-register the new user
             user = await User.create({
                 email,
                 name: name || 'Google User',
-                role,
+                role: assignedRole,
                 isEnabled: true
             });
+        } else {
+            // If user exists, but whitelist has a different role, update their role
+            if (user.role !== assignedRole) {
+                user.role = assignedRole;
+                await user.save();
+            }
         }
 
         if (!user.isEnabled) return res.status(403).json({ error: 'Account is disabled.' });
